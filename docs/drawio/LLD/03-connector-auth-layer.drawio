@@ -1,0 +1,25 @@
+<mxfile host="app.diagrams.net" modified="2026-08-06T00:00:00.000Z" agent="claude" version="24.0.0" type="device">
+  <diagram name="LLD — Connector &amp; Auth Layer" id="03-connector-auth-layer">
+    <mxGraphModel dx="1100" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="874" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="LLD — Connector &amp; Auth Layer" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#8A5FB3;strokeColor=#5B3D80;fontColor=#FFFFFF;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="100" y="20" width="700" height="50" as="geometry" /></mxCell>
+        <mxCell id="tech" value="Tech stack: Node.js, fetch, AES-256-GCM credential encryption (connector-sdk)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#1E2761;strokeColor=#1E2761;fontColor=#CADCFC;fontStyle=2;fontSize=12;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="100" y="90" width="700" height="46" as="geometry" /></mxCell>
+        <mxCell id="s0" value="1. authenticate() called by Sync Job" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="166" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="s1" value="2. Load encrypted credentials from Postgres" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="260" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="s2" value="Token still valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FDF3E3;strokeColor=#B8860B;fontColor=#5C4200;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="320" y="354" width="260" height="90" as="geometry" /></mxCell>
+        <mxCell id="s3" value="4. Request new token from provider token endpoint" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="478" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="s4" value="5. Persist refreshed token (encrypted) back to Postgres" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="572" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="s5" value="6. fetch() / write() called with valid token" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="666" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="s6" value="7. Typed error classification on failure (auth / rate_limit / unknown)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF1FB;strokeColor=#2E5395;fontColor=#1F3864;fontStyle=1;fontSize=12.5;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="140" y="760" width="620" height="60" as="geometry" /></mxCell>
+        <mxCell id="e0" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s0" target="s1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" value="No — refresh" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s4" target="s5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;fontColor=#5C6B8A;strokeColor=#5C6B8A;" edge="1" parent="1" source="s5" target="s6"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

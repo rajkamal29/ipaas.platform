@@ -1,0 +1,7 @@
+{
+  "name": "@ipaas/adapter-keka",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keka HR/PSA adapter — authenticate / fetch / fetchByIds / write",
+  "main": "index.js"
+}
