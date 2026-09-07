@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>DEVELOPER_SETUP.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="developer-setup">Developer Setup</h1>
+<p>Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.</p>
+<p>Read this top to bottom once; after that, <code>docs/migrations/OPERATIONS.md</code> and <code>docs/DEMO-orchestration-engine.md</code> are the two you'll come back to.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><strong>Docker Desktop</strong> — runs Postgres locally via <code>docker-compose.yml</code>. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a <code>Dockerfile</code>, but you run it as a plain Node process locally — see §7).</li>
+<li><strong>Node.js 22.x</strong> and npm (bundled with Node). The project doesn't pin an <code>engines</code> field yet, but the <code>Dockerfile</code> and everyone's local setup so far use Node 22 — install that, not an older LTS.</li>
+<li><strong>Git</strong>.</li>
+<li>A local <code>psql</code> client is optional — <code>docker exec</code> into the Postgres container works fine without one (§4 below).</li>
+</ul>
+<h2 id="1-clone-and-install">1. Clone and install</h2>
+<pre class="hljs"><code><div>git clone &lt;repo<span class="hljs-literal">-url</span>&gt;
+<span class="hljs-built_in">cd</span> ipaas.platform
+npm install
+</div></code></pre>
+<p><code>npm install</code> installs the root <code>package.json</code> dependencies plus both npm workspaces under <code>packages/adapters/*</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>) in one pass — you don't need to <code>cd</code> into them separately.</p>
+<h2 id="2-configure-environment">2. Configure environment</h2>
+<pre class="hljs"><code><div><span class="hljs-built_in">cp</span> .env.example .env
+</div></code></pre>
+<p>Then edit <code>.env</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>What it's for</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POSTGRES_USER</code> / <code>POSTGRES_PASSWORD</code> / <code>POSTGRES_DB</code></td>
+<td>Postgres container init</td>
+<td>Change the password from the placeholder; keep <code>DATABASE_URL</code> below in sync with it</td>
+</tr>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td>Every DB connection (<code>lib/db.js</code>, migrations)</td>
+<td>Must match the three vars above</td>
+</tr>
+<tr>
+<td><code>ENCRYPTION_MASTER_KEY</code></td>
+<td>Encrypts the <code>credentials</code> table (<code>lib/crypto.js</code>)</td>
+<td><strong>Required</strong>, no default. Generate one: <code>openssl rand -base64 32</code>. Changing this later makes every existing encrypted credential row undecryptable</td>
+</tr>
+<tr>
+<td><code>LOG_LEVEL</code></td>
+<td><code>lib/logger.js</code> (pino)</td>
+<td><code>info</code> is fine day-to-day; <code>debug</code> shows per-page/per-record detail during troubleshooting</td>
+</tr>
+<tr>
+<td><code>NODE_ENV</code></td>
+<td><code>lib/logger.js</code></td>
+<td>Leave unset locally — that's what gives you readable colorized logs (<code>pino-pretty</code>). Only set to <code>production</code> inside the container</td>
+</tr>
+<tr>
+<td><code>SYNC_REQUEST_ID</code></td>
+<td><code>lib/orchestration/run.js</code></td>
+<td>Not a fixed setting — this is which sync run you're starting. Leave blank in <code>.env</code>; set it per-run (§6)</td>
+</tr>
+</tbody>
+</table>
+<p><code>.env</code> is gitignored — it never gets committed, and nothing in it should ever be pasted into a PR, a Slack message, or a CI log.</p>
+<h2 id="3-start-postgres-and-run-migrations">3. Start Postgres and run migrations</h2>
+<pre class="hljs"><code><div>docker compose up <span class="hljs-literal">-d</span>
+docker compose <span class="hljs-built_in">ps</span>          <span class="hljs-comment"># confirm it&#x27;s healthy</span>
+npm run migrate:up
+</div></code></pre>
+<p>This creates all 8 tables — <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>. Full command reference, troubleshooting, and reset instructions: <code>docs/migrations/OPERATIONS.md</code>. Schema details, why each table looks the way it does: <code>docs/migrations/README.md</code>.</p>
+<h2 id="4-seed-the-platform-level-mapping-defaults">4. Seed the platform-level mapping defaults</h2>
+<pre class="hljs"><code><div>node scripts/seed<span class="hljs-literal">-global-mapping</span>.js
+</div></code></pre>
+<p>This inserts the canonical <code>client</code> schema plus the default ConnectWise-inbound and Keka-outbound field mappings into <code>global_mapping_profiles</code>. Any tenant that doesn't define its own <code>mapping_profiles</code> override automatically inherits these — see <code>docs/LLD-orchestration-engine.md</code> §5. Safe to re-run any time (it upserts).</p>
+<h2 id="5-stand-up-a-tenant-and-a-mock-sync-run">5. Stand up a tenant and a mock sync run</h2>
+<p>Nothing syncs without a tenant, a <code>sync_requests</code> row (a source→target pairing), and at least one <code>sync_entities</code> row. There's no UI yet, so this is a few <code>INSERT</code>s — see <code>docs/DEMO-orchestration-engine.md</code> for the exact, copy-pasteable SQL block and the tenant/<code>sync_request</code> IDs already in common use for demos. In short:</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">INSERT INTO</span> tenants (name) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;YourTestTenant&#x27;</span>) RETURNING id <span class="hljs-keyword">AS</span> tenant_id \gset
+<span class="hljs-keyword">INSERT INTO</span> sync_requests (tenant_id, source, target) <span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;tenant_id&#x27;</span>, <span class="hljs-string">&#x27;connectwise&#x27;</span>, <span class="hljs-string">&#x27;keka&#x27;</span>) RETURNING id <span class="hljs-keyword">AS</span> sync_request_id \gset
+<span class="hljs-keyword">INSERT INTO</span> sync_entities (sync_request_id, entity, sync_type, status) <span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;sync_request_id&#x27;</span>, <span class="hljs-string">&#x27;client&#x27;</span>, <span class="hljs-string">&#x27;one_time&#x27;</span>, <span class="hljs-string">&#x27;submitted&#x27;</span>);
+</div></code></pre>
+<p>Then seed fake credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
+<pre class="hljs"><code><div>node scripts/seed<span class="hljs-literal">-mock-credentials</span>.js &lt;tenant_id&gt;
+</div></code></pre>
+<p>If you want this tenant to use its <strong>own</strong> mapping instead of the global default, also run <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code> — otherwise skip it and it'll inherit what you seeded in §4.</p>
+<h2 id="6-run-the-engine">6. Run the engine</h2>
+<p>Start the mock server in its own terminal (leave it running):</p>
+<pre class="hljs"><code><div>node scripts/mock<span class="hljs-literal">-server</span>.js
+</div></code></pre>
+<p>Then run the actual entrypoint — this is the real code, not a test harness:</p>
+<pre class="hljs"><code><div><span class="hljs-variable">$env:SYNC_REQUEST_ID</span>=<span class="hljs-string">&quot;&lt;sync_request_id&gt;&quot;</span>; node lib/orchestration/run.js
+</div></code></pre>
+<p>You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update. <code>docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
+<h2 id="7-building-and-running-the-container-image">7. Building and running the container image</h2>
+<pre class="hljs"><code><div>docker build <span class="hljs-literal">-t</span> ipaas<span class="hljs-literal">-orchestration-engine</span>:local .
+docker run <span class="hljs-literal">--rm</span> `
+  <span class="hljs-literal">-e</span> SYNC_REQUEST_ID=&lt;sync_request_id&gt; `
+  <span class="hljs-literal">-e</span> DATABASE_URL=&lt;same value as your .env, but with host.docker.internal instead of localhost&gt; `
+  <span class="hljs-literal">-e</span> ENCRYPTION_MASTER_KEY=&lt;same as your .env&gt; `
+  ipaas<span class="hljs-literal">-orchestration-engine</span>:local
+</div></code></pre>
+<p>Note the <code>DATABASE_URL</code> swap — <code>localhost</code> inside the container refers to the container itself, not your host's Postgres. Use <code>host.docker.internal</code> (Docker Desktop on Windows/Mac resolves this automatically) instead. Full image design, what's baked in vs. passed at runtime, and the CI pipeline that publishes this automatically on push to <code>dev</code>: <code>docs/LLD-orchestration-engine.md</code> §9.</p>
+<h2 id="where-things-live-and-what-to-read-next">Where things live, and what to read next</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Doc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full schema — every table, every column, why</td>
+<td><code>docs/migrations/README.md</code></td>
+</tr>
+<tr>
+<td>Postgres day-to-day commands, resets, troubleshooting</td>
+<td><code>docs/migrations/OPERATIONS.md</code></td>
+</tr>
+<tr>
+<td>Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization</td>
+<td><code>docs/LLD-orchestration-engine.md</code></td>
+</tr>
+<tr>
+<td>What's live-verified vs. still-guessed in the ConnectWise/Keka adapters</td>
+<td><code>docs/LLD-connector-auth-layer.md</code></td>
+</tr>
+<tr>
+<td>Full repeatable demo walkthrough with expected output</td>
+<td><code>docs/DEMO-orchestration-engine.md</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="common-early-mistakes">Common early mistakes</h2>
+<ul>
+<li><strong>Running <code>npm run migrate:up</code> before Postgres is healthy</strong> — <code>docker compose ps</code> first; the healthcheck takes a few seconds after <code>up -d</code>.</li>
+<li><strong>Editing <code>.env</code>'s Postgres password after the container's already initialized</strong> — Postgres only reads <code>POSTGRES_PASSWORD</code> on first init of an empty volume. If you change it later, <code>docker compose down -v &amp;&amp; docker compose up -d</code> to reinitialize (this wipes local data — fine in dev, never do this against anything real).</li>
+<li><strong>Forgetting <code>ENCRYPTION_MASTER_KEY</code></strong> — <code>lib/crypto.js</code> throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying <code>.env.example</code> quickly.</li>
+<li><strong>Expecting <code>SYNC_REQUEST_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's &quot;which run am I starting right now.&quot; Set it inline per command.</li>
+</ul>
+
+</body>
+</html>

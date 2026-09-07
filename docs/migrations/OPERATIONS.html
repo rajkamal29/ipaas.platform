@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>OPERATIONS.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="local-postgres-operations">Local Postgres Operations</h1>
+<p>Reference commands for standing up, inspecting, and resetting Postgres locally. Run all commands from the project root (where <code>docker-compose.yml</code> and <code>package.json</code> live), in PowerShell, unless noted otherwise.</p>
+<p>Schema covered: <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code> — see <code>docs/migrations/README.md</code> for what each table means and how they relate.</p>
+<h2 id="1-one-time-environment-setup">1. One-time environment setup</h2>
+<pre class="hljs"><code><div><span class="hljs-built_in">cp</span> .env.example .env
+</div></code></pre>
+<p>Then open <code>.env</code> and set a real <code>POSTGRES_PASSWORD</code>, updating the matching password in <code>DATABASE_URL</code> on the line below it so the two stay in sync. <code>.env</code> is gitignored — it never gets committed.</p>
+<h2 id="2-start-postgres">2. Start Postgres</h2>
+<pre class="hljs"><code><div>docker compose up <span class="hljs-literal">-d</span>
+</div></code></pre>
+<p>Starts the <code>ipaas-postgres</code> container in the background. On first run against an empty volume, the init script (<code>docker/postgres/init/01-create-extensions.sh</code> — creates the <code>pgcrypto</code> extension that <code>gen_random_uuid()</code> depends on) runs automatically.</p>
+<p><strong>Check it came up healthy:</strong></p>
+<pre class="hljs"><code><div>docker compose <span class="hljs-built_in">ps</span>
+</div></code></pre>
+<p><strong>Watch the logs</strong> (useful the first time, to confirm the init script ran without errors):</p>
+<pre class="hljs"><code><div>docker compose logs <span class="hljs-operator">-f</span> postgres
+</div></code></pre>
+<p>(Ctrl+C to stop tailing — this doesn't stop the container.)</p>
+<p><strong>Validate the connection actually works</strong> (not just that the container is running):</p>
+<pre class="hljs"><code><div>docker exec <span class="hljs-literal">-it</span> ipaas<span class="hljs-literal">-postgres</span> psql <span class="hljs-literal">-U</span> ipaas <span class="hljs-literal">-d</span> ipaas_platform <span class="hljs-literal">-c</span> <span class="hljs-string">&quot;SELECT version();&quot;</span>
+</div></code></pre>
+<h2 id="3-install-dependencies-and-run-migrations">3. Install dependencies and run migrations</h2>
+<pre class="hljs"><code><div>npm install
+npm run migrate:up
+</div></code></pre>
+<p><code>npm run migrate:up</code> runs <code>node-pg-migrate up</code>, which connects using <code>DATABASE_URL</code> from <code>.env</code> and applies every migration in <code>migrations/</code> that hasn't run yet. It tracks what's already applied in its own <code>pgmigrations</code> table, so re-running this later only applies new migrations.</p>
+<p><strong>To roll back the last migration</strong> (if you need to undo a schema change):</p>
+<pre class="hljs"><code><div>npm run migrate:down
+</div></code></pre>
+<p><strong>Important:</strong> <code>migrations/</code> must contain <em>only</em> migration files — <code>node-pg-migrate</code> tries to parse every file in that folder for a numeric timestamp prefix. Anything else (a stray <code>README.md</code>, notes, etc.) breaks the runner with <code>Cannot determine numeric prefix for &quot;&lt;file&gt;&quot;</code>. Keep docs like <code>LLD-core-schema.md</code> in <code>docs/</code> instead.</p>
+<h2 id="4-connect-to-postgres">4. Connect to Postgres</h2>
+<p><strong>Via the container (no local psql install needed):</strong></p>
+<pre class="hljs"><code><div>docker exec <span class="hljs-literal">-it</span> ipaas<span class="hljs-literal">-postgres</span> psql <span class="hljs-literal">-U</span> ipaas <span class="hljs-literal">-d</span> ipaas_platform
+</div></code></pre>
+<p>(swap <code>ipaas</code> for your actual <code>POSTGRES_USER</code> if you changed it in <code>.env</code>)</p>
+<p><strong>Via a local psql client, if installed:</strong></p>
+<pre class="hljs"><code><div>psql <span class="hljs-string">&quot;postgresql://ipaas:&lt;your-password&gt;@localhost:5432/ipaas_platform&quot;</span>
+</div></code></pre>
+<h2 id="5-inspect-the-schema-inside-psql">5. Inspect the schema (inside psql)</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\l</code></td>
+<td>List databases — confirms <code>ipaas_platform</code> exists</td>
+</tr>
+<tr>
+<td><code>\dt</code></td>
+<td>List all tables — should show <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>, plus <code>pgmigrations</code></td>
+</tr>
+<tr>
+<td><code>\d sync_entities</code></td>
+<td>Describe a table's columns and constraints</td>
+</tr>
+<tr>
+<td><code>\di</code></td>
+<td>List indexes</td>
+</tr>
+<tr>
+<td><code>\x</code></td>
+<td>Toggle expanded (vertical) row display — helpful for wide columns</td>
+</tr>
+<tr>
+<td><code>\q</code></td>
+<td>Exit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-view-records">6. View records</h2>
+<pre class="hljs"><code><div><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tenants;
+<span class="hljs-keyword">SELECT</span> id, tenant_id, source, target, created_at <span class="hljs-keyword">FROM</span> sync_requests;
+<span class="hljs-keyword">SELECT</span> id, sync_request_id, entity, sync_type, status <span class="hljs-keyword">FROM</span> sync_entities;
+<span class="hljs-keyword">SELECT</span> id, tenant_id, provider, created_at, updated_at <span class="hljs-keyword">FROM</span> credentials;  <span class="hljs-comment">-- avoid SELECT *, encrypted_payload/iv/auth_tag are raw bytea</span>
+</div></code></pre>
+<h2 id="7-get-a-tenants-id">7. Get a tenant's ID</h2>
+<p>No seed script creates a tenant automatically — a tenant is a row you insert directly (or, later, via the API layer once it exists):</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">INSERT INTO</span> tenants (name) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;OculusIT&#x27;</span>) RETURNING id;
+</div></code></pre>
+<p>or, if it already exists:</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">SELECT</span> id <span class="hljs-keyword">FROM</span> tenants <span class="hljs-keyword">WHERE</span> name <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;OculusIT&#x27;</span>;
+</div></code></pre>
+<p>The Orchestration Engine itself doesn't take a tenant ID directly — it takes a <code>SYNC_REQUEST_ID</code> (see <code>lib/orchestration/run.js</code>), which is scoped to one tenant's source→target pairing. The full sequence for creating a tenant, a <code>sync_requests</code> row, and its <code>sync_entities</code> rows together is in <code>docs/DEVELOPER_SETUP.md</code> and <code>docs/DEMO-orchestration-engine.md</code> — this section is just for when you need a tenant's raw <code>id</code>, e.g. to seed credentials or mapping profiles against it.</p>
+<h2 id="8-stop--reset">8. Stop / reset</h2>
+<p><strong>Stop the container, keep the data:</strong></p>
+<pre class="hljs"><code><div>docker compose down
+</div></code></pre>
+<p><strong>Stop and wipe all data</strong> (genuinely fresh start — drops the volume, so all tables and migration history are gone; you'll need to re-run <code>npm run migrate:up</code> afterward):</p>
+<pre class="hljs"><code><div>docker compose down <span class="hljs-literal">-v</span>
+</div></code></pre>
+<p><strong>Gotcha to know about:</strong> <code>docker compose up -d</code> reattaches to an <em>existing</em> named volume (<code>ipaas_postgres_data</code>) if one is already on your machine — it does not silently give you a fresh database just because you deleted migration files or restarted the container. If you want a truly clean database, you need <code>down -v</code>, not just <code>up -d</code> again.</p>
+<h2 id="9-troubleshooting">9. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>The DATABASE_URL environment variable is not set or incomplete connection parameters are provided.</code></td>
+<td><code>node-pg-migrate</code> only loads <code>.env</code> automatically if the <code>dotenv</code> package is installed</td>
+<td>Run <code>npm install</code> — <code>dotenv</code> is already in <code>package.json</code></td>
+</tr>
+<tr>
+<td><code>connect ECONNREFUSED 127.0.0.1:5432</code></td>
+<td>Postgres container isn't running yet, or hasn't finished its healthcheck</td>
+<td>Run <code>docker compose ps</code> to check status; wait a few seconds after <code>docker compose up -d</code> before running migrations</td>
+</tr>
+<tr>
+<td><code>password authentication failed</code></td>
+<td><code>.env</code> was edited <em>after</em> the container and volume were first created — Postgres only reads <code>POSTGRES_PASSWORD</code> on first initialization of an empty data directory</td>
+<td><code>docker compose down -v</code> then <code>docker compose up -d</code> again to reinitialize with the current <code>.env</code> values</td>
+</tr>
+<tr>
+<td><code>Cannot determine numeric prefix for &quot;&lt;file&gt;&quot;</code></td>
+<td>A non-migration file (e.g. a <code>README.md</code>) is sitting inside <code>migrations/</code></td>
+<td>Move it out — <code>node-pg-migrate</code> treats every file in that folder as a migration</td>
+</tr>
+<tr>
+<td><code>Not run migration X is preceding already run migration Y</code></td>
+<td>The Postgres volume already has an older migration history in it (e.g. left over from a previous version of the schema) that doesn't match what's on disk now</td>
+<td><code>docker compose down -v &amp;&amp; docker compose up -d</code> to start from a genuinely empty volume, then <code>npm run migrate:up</code></td>
+</tr>
+<tr>
+<td>Table missing after <code>npm run migrate:up</code></td>
+<td>Migration didn't actually run, or ran against the wrong database</td>
+<td>Check <code>SELECT * FROM pgmigrations;</code> inside psql to see which migrations have been recorded as applied</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>
