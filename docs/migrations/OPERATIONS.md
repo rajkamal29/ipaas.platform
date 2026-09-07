@@ -2,7 +2,7 @@
 
 Reference commands for standing up, inspecting, and resetting Postgres locally. Run all commands from the project root (where `docker-compose.yml` and `package.json` live), in PowerShell, unless noted otherwise.
 
-Schema covered: `tenants`, `sync_requests`, `sync_entities`, `credentials` — see `docs/LLD-core-schema.md` for what each table means and how they relate.
+Schema covered: `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles` — see `docs/migrations/README.md` for what each table means and how they relate.
 
 ## 1. One-time environment setup
 
@@ -18,7 +18,7 @@ Then open `.env` and set a real `POSTGRES_PASSWORD`, updating the matching passw
 docker compose up -d
 ```
 
-Starts the `ipaas-postgres` container in the background. On first run against an empty volume, the init script (`docker/postgres/init/01-create-temporal-db.sh` — name is stale, it only creates the `pgcrypto` extension now) runs automatically.
+Starts the `ipaas-postgres` container in the background. On first run against an empty volume, the init script (`docker/postgres/init/01-create-extensions.sh` — creates the `pgcrypto` extension that `gen_random_uuid()` depends on) runs automatically.
 
 **Check it came up healthy:**
 ```powershell
@@ -70,7 +70,7 @@ psql "postgresql://ipaas:<your-password>@localhost:5432/ipaas_platform"
 | Command | Purpose |
 |---|---|
 | `\l` | List databases — confirms `ipaas_platform` exists |
-| `\dt` | List all tables — should show exactly `tenants`, `sync_requests`, `sync_entities`, `credentials` |
+| `\dt` | List all tables — should show `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles`, plus `pgmigrations` |
 | `\d sync_entities` | Describe a table's columns and constraints |
 | `\di` | List indexes |
 | `\x` | Toggle expanded (vertical) row display — helpful for wide columns |
@@ -85,9 +85,9 @@ SELECT id, sync_request_id, entity, sync_type, status FROM sync_entities;
 SELECT id, tenant_id, provider, created_at, updated_at FROM credentials;  -- avoid SELECT *, encrypted_payload/iv/auth_tag are raw bytea
 ```
 
-## 7. Get a tenant's ID (for `.env`'s `TENANT_ID`)
+## 7. Get a tenant's ID
 
-There's no seed script anymore — a tenant is created by inserting a row directly (or later, via the API layer once it exists):
+No seed script creates a tenant automatically — a tenant is a row you insert directly (or, later, via the API layer once it exists):
 
 ```sql
 INSERT INTO tenants (name) VALUES ('OculusIT') RETURNING id;
@@ -98,6 +98,8 @@ or, if it already exists:
 ```sql
 SELECT id FROM tenants WHERE name = 'OculusIT';
 ```
+
+The Orchestration Engine itself doesn't take a tenant ID directly — it takes a `SYNC_REQUEST_ID` (see `lib/orchestration/run.js`), which is scoped to one tenant's source→target pairing. The full sequence for creating a tenant, a `sync_requests` row, and its `sync_entities` rows together is in `docs/DEVELOPER_SETUP.md` and `docs/DEMO-orchestration-engine.md` — this section is just for when you need a tenant's raw `id`, e.g. to seed credentials or mapping profiles against it.
 
 ## 8. Stop / reset
 
