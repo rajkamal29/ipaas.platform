@@ -4,7 +4,9 @@ This is what to actually do, today, when a real tenant asks for a ConnectWise↔
 
 If you want to see the engine's logic working without a real tenant (e.g. for a demo), use `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` instead — it's the same underlying steps, but with fake credentials pointed at a local mock server.
 
-**Worked example used throughout this doc:** a fictional company, **Contoso Services**, requesting a ConnectWise → Keka sync of their Client data. Swap in the real tenant's name and real credentials when you actually do this. Don't reuse `OculusIT` as a tenant name unless you mean the same row the demo doc already created — `tenants.name` is unique, so a second `INSERT` with that name will fail with a constraint violation.
+**Worked example used throughout this doc: OculusIT** — the same tenant `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` already created, currently running on mock credentials seeded for that demo. This walkthrough picks up from exactly where things stand today: find the existing tenant/sync rows instead of creating new ones (Step 2), then swap in OculusIT's real ConnectWise/Keka credentials once they're in hand (Step 3) — until they are, Step 3's mock-credentials fallback describes OculusIT's actual current state, not a hypothetical.
+
+Onboarding a genuinely different real tenant later? The same steps apply — use that tenant's own name and credentials, and take Step 2's "create a new tenant" path instead of the lookup path, since it won't exist yet.
 
 ## Prerequisites
 
@@ -12,7 +14,7 @@ Complete `docs/setup/DEVELOPER_SETUP.md` once first, if you haven't already — 
 
 ## Step 1 — Gather what you need from the tenant
 
-Before touching Postgres, get these from the tenant (or their ConnectWise/Keka admin):
+Before touching Postgres, get these from OculusIT (or their ConnectWise/Keka admin):
 
 **ConnectWise** (API Member key pair, not a user login):
 - `baseUrl` — their ConnectWise Manage instance's API base URL (e.g. `https://api-na.myconnectwise.net/v4_6_release/apis/3.0/`)
@@ -34,7 +36,7 @@ Exactly which of these you need depends on which side ConnectWise/Keka is on for
 
 **Don't have these yet, for one or both providers?** You don't have to wait on them to keep moving — see Step 3's "Don't have real credentials yet?" note, then come back here once they arrive.
 
-## Step 2 — Create the tenant, sync request, and sync entity
+## Step 2 — Find (or create) the tenant, sync request, and sync entity
 
 Open psql:
 ```powershell
@@ -42,8 +44,24 @@ cd ipaas.infra
 docker compose exec postgres psql -U ipaas -d ipaas_platform
 ```
 
+**OculusIT already exists** — the demo docs created it. Look up its IDs instead of inserting new rows:
+
 ```sql
-INSERT INTO tenants (name) VALUES ('Contoso Services') RETURNING id AS tenant_id \gset
+SELECT id AS tenant_id FROM tenants WHERE name = 'OculusIT' \gset
+SELECT id AS sync_request_id FROM sync_requests WHERE tenant_id = :'tenant_id' AND source = 'connectwise' AND target = 'keka' \gset
+SELECT id AS sync_entity_id FROM sync_entities WHERE sync_request_id = :'sync_request_id' AND entity = 'client' \gset
+
+\echo Tenant:      :tenant_id
+\echo SyncRequest: :sync_request_id
+\echo SyncEntity:  :sync_entity_id
+```
+
+Write down all three IDs, then `\q` to exit.
+
+**Onboarding a different real tenant, not OculusIT?** It won't exist yet, so create it instead:
+
+```sql
+INSERT INTO tenants (name) VALUES ('<real tenant name>') RETURNING id AS tenant_id \gset
 
 INSERT INTO sync_requests (tenant_id, source, target)
 VALUES (:'tenant_id', 'connectwise', 'keka')
@@ -58,9 +76,9 @@ RETURNING id AS sync_entity_id \gset
 \echo SyncEntity:  :sync_entity_id
 ```
 
-Write down all three IDs. `\q` to exit.
+Write down all three IDs here too, then `\q` to exit.
 
-A couple of real decisions hide in that one `INSERT` into `sync_entities`, worth being deliberate about rather than copy-pasting blindly:
+A couple of real decisions hide in that one `INSERT` into `sync_entities` (the "different tenant" path above), worth being deliberate about rather than copy-pasting blindly:
 
 - **`sync_type`** — use `one_time` for anything you're going to trigger manually right now (see Step 6). `interval` is a valid value and the schema supports it, but nothing in this codebase currently re-invokes the engine on a schedule — that's the Provisioning Engine's job, and it isn't built yet. Setting `interval` today just means the entity sits there until someone manually re-runs it anyway, so there's no real difference from `one_time` in practice yet — pick `interval` only to signal "this should recur once the Provisioning Engine exists," not because it'll actually recur today.
 - **`entity`** — only `'client'` is fully wired up (real mapping + a working canonical schema). `'project'` and `'timesheet'` are valid per the `CHECK` constraint, but neither adapter's endpoints for them are verified, and no canonical schema exists yet for either — see `ipaas.providers/docs/LLD-connector-auth-layer.md`. Don't onboard a tenant onto `project`/`timesheet` expecting it to actually sync yet.
@@ -88,7 +106,7 @@ There's no flag in the `credentials` table marking a row mock vs. real, so track
    {
      "baseUrl": "https://api-na.myconnectwise.net/v4_6_release/apis/3.0/",
      "apiVersion": "",
-     "companyId": "contoso",
+     "companyId": "oculusit",
      "publicKey": "<real public key>",
      "privateKey": "<real private key>",
      "clientId": "<real client id>",
@@ -98,7 +116,7 @@ There's no flag in the `credentials` table marking a row mock vs. real, so track
    or for Keka:
    ```json
    {
-     "apiBaseUrl": "https://contoso.keka.com",
+     "apiBaseUrl": "https://oculusit.keka.com",
      "identityUrl": "https://login.keka.com",
      "tokenEndpoint": "/identity/token",
      "clientId": "<real client id>",

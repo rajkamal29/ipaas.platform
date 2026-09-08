@@ -357,7 +357,6 @@ code {
 <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-
 <h1 id="orchestration-engine-demo--mock-connectwisekeka-walkthrough">Orchestration Engine Demo — Mock ConnectWise/Keka Walkthrough</h1>
 <p>A repeatable, no-real-credentials-needed demo of the Orchestration Engine running end-to-end: dynamic adapter loading, real mapping/canonical validation, the fetch → map → write cycle, and the self-healing <code>failed</code>/<code>retry</code> reconciliation on <code>sync_state</code>.</p>
 <p><strong>What this proves:</strong> the engine's own logic works correctly, through the real code path — not a simplified stand-in. <strong>What this does NOT prove:</strong> anything about the real ConnectWise/Keka APIs. The mock server fakes response <em>shapes</em> only; endpoint paths, auth mechanics, and <code>fetchByIds</code> filter syntax are still unverified against the real systems (see <code>docs/LLD-connector-auth-layer.md</code>). Say this explicitly when presenting — it's a logic demo, not proof the real integrations work yet.</p>
@@ -428,7 +427,7 @@ code {
 <h2 id="related-docs">Related docs</h2>
 <ul>
 <li><code>ipaas.infra/docs/migrations/README.md</code> — schema this demo runs against (<code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>sync_state</code>, <code>credentials</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>)</li>
-<li><code>docs/setup/TENANT_ONBOARDING.md</code> (at the <code>ipaas.platform</code> root) — the real-tenant equivalent of this walkthrough (real credentials via <code>scripts/seed-credentials.js</code>, not the mock server)</li>
+<li><code>docs/setup/TENANT_ONBOARDING.md</code> (at the <code>ipaas.platform</code> root) — how to take this exact OculusIT tenant from the mock credentials this demo uses to real ones (via <code>scripts/seed-credentials.js</code>) once they're available; also covers onboarding a different real tenant from scratch</li>
 <li><code>docs/LLD-connector-auth-layer.md</code> — what's real/verified vs. guessed in the actual adapters</li>
 <li><code>scripts/mock-server.js</code>, <code>scripts/seed-mock-credentials.js</code>, <code>scripts/seed-mock-mapping.js</code> — the three one-time setup scripts</li>
 <li><code>lib/orchestration/run.js</code> — the real entrypoint this demo runs</li>
