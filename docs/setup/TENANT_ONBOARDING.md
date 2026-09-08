@@ -1,6 +1,6 @@
 # Onboarding a New Tenant — Manual Runbook
 
-This is what to actually do, today, when a real tenant asks for a ConnectWise↔Keka sync. There is no UI and no Provisioning Engine yet (both are still on the backlog — see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md`), so every step below is a person running a script or a SQL statement by hand. Nothing here is mock or demo data — this is the real path, using real tenant credentials.
+This is what to actually do, today, when a real tenant asks for a ConnectWise↔Keka sync. There is no UI and no Provisioning Engine yet (both are still on the backlog — see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md`), so every step below is a person running a script or a SQL statement by hand. Nothing here is mock or demo data — this is the real path, for a real tenant. The one exception is Step 3: if you don't have this tenant's real credentials in hand yet, it covers a mock-credentials fallback so the rest of onboarding doesn't have to wait on them.
 
 If you want to see the engine's logic working without a real tenant (e.g. for a demo), use `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` instead — it's the same underlying steps, but with fake credentials pointed at a local mock server.
 
@@ -31,6 +31,8 @@ Before touching Postgres, get these from the tenant (or their ConnectWise/Keka a
 - `scope` — usually `kekaapi`
 
 Exactly which of these you need depends on which side ConnectWise/Keka is on for this tenant (source vs. target) — but in practice you'll have credentials for both, since most tenants eventually sync in both directions.
+
+**Don't have these yet, for one or both providers?** You don't have to wait on them to keep moving — see Step 3's "Don't have real credentials yet?" note, then come back here once they arrive.
 
 ## Step 2 — Create the tenant, sync request, and sync entity
 
@@ -63,9 +65,23 @@ A couple of real decisions hide in that one `INSERT` into `sync_entities`, worth
 - **`sync_type`** — use `one_time` for anything you're going to trigger manually right now (see Step 6). `interval` is a valid value and the schema supports it, but nothing in this codebase currently re-invokes the engine on a schedule — that's the Provisioning Engine's job, and it isn't built yet. Setting `interval` today just means the entity sits there until someone manually re-runs it anyway, so there's no real difference from `one_time` in practice yet — pick `interval` only to signal "this should recur once the Provisioning Engine exists," not because it'll actually recur today.
 - **`entity`** — only `'client'` is fully wired up (real mapping + a working canonical schema). `'project'` and `'timesheet'` are valid per the `CHECK` constraint, but neither adapter's endpoints for them are verified, and no canonical schema exists yet for either — see `ipaas.providers/docs/LLD-connector-auth-layer.md`. Don't onboard a tenant onto `project`/`timesheet` expecting it to actually sync yet.
 
-## Step 3 — Insert the real credentials
+## Step 3 — Insert credentials
 
-This is the step that didn't have a script until this doc — `seed-mock-credentials.js` only writes fake values pointed at the local mock server. Use `seed-credentials.js` instead:
+**Don't have real credentials yet?** If you're standing up this tenant before the customer has actually handed over API access — for one provider or both — don't let the rest of onboarding wait on it. Run:
+
+```powershell
+cd ipaas.orchestrationengine
+node scripts/seed-mock-credentials.js <tenant_id>
+```
+
+This seeds fake values pointed at the local mock server for **both** ConnectWise and Keka, letting you finish Steps 4–6 (mapping, verification, a test sync) in the meantime. Two things to know before using it this way:
+
+- **It's only safe to run before any real credentials exist yet for either provider on this tenant.** It resets both providers to mock every time it runs — if you've already inserted a real credential for one side, running this again silently overwrites that real one back to mock too.
+- **When a real credential for a provider does arrive, insert it using the real steps below for that provider only.** `seed-credentials.js` upserts on `(tenant_id, provider)`, so it replaces just that one provider's mock row and leaves the other provider's row — mock or real — untouched.
+
+There's no flag in the `credentials` table marking a row mock vs. real, so track separately (a note against the tenant, a ticket, whatever you already use) which tenants are still running on mock credentials — see "What's still manual" below.
+
+**Once you have real credentials for a provider:**
 
 1. Create a JSON file with the fields you gathered in Step 1 — for ConnectWise:
    ```json
@@ -138,6 +154,7 @@ SELECT last_run_status, last_error, failed, retry FROM sync_state WHERE sync_ent
 
 - **No Provisioning Engine.** Nobody automatically creates containers, sets `interval` entities to `active`, or re-invokes the engine on a schedule. Every run today is a person setting `SYNC_ENTITY_ID` by hand.
 - **No credential rotation flow.** To update a tenant's credentials later (a rotated key, a new secret), re-run `seed-credentials.js` — it upserts (`ON CONFLICT (tenant_id, provider) DO UPDATE`), so this doubles as the update path too. There's no expiry/rotation reminder system.
+- **No mock/real credential marker.** The `credentials` table doesn't record how a row was seeded — a tenant running on Step 3's mock fallback looks identical, in a plain query, to one with real credentials. If you use that fallback, tracking which tenants are still pending real credentials is on you until this gets built.
 - **No UI.** Every step above is SQL or a script — there's no form for a tenant or an internal ops person to fill out yet.
 
 ## Related docs
