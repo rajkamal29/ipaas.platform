@@ -363,7 +363,7 @@ code {
 <p><strong>What this proves:</strong> the engine's own logic works correctly, through the real code path — not a simplified stand-in. <strong>What this does NOT prove:</strong> anything about the real ConnectWise/Keka APIs. The mock server fakes response <em>shapes</em> only; endpoint paths, auth mechanics, and <code>fetchByIds</code> filter syntax are still unverified against the real systems (see <code>docs/LLD-connector-auth-layer.md</code>). Say this explicitly when presenting — it's a logic demo, not proof the real integrations work yet.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li>Postgres running and migrated — see <code>ipaas.infra/docs/migrations/OPERATIONS.md</code> (<code>docker compose up -d</code>, <code>npm install</code>, <code>npm run migrate:up</code>, all run from the <code>ipaas.infra</code> folder as of the 2026-09-08 infra split)</li>
+<li>Postgres running and migrated — see <code>ipaas.infra/docs/migrations/OPERATIONS.md</code>, or the full walkthrough in <code>docs/setup/DEVELOPER_SETUP.md</code> at the <code>ipaas.platform</code> root (<code>docker compose up -d</code>, <code>npm install</code>, <code>npm run migrate:up</code>, all run from the <code>ipaas.infra</code> folder as of the 2026-09-08 infra split)</li>
 <li>Mock server + test data set up once (below) — persists in Postgres, so this is normally a one-time step per database</li>
 </ul>
 <h2 id="one-time-setup">One-time setup</h2>
@@ -428,7 +428,7 @@ code {
 <h2 id="related-docs">Related docs</h2>
 <ul>
 <li><code>ipaas.infra/docs/migrations/README.md</code> — schema this demo runs against (<code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>sync_state</code>, <code>credentials</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>)</li>
-<li><code>ipaas.infra/docs/TENANT_ONBOARDING.md</code> — the real-tenant equivalent of this walkthrough (real credentials via <code>scripts/seed-credentials.js</code>, not the mock server)</li>
+<li><code>docs/setup/TENANT_ONBOARDING.md</code> (at the <code>ipaas.platform</code> root) — the real-tenant equivalent of this walkthrough (real credentials via <code>scripts/seed-credentials.js</code>, not the mock server)</li>
 <li><code>docs/LLD-connector-auth-layer.md</code> — what's real/verified vs. guessed in the actual adapters</li>
 <li><code>scripts/mock-server.js</code>, <code>scripts/seed-mock-credentials.js</code>, <code>scripts/seed-mock-mapping.js</code> — the three one-time setup scripts</li>
 <li><code>lib/orchestration/run.js</code> — the real entrypoint this demo runs</li>

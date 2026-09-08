@@ -99,9 +99,9 @@ or, if it already exists:
 SELECT id FROM tenants WHERE name = 'OculusIT';
 ```
 
-The Orchestration Engine itself doesn't take a tenant ID directly — it takes a `SYNC_ENTITY_ID` (see `lib/orchestration/run.js`), scoped to a single `sync_entities` row (one entity within one tenant's source→target pairing — see `docs/LLD-orchestration-engine.md` §1 for why it's entity-scoped, not request-scoped). The full sequence for creating a tenant, a `sync_requests` row, and its `sync_entities` rows together is in `docs/DEVELOPER_SETUP.md` and `docs/DEMO-orchestration-engine.md` — this section is just for when you need a tenant's raw `id`, e.g. to seed credentials or mapping profiles against it.
+The Orchestration Engine itself doesn't take a tenant ID directly — it takes a `SYNC_ENTITY_ID` (see `ipaas.orchestrationengine/lib/orchestration/run.js`), scoped to a single `sync_entities` row (one entity within one tenant's source→target pairing — see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` §1 for why it's entity-scoped, not request-scoped). The full sequence for creating a tenant, a `sync_requests` row, and its `sync_entities` rows together is in `docs/setup/DEVELOPER_SETUP.md` (at the `ipaas.platform` root) and `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` — this section is just for when you need a tenant's raw `id`, e.g. to seed credentials or mapping profiles against it.
 
-**Onboarding a real tenant** (not a demo/dev one) — see `docs/TENANT_ONBOARDING.md` for the full manual runbook, including real credential seeding via `scripts/seed-credentials.js`.
+**Onboarding a real tenant** (not a demo/dev one) — see `docs/setup/TENANT_ONBOARDING.md` (at the `ipaas.platform` root) for the full manual runbook, including real credential seeding via `ipaas.orchestrationengine/scripts/seed-credentials.js`.
 
 ## 8. Stop / reset
 

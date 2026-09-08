@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>TENANT_ONBOARDING.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+
+<h1 id="onboarding-a-new-tenant--manual-runbook">Onboarding a New Tenant — Manual Runbook</h1>
+<p>This is what to actually do, today, when a real tenant asks for a ConnectWise↔︎Keka sync. There is no UI and no Provisioning Engine yet (both are still on the backlog — see <code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code>), so every step below is a person running a script or a SQL statement by hand. Nothing here is mock or demo data — this is the real path, using real tenant credentials.</p>
+<p>If you want to see the engine's logic working without a real tenant (e.g. for a demo), use <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> instead — it's the same underlying steps, but with fake credentials pointed at a local mock server.</p>
+<p><strong>Worked example used throughout this doc:</strong> a fictional company, <strong>Contoso Services</strong>, requesting a ConnectWise → Keka sync of their Client data. Swap in the real tenant's name and real credentials when you actually do this. Don't reuse <code>OculusIT</code> as a tenant name unless you mean the same row the demo doc already created — <code>tenants.name</code> is unique, so a second <code>INSERT</code> with that name will fail with a constraint violation.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Postgres running and migrated (<code>ipaas.infra</code> — <code>docker compose up -d</code>, <code>npm run migrate:up</code>)</li>
+<li>The platform-level mapping defaults already seeded once, ever, on this database:
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>node scripts/seed-global-mapping.<span class="fu">js</span></span></code></pre></div>
+This is a one-time thing per database, not per tenant — see step 4 below for why.</li>
+</ul>
+<h2 id="step-1--gather-what-you-need-from-the-tenant">Step 1 — Gather what you need from the tenant</h2>
+<p>Before touching Postgres, get these from the tenant (or their ConnectWise/Keka admin):</p>
+<p><strong>ConnectWise</strong> (API Member key pair, not a user login):</p>
+<ul>
+<li><code>baseUrl</code> — their ConnectWise Manage instance's API base URL (e.g. <code>https://api-na.myconnectwise.net/v4_6_release/apis/3.0/</code>)</li>
+<li><code>companyId</code> — their ConnectWise company identifier</li>
+<li><code>publicKey</code> / <code>privateKey</code> — the API Member key pair (generated in ConnectWise under System → Member Management → API Members)</li>
+<li><code>clientId</code> — the ConnectWise-issued client ID header value</li>
+<li><code>apiVersion</code> — usually an empty string (<code>""</code>) unless their instance pins a specific version in the URL</li>
+</ul>
+<p><strong>Keka</strong> (OAuth client-credentials):</p>
+<ul>
+<li><code>apiBaseUrl</code> — their Keka API base URL</li>
+<li><code>identityUrl</code> — their Keka identity/auth server URL</li>
+<li><code>tokenEndpoint</code> — usually <code>/identity/token</code></li>
+<li><code>clientId</code> / <code>clientSecret</code> — the OAuth client credentials</li>
+<li><code>apiKey</code> — Keka's separate API key (sent alongside the OAuth token request)</li>
+<li><code>grantType</code> — usually <code>client_credentials</code></li>
+<li><code>scope</code> — usually <code>kekaapi</code></li>
+</ul>
+<p>Exactly which of these you need depends on which side ConnectWise/Keka is on for this tenant (source vs. target) — but in practice you'll have credentials for both, since most tenants eventually sync in both directions.</p>
+<h2 id="step-2--create-the-tenant-sync-request-and-sync-entity">Step 2 — Create the tenant, sync request, and sync entity</h2>
+<p>Open psql:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">infra</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>docker compose exec postgres psql -U ipaas -d ipaas_platform</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;Contoso Services&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> tenant_id \gset</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_requests (tenant_id, <span class="kw">source</span>, target)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a><span class="kw">VALUES</span> (:<span class="st">&#39;tenant_id&#39;</span>, <span class="st">&#39;connectwise&#39;</span>, <span class="st">&#39;keka&#39;</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a><span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_request_id \gset</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_entities (sync_request_id, entity, sync_type, status)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true"></a><span class="kw">VALUES</span> (:<span class="st">&#39;sync_request_id&#39;</span>, <span class="st">&#39;client&#39;</span>, <span class="st">&#39;one_time&#39;</span>, <span class="st">&#39;submitted&#39;</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true"></a><span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_entity_id \gset</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true"></a>\echo Tenant:      <span class="ch">:tenant_id</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true"></a>\echo SyncRequest: <span class="ch">:sync_request_id</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true"></a>\echo SyncEntity:  <span class="ch">:sync_entity_id</span></span></code></pre></div>
+<p>Write down all three IDs. <code>\q</code> to exit.</p>
+<p>A couple of real decisions hide in that one <code>INSERT</code> into <code>sync_entities</code>, worth being deliberate about rather than copy-pasting blindly:</p>
+<ul>
+<li><strong><code>sync_type</code></strong> — use <code>one_time</code> for anything you're going to trigger manually right now (see Step 6). <code>interval</code> is a valid value and the schema supports it, but nothing in this codebase currently re-invokes the engine on a schedule — that's the Provisioning Engine's job, and it isn't built yet. Setting <code>interval</code> today just means the entity sits there until someone manually re-runs it anyway, so there's no real difference from <code>one_time</code> in practice yet — pick <code>interval</code> only to signal "this should recur once the Provisioning Engine exists," not because it'll actually recur today.</li>
+<li><strong><code>entity</code></strong> — only <code>'client'</code> is fully wired up (real mapping + a working canonical schema). <code>'project'</code> and <code>'timesheet'</code> are valid per the <code>CHECK</code> constraint, but neither adapter's endpoints for them are verified, and no canonical schema exists yet for either — see <code>ipaas.providers/docs/LLD-connector-auth-layer.md</code>. Don't onboard a tenant onto <code>project</code>/<code>timesheet</code> expecting it to actually sync yet.</li>
+</ul>
+<h2 id="step-3--insert-the-real-credentials">Step 3 — Insert the real credentials</h2>
+<p>This is the step that didn't have a script until this doc — <code>seed-mock-credentials.js</code> only writes fake values pointed at the local mock server. Use <code>seed-credentials.js</code> instead:</p>
+<ol>
+<li><p>Create a JSON file with the fields you gathered in Step 1 — for ConnectWise:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="fu">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a>  <span class="dt">&quot;baseUrl&quot;</span><span class="fu">:</span> <span class="st">&quot;https://api-na.myconnectwise.net/v4_6_release/apis/3.0/&quot;</span><span class="fu">,</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a>  <span class="dt">&quot;apiVersion&quot;</span><span class="fu">:</span> <span class="st">&quot;&quot;</span><span class="fu">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a>  <span class="dt">&quot;companyId&quot;</span><span class="fu">:</span> <span class="st">&quot;contoso&quot;</span><span class="fu">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a>  <span class="dt">&quot;publicKey&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real public key&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a>  <span class="dt">&quot;privateKey&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real private key&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a>  <span class="dt">&quot;clientId&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real client id&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a>  <span class="dt">&quot;pageSize&quot;</span><span class="fu">:</span> <span class="dv">100</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="fu">}</span></span></code></pre></div>
+<p>or for Keka:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a>  <span class="dt">&quot;apiBaseUrl&quot;</span><span class="fu">:</span> <span class="st">&quot;https://contoso.keka.com&quot;</span><span class="fu">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a>  <span class="dt">&quot;identityUrl&quot;</span><span class="fu">:</span> <span class="st">&quot;https://login.keka.com&quot;</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a>  <span class="dt">&quot;tokenEndpoint&quot;</span><span class="fu">:</span> <span class="st">&quot;/identity/token&quot;</span><span class="fu">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a>  <span class="dt">&quot;clientId&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real client id&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a>  <span class="dt">&quot;clientSecret&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real client secret&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true"></a>  <span class="dt">&quot;apiKey&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;real api key&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true"></a>  <span class="dt">&quot;grantType&quot;</span><span class="fu">:</span> <span class="st">&quot;client_credentials&quot;</span><span class="fu">,</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true"></a>  <span class="dt">&quot;scope&quot;</span><span class="fu">:</span> <span class="st">&quot;kekaapi&quot;</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true"></a><span class="fu">}</span></span></code></pre></div>
+<p><strong>Save this file outside <code>ipaas.platform</code> entirely</strong> (e.g. your Documents folder) — <code>*.credentials.json</code> is gitignored as a backstop, but don't rely on that alone for real secrets.</p></li>
+<li><p>Run it, once per provider:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true"></a>node scripts/seed-credentials.<span class="fu">js</span> &lt;tenant_id&gt; connectwise &lt;path-to-connectwise-credentials.<span class="fu">json</span>&gt;</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true"></a>node scripts/seed-credentials.<span class="fu">js</span> &lt;tenant_id&gt; keka &lt;path-to-keka-credentials.<span class="fu">json</span>&gt;</span></code></pre></div></li>
+<li><p><strong>Delete both JSON files</strong> once each command prints success. The secret is now encrypted (AES-256-GCM, <code>lib/crypto.js</code>) in the <code>credentials</code> table — the plaintext file has no further reason to exist.</p></li>
+</ol>
+<h2 id="step-4--mapping-usually-nothing-to-do">Step 4 — Mapping: usually nothing to do</h2>
+<p>If the tenant is fine with the platform's default field mapping (ConnectWise <code>Company</code> → canonical <code>client</code> → Keka <code>client</code>, the same mapping seeded once into <code>global_mapping_profiles</code> back in Prerequisites), <strong>you don't need to do anything here.</strong> <code>lib/mapping/profiles.js</code>'s resolution falls back to the global default automatically for any tenant with no <code>mapping_profiles</code> row of its own — see <code>ipaas.infra/docs/migrations/README.md</code>'s <code>global_mapping_profiles</code> section for the full resolution order.</p>
+<p>Only add a tenant-specific override if this tenant genuinely needs different field mappings than every other tenant (e.g. a custom ConnectWise field, or a different Keka target field). There's no dedicated real-mapping seed script yet — <code>scripts/seed-mock-mapping.js</code> is the closest reference for the SQL shape (its mapping <em>rules</em> are real and reusable, only its <em>credentials</em> pairing with the mock server made it "mock"), but writing a tenant's actual override today means adapting that script's <code>INSERT INTO mapping_profiles</code> pattern by hand.</p>
+<h2 id="step-5--verify-everything-is-in-place">Step 5 — Verify everything is in place</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">id</span>, name <span class="kw">FROM</span> sync_entities <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="st">&#39;&lt;sync_entity_id&gt;&#39;</span>;</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true"></a><span class="kw">SELECT</span> provider, created_at <span class="kw">FROM</span> credentials <span class="kw">WHERE</span> tenant_id <span class="op">=</span> <span class="st">&#39;&lt;tenant_id&gt;&#39;</span>;</span></code></pre></div>
+<p>You should see one <code>sync_entities</code> row and two <code>credentials</code> rows (one per provider) — no mapping row is expected unless you did Step 4's override.</p>
+<h2 id="step-6--trigger-the-first-sync-manually">Step 6 — Trigger the first sync manually</h2>
+<p>There's no Provisioning Engine to do this automatically yet, so you run the real entrypoint by hand, exactly the way a container eventually will:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true"></a><span class="va">$env</span>:SYNC_ENTITY_ID=<span class="st">&quot;&lt;sync_entity_id&gt;&quot;</span>; node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
+<p>Watch the logs for the fetch → map → validate → write pipeline, and check <code>sync_entities.status</code> afterward (<code>completed</code> or <code>failed</code>, since this is <code>one_time</code>):</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true"></a><span class="kw">SELECT</span> status <span class="kw">FROM</span> sync_entities <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="st">&#39;&lt;sync_entity_id&gt;&#39;</span>;</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true"></a><span class="kw">SELECT</span> last_run_status, last_error, failed, retry <span class="kw">FROM</span> sync_state <span class="kw">WHERE</span> sync_entity_id <span class="op">=</span> <span class="st">&#39;&lt;sync_entity_id&gt;&#39;</span>;</span></code></pre></div>
+<h2 id="whats-still-manual-not-a-gap-in-this-doc--a-gap-in-the-platform">What's still manual (not a gap in this doc — a gap in the platform)</h2>
+<ul>
+<li><strong>No Provisioning Engine.</strong> Nobody automatically creates containers, sets <code>interval</code> entities to <code>active</code>, or re-invokes the engine on a schedule. Every run today is a person setting <code>SYNC_ENTITY_ID</code> by hand.</li>
+<li><strong>No credential rotation flow.</strong> To update a tenant's credentials later (a rotated key, a new secret), re-run <code>seed-credentials.js</code> — it upserts (<code>ON CONFLICT (tenant_id, provider) DO UPDATE</code>), so this doubles as the update path too. There's no expiry/rotation reminder system.</li>
+<li><strong>No UI.</strong> Every step above is SQL or a script — there's no form for a tenant or an internal ops person to fill out yet.</li>
+</ul>
+<h2 id="related-docs">Related docs</h2>
+<ul>
+<li><code>ipaas.infra/docs/migrations/README.md</code> — full schema this runbook writes into</li>
+<li><code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code> — engine internals, and the Provisioning Engine backlog item this runbook stands in for</li>
+<li><code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> — the mock/demo equivalent of this walkthrough, for showing the engine's logic without real tenant data</li>
+<li><code>ipaas.providers/docs/LLD-connector-auth-layer.md</code> — which adapter endpoints are actually verified vs. still guessed, before you promise a tenant <code>project</code>/<code>timesheet</code> support</li>
+</ul>
+
+</body>
+</html>

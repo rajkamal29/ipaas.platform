@@ -22,7 +22,7 @@ npm install
 npm run migrate:up
 ```
 
-This is the only place migrations run from — `npm run migrate:up`/`down`/`create` live here now, not in `ipaas.orchestrationengine`. Any engine that needs the database (currently `ipaas.orchestrationengine`) keeps its own `DATABASE_URL` in its own `.env`, pointed at the same Postgres instance this folder starts — see that repo's `docs/DEVELOPER_SETUP.md` for the full end-to-end local setup across all three folders.
+This is the only place migrations run from — `npm run migrate:up`/`down`/`create` live here now, not in `ipaas.orchestrationengine`. Any engine that needs the database (currently `ipaas.orchestrationengine`) keeps its own `DATABASE_URL` in its own `.env`, pointed at the same Postgres instance this folder starts — see `docs/setup/DEVELOPER_SETUP.md` (at the `ipaas.platform` root, one level up from this folder) for the full end-to-end local setup across all three folders.
 
 ## Why this isn't just "the migrations folder in the engine repo"
 

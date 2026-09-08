@@ -1,7 +1,6 @@
 # LLD — Connector & Auth Layer
 
-Parent document: `ARCHITECTURE.md` (§1.4.1) · POC scope: `OCULUSIT_POC_PLAN.md` Day 2
-Status: Client entity implemented and verified live (`lib/adapters/connectwise.js`, `lib/adapters/keka.js`). Project and Timesheet extension is planned, not yet implemented — endpoints below are best guesses pending live verification (§4a, §5a).
+Status: Client entity implemented and verified live (`connectwise/index.js`, `keka/index.js`, this repo). Project and Timesheet extension is planned, not yet implemented — endpoints below are best guesses pending live verification (§4a, §5a).
 
 ## Revision history
 
@@ -73,7 +72,7 @@ Page-aware, not "fetch everything internally" — confirmed as the right call no
 | Endpoint guess — Project | `GET {apiBaseUrl}/api/v1/psa/projects` → canonical Project — same shape as the confirmed `/api/v1/psa/clients`. |
 | Endpoint guess — Timesheet | Lower confidence than Project. Two candidates to probe: `/api/v1/psa/timesheets` (same `/psa/` family as Client and Project) and `/api/v1/time/entries` (Keka is primarily an HR platform, so time tracking may live outside the `/psa/` namespace entirely). Verification will confirm which, if either, is correct. |
 | Auth, pagination, incremental cursor | Assumed identical to Client (§5) — same bearer token, same `pageNumber`/`totalPages` body pagination, same `lastModified` cursor param — not yet confirmed for these two resources. |
-| **write() risk — carries over from Client** | Client's `write()` (§5, `KekaAdapter.write`) is itself still unverified against the real API — the code comment in `lib/adapters/keka.js` flags this explicitly. Extending `write()` to Project/Timesheet on the same unverified assumption compounds that risk. Recommend verifying Client's `write()` live at the same time as this extension, not after. |
+| **write() risk — carries over from Client** | Client's `write()` (§5, `KekaAdapter.write`) is itself still unverified against the real API — the code comment in `keka/index.js` (this repo) flags this explicitly. Extending `write()` to Project/Timesheet on the same unverified assumption compounds that risk. Recommend verifying Client's `write()` live at the same time as this extension, not after. |
 | Verification plan | Same extended `scripts/test-connectivity.js` run as §4a — output pasted back, this section updated with confirmed endpoint and real field names before any adapter code is written. |
 | Known dependency | Timesheet records are expected to carry a Keka-side reference to their parent Project — needed for the canonical Timesheet schema's `projectId` field. Confirm the actual field name once real data is available. |
 

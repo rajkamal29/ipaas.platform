@@ -98,7 +98,7 @@ This is the step that didn't have a script until this doc — `seed-mock-credent
      "scope": "kekaapi"
    }
    ```
-   **Save this file outside the repo** (e.g. your Documents folder, not anywhere under `ipaas.platform`) — `*.credentials.json` is gitignored as a backstop, but don't rely on that alone for real secrets.
+   **Save this file outside `ipaas.platform` entirely** (e.g. your Documents folder) — `*.credentials.json` is gitignored as a backstop, but don't rely on that alone for real secrets.
 
 2. Run it, once per provider:
    ```powershell
@@ -111,7 +111,7 @@ This is the step that didn't have a script until this doc — `seed-mock-credent
 
 ## Step 4 — Mapping: usually nothing to do
 
-If the tenant is fine with the platform's default field mapping (ConnectWise `Company` → canonical `client` → Keka `client`, the same mapping seeded once into `global_mapping_profiles` back in Prerequisites), **you don't need to do anything here.** `lib/mapping/profiles.js`'s resolution falls back to the global default automatically for any tenant with no `mapping_profiles` row of its own — see `docs/migrations/README.md`'s `global_mapping_profiles` section for the full resolution order.
+If the tenant is fine with the platform's default field mapping (ConnectWise `Company` → canonical `client` → Keka `client`, the same mapping seeded once into `global_mapping_profiles` back in Prerequisites), **you don't need to do anything here.** `lib/mapping/profiles.js`'s resolution falls back to the global default automatically for any tenant with no `mapping_profiles` row of its own — see `ipaas.infra/docs/migrations/README.md`'s `global_mapping_profiles` section for the full resolution order.
 
 Only add a tenant-specific override if this tenant genuinely needs different field mappings than every other tenant (e.g. a custom ConnectWise field, or a different Keka target field). There's no dedicated real-mapping seed script yet — `scripts/seed-mock-mapping.js` is the closest reference for the SQL shape (its mapping *rules* are real and reusable, only its *credentials* pairing with the mock server made it "mock"), but writing a tenant's actual override today means adapting that script's `INSERT INTO mapping_profiles` pattern by hand.
 
@@ -148,7 +148,7 @@ SELECT last_run_status, last_error, failed, retry FROM sync_state WHERE sync_ent
 
 ## Related docs
 
-- `docs/migrations/README.md` — full schema this runbook writes into
+- `ipaas.infra/docs/migrations/README.md` — full schema this runbook writes into
 - `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` — engine internals, and the Provisioning Engine backlog item this runbook stands in for
 - `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` — the mock/demo equivalent of this walkthrough, for showing the engine's logic without real tenant data
 - `ipaas.providers/docs/LLD-connector-auth-layer.md` — which adapter endpoints are actually verified vs. still guessed, before you promise a tenant `project`/`timesheet` support

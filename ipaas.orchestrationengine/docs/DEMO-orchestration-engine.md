@@ -7,7 +7,7 @@ A repeatable, no-real-credentials-needed demo of the Orchestration Engine runnin
 
 ## Prerequisites
 
-- Postgres running and migrated — see `ipaas.infra/docs/migrations/OPERATIONS.md` (`docker compose up -d`, `npm install`, `npm run migrate:up`, all run from the `ipaas.infra` folder as of the 2026-09-08 infra split)
+- Postgres running and migrated — see `ipaas.infra/docs/migrations/OPERATIONS.md`, or the full walkthrough in `docs/setup/DEVELOPER_SETUP.md` at the `ipaas.platform` root (`docker compose up -d`, `npm install`, `npm run migrate:up`, all run from the `ipaas.infra` folder as of the 2026-09-08 infra split)
 - Mock server + test data set up once (below) — persists in Postgres, so this is normally a one-time step per database
 
 ## One-time setup
@@ -102,7 +102,7 @@ and restart the mock server (Ctrl+C, then `node scripts/mock-server.js` again) �
 ## Related docs
 
 - `ipaas.infra/docs/migrations/README.md` — schema this demo runs against (`tenants`, `sync_requests`, `sync_entities`, `sync_state`, `credentials`, `canonical_entities`, `mapping_profiles`)
-- `ipaas.infra/docs/TENANT_ONBOARDING.md` — the real-tenant equivalent of this walkthrough (real credentials via `scripts/seed-credentials.js`, not the mock server)
+- `docs/setup/TENANT_ONBOARDING.md` (at the `ipaas.platform` root) — the real-tenant equivalent of this walkthrough (real credentials via `scripts/seed-credentials.js`, not the mock server)
 - `docs/LLD-connector-auth-layer.md` — what's real/verified vs. guessed in the actual adapters
 - `scripts/mock-server.js`, `scripts/seed-mock-credentials.js`, `scripts/seed-mock-mapping.js` — the three one-time setup scripts
 - `lib/orchestration/run.js` — the real entrypoint this demo runs
