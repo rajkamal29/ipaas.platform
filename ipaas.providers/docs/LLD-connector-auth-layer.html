@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>LLD-connector-auth-layer.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="lld--connector--auth-layer">LLD — Connector &amp; Auth Layer</h1>
+<p>Status: Client entity implemented and verified live (<code>connectwise/index.js</code>, <code>keka/index.js</code>, this repo). Project and Timesheet extension is planned, not yet implemented — endpoints below are best guesses pending live verification (§4a, §5a).</p>
+<h2 id="revision-history">Revision history</h2>
+<ol>
+<li>Original draft assumed webhooks and Nango for Keka.</li>
+<li>Revised to polling-only, Keka as a fully custom adapter, Client-only scope, after real credentials showed client-credentials-style auth.</li>
+<li>Both connectors were called live (via a throwaway test script) and the design was revised to reflect confirmed real behavior — endpoint paths, field names, and pagination — instead of documented guesses. This also confirmed custom adapters over an OSS tool like Nango was still the right call for both systems, since neither involves an interactive OAuth consent step Nango would simplify. Implemented shortly after as <code>lib/adapters/connectwise.js</code> and <code>lib/adapters/keka.js</code>.</li>
+<li><strong>This revision:</strong> extending scope from Client-only to Project and Timesheet, following the same live-verification discipline as revision 3 — see §4a and §5a. Endpoints there are best guesses, not yet confirmed.</li>
+</ol>
+<h2 id="1-purpose">1. Purpose</h2>
+<p>Fetches and writes Client/Company data between ConnectWise and Keka, and securely stores/retrieves the credentials both systems need — via a uniform interface so the Orchestration Engine doesn't need to know it's talking to two differently-authenticated, differently-paginated systems.</p>
+<h2 id="2-scope">2. Scope</h2>
+<p><strong>In scope:</strong> a common connector adapter contract both systems implement; the ConnectWise adapter (API Member auth), covering Client (implemented) and Project/Time Entry (planned, §4a); the Keka adapter (client-credentials auth), covering Client (implemented) and Project/Timesheet (planned, §5a); pagination handling; how credentials get encrypted and persisted into <code>credentials</code>; surfacing clean, typed errors for the Orchestration Engine's retry policy.</p>
+<p><strong>Out of scope:</strong> webhook receivers; field mapping/transformation (Mapping &amp; Transformation Engine); sync scheduling itself (Orchestration Engine — this layer only implements <code>fetch</code>/<code>write</code>, it doesn't decide when they run); the encryption algorithm's implementation code (defined here at the design level, written only once implementation is approved).</p>
+<h2 id="3-connector-adapter-interface">3. Connector Adapter Interface</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>authenticate(connectorId)</code></td>
+<td>Ensure a valid token is available — for Keka, calls the token endpoint if the cached token has expired; for ConnectWise, a no-op</td>
+</tr>
+<tr class="even">
+<td><code>fetch(entity, { pageNumber, pageSize, modifiedSince })</code></td>
+<td>Pull one page of records for an entity. Returns a <strong>normalized shape regardless of which system it's calling</strong>: <code>{ records: [...], pageNumber, totalPages, hasMore }</code>. The adapter is responsible for translating each system's own pagination mechanism into this shape — see §7.</td>
+</tr>
+<tr class="odd">
+<td><code>write(entity, record)</code></td>
+<td>Push a single target-shaped record to the system</td>
+</tr>
+</tbody>
+</table>
+<p>Page-aware, not "fetch everything internally" — confirmed as the right call now that both systems report a <code>totalPages</code>/page-count, meaning the Orchestration Engine can iterate pages as separate, checkpointed steps against <code>sync_state</code> (bounded execution time, resumable if one page fails) rather than one large blocking call.</p>
+<h2 id="4-connectwise-adapter--confirmed-against-a-live-call">4. ConnectWise Adapter — confirmed against a live call</h2>
+<table>
+<tbody>
+<tr class="odd">
+<td>Auth type</td>
+<td><code>api_key</code> (API Member) — <strong>confirmed working</strong>, 200 response</td>
+</tr>
+<tr class="even">
+<td>Auth mechanism</td>
+<td><code>Authorization: Basic base64(companyId+publicKey:privateKey)</code> + <code>clientId</code> header</td>
+</tr>
+<tr class="odd">
+<td>Endpoint (this iteration)</td>
+<td><code>GET {baseUrl}{apiVersion}/company/companies</code> → canonical Client</td>
+</tr>
+<tr class="even">
+<td>Pagination</td>
+<td>Page-based via the <code>Link</code> response header (<code>rel="next"</code>, <code>rel="last"</code>) — e.g. <code>...?pageSize=1&amp;page=2</code>. No page-count field in the body; the last page number comes from parsing <code>rel="last"</code> out of the header.</td>
+</tr>
+<tr class="odd">
+<td>Incremental cursor</td>
+<td><code>_info.lastUpdated</code> on each record (ISO 8601) — use as the modified-since watermark</td>
+</tr>
+<tr class="even">
+<td>Real fields observed</td>
+<td><code>id, identifier, name, status{id,name}, addressLine1, addressLine2, city, state, zip, country{...}, phoneNumber, website, types[{...}], site{...}, _info{lastUpdated, updatedBy, dateEntered, contacts_href, ...}</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Known gap</strong></td>
+<td>Primary contact name/email is <strong>not embedded</strong> in the Company record — it's a separate resource at <code>_info.contacts_href</code>. Decision needed: a second API call per company, or leave canonical <code>primaryContactName</code>/<code>primaryContactEmail</code> null for this POC (they're already optional in the draft canonical schema, so leaving them null doesn't break anything — recommend this for now, revisit if the demo needs contact data).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4a-connectwise-adapter--project--time-entry-planned-pending-live-verification">4a. ConnectWise Adapter — Project &amp; Time Entry (planned, pending live verification)</h2>
+<table>
+<tbody>
+<tr class="odd">
+<td>Status</td>
+<td>Not implemented. Endpoints below are best guesses, following the same <code>{module}/{resource}</code> shape confirmed for Client (<code>company/companies</code>) — not yet run against the real API.</td>
+</tr>
+<tr class="even">
+<td>Endpoint guess — Project</td>
+<td><code>GET {baseUrl}{apiVersion}/project/projects</code> → canonical Project</td>
+</tr>
+<tr class="odd">
+<td>Endpoint guess — Time Entry</td>
+<td><code>GET {baseUrl}{apiVersion}/time/entries</code> → canonical Timesheet</td>
+</tr>
+<tr class="even">
+<td>Auth, pagination, incremental cursor</td>
+<td>Assumed identical mechanism to Client (§4) — Basic auth + <code>clientId</code> header, <code>Link</code>-header pagination, <code>_info.lastUpdated</code> cursor — since this is the same ConnectWise API, just a different resource. Not yet confirmed these assumptions hold for these two resources specifically.</td>
+</tr>
+<tr class="odd">
+<td>Verification plan</td>
+<td><code>scripts/test-connectivity.js</code> extended with a probe per resource, run locally (this sandbox's network egress can't reach ConnectWise), output pasted back and this section updated with confirmed endpoint, real field names, and pagination behavior before any adapter code is written.</td>
+</tr>
+<tr class="even">
+<td>Known dependency</td>
+<td>Project records are expected to carry a ConnectWise-side reference back to their parent Company — needed so the canonical Project schema can carry a <code>clientId</code> field. Confirm the actual field name for this once real data is available.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-keka-adapter--confirmed-against-a-live-call">5. Keka Adapter — confirmed against a live call</h2>
+<table>
+<tbody>
+<tr class="odd">
+<td>Auth type</td>
+<td><code>client_credentials</code>-style — <strong>confirmed working</strong>, token issued</td>
+</tr>
+<tr class="even">
+<td>Auth mechanism</td>
+<td><code>POST {identityUrl}{tokenEndpoint}</code> form-urlencoded with <code>client_id, client_secret, api_key, grant_type, scope</code> → <code>{ access_token, expires_in, token_type, scope }</code>. Response included <code>expires_in: 86400</code> (seconds) — store <code>tokenExpiresAt = now + expires_in</code>, not an absolute timestamp from the response itself.</td>
+</tr>
+<tr class="odd">
+<td>Gotcha confirmed in Keka's own docs</td>
+<td>Some clients need a <code>User-Agent</code> header (e.g. <code>Mozilla</code>) on requests or calls error out — included defensively in the adapter.</td>
+</tr>
+<tr class="even">
+<td>Endpoint (this iteration)</td>
+<td><code>GET {apiBaseUrl}/api/v1/psa/clients</code> → canonical Client</td>
+</tr>
+<tr class="odd">
+<td>Pagination</td>
+<td>Page-based via body fields — <code>pageNumber</code>, <code>pageSize</code>, <code>totalPages</code>, <code>totalRecords</code>, plus ready-made <code>nextPage</code>/<code>previousPage</code> URLs</td>
+</tr>
+<tr class="even">
+<td>Incremental cursor</td>
+<td><code>lastModified</code> query parameter is documented as filterable — use for the modified-since watermark, same role as ConnectWise's <code>_info.lastUpdated</code></td>
+</tr>
+<tr class="odd">
+<td>Real fields observed</td>
+<td><code>id, name, billingName, code, description, billingAddress{addressLine1,addressLine2,countryCode,city,state,zip}, clientContacts[{id,clientId,name,email,phone}], additionalFields[{id,title,value}]</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="5a-keka-adapter--project--timesheet-planned-pending-live-verification">5a. Keka Adapter — Project &amp; Timesheet (planned, pending live verification)</h2>
+<table>
+<tbody>
+<tr class="odd">
+<td>Status</td>
+<td>Not implemented. Endpoints below are best guesses — not yet run against the real API.</td>
+</tr>
+<tr class="even">
+<td>Endpoint guess — Project</td>
+<td><code>GET {apiBaseUrl}/api/v1/psa/projects</code> → canonical Project — same shape as the confirmed <code>/api/v1/psa/clients</code>.</td>
+</tr>
+<tr class="odd">
+<td>Endpoint guess — Timesheet</td>
+<td>Lower confidence than Project. Two candidates to probe: <code>/api/v1/psa/timesheets</code> (same <code>/psa/</code> family as Client and Project) and <code>/api/v1/time/entries</code> (Keka is primarily an HR platform, so time tracking may live outside the <code>/psa/</code> namespace entirely). Verification will confirm which, if either, is correct.</td>
+</tr>
+<tr class="even">
+<td>Auth, pagination, incremental cursor</td>
+<td>Assumed identical to Client (§5) — same bearer token, same <code>pageNumber</code>/<code>totalPages</code> body pagination, same <code>lastModified</code> cursor param — not yet confirmed for these two resources.</td>
+</tr>
+<tr class="odd">
+<td><strong>write() risk — carries over from Client</strong></td>
+<td>Client's <code>write()</code> (§5, <code>KekaAdapter.write</code>) is itself still unverified against the real API — the code comment in <code>keka/index.js</code> (this repo) flags this explicitly. Extending <code>write()</code> to Project/Timesheet on the same unverified assumption compounds that risk. Recommend verifying Client's <code>write()</code> live at the same time as this extension, not after.</td>
+</tr>
+<tr class="even">
+<td>Verification plan</td>
+<td>Same extended <code>scripts/test-connectivity.js</code> run as §4a — output pasted back, this section updated with confirmed endpoint and real field names before any adapter code is written.</td>
+</tr>
+<tr class="odd">
+<td>Known dependency</td>
+<td>Timesheet records are expected to carry a Keka-side reference to their parent Project — needed for the canonical Timesheet schema's <code>projectId</code> field. Confirm the actual field name once real data is available.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-credential-storage--acquisition-flow">6. Credential Storage &amp; Acquisition Flow</h2>
+<p><strong>Postgres only — no connector credentials are ever stored in <code>.env</code>.</strong> <code>.env</code> holds only platform bootstrap secrets: the Postgres connection and <code>ENCRYPTION_MASTER_KEY</code>, the key used to encrypt everything below.</p>
+<p>The <code>credentials</code> table holds the actual per-connector config and secrets: one row per <code>(tenant_id, provider)</code> (unique constraint enforced), ciphertext/IV/auth tag stored as three separate columns (AES-256-GCM) rather than bundled into one blob. Full column list: <code>ipaas.infra/docs/migrations/README.md</code>'s <code>credentials</code> section.</p>
+<p><strong>Acquisition flow:</strong></p>
+<ol>
+<li>Real credentials are gathered into a JSON file matching the shape each adapter's constructor expects, then encrypted and inserted via <code>ipaas.orchestrationengine/scripts/seed-credentials.js &lt;tenant_id&gt; &lt;provider&gt; &lt;path-to-json&gt;</code> (see <code>docs/setup/TENANT_ONBOARDING.md</code>) — upserts on <code>(tenant_id, provider)</code>, so re-running it is also how a rotated credential gets updated. For local/mock development, <code>scripts/seed-mock-credentials.js &lt;tenant_id&gt;</code> does the same thing with fake values pointed at the mock server — no JSON file, no real account needed.</li>
+<li>The plaintext JSON file is deleted once the script confirms success — the only copy of the secret from then on is the encrypted row in Postgres.</li>
+<li>At runtime, an adapter decrypts its connector's row in memory. For Keka, the refreshed <code>accessToken</code>/<code>tokenExpiresAt</code> are written back into the same encrypted row after each token refresh.</li>
+</ol>
+<h2 id="7-pagination--sync-trigger">7. Pagination &amp; Sync Trigger</h2>
+<p>No webhook receiver — the Orchestration Engine drives fetching, on a schedule or manually for one-time push. Concretely, for a full sync of an entity:</p>
+<ol>
+<li>Orchestration Engine calls <code>fetch(entity, { pageNumber: 1, pageSize: 100, modifiedSince: &lt;last watermark&gt; })</code>.</li>
+<li>Adapter normalizes the response — for ConnectWise, parses <code>totalPages</code> out of the <code>Link</code> header; for Keka, reads <code>totalPages</code> directly from the body — and returns <code>{ records, pageNumber, totalPages, hasMore }</code>.</li>
+<li>Orchestration Engine processes that page's records (via the Mapping Engine), then calls <code>fetch()</code> again for <code>pageNumber + 1</code> if <code>hasMore</code>, checkpointing progress to <code>sync_state</code> after each page so a crash mid-run is resumable.</li>
+<li>After the last page, <code>sync_state.cursor</code> is updated to the latest <code>lastUpdated</code>/<code>lastModified</code> value seen, for the next run's incremental fetch.</li>
+</ol>
+<h2 id="8-integration-points">8. Integration Points</h2>
+<ul>
+<li><strong>Data &amp; Secrets Store</strong> — reads/writes the encrypted <code>credentials</code> row for each connector; Orchestration Engine reads/writes <code>sync_state</code> for the pagination/incremental cursor.</li>
+<li><strong>Mapping &amp; Transformation Engine</strong> — receives this layer's raw fetched records (one page at a time); returns target-shaped records for this layer to write.</li>
+<li><strong>Orchestration Engine</strong> — drives the page-by-page fetch loop described in §7 and owns retry policy per page. This layer throws typed errors (auth failure, rate limit, not-found) rather than retrying internally.</li>
+</ul>
+<h2 id="9-open-items">9. Open Items</h2>
+<ul>
+<li><strong>ConnectWise rate limits</strong> — not yet tested under real load; confirm before scheduled-sync polling frequency is finalized.</li>
+<li><strong>ConnectWise primary-contact gap</strong> — decision and recommendation in §4's "Known gap" row.</li>
+<li><strong>Live verification for Project/Timesheet</strong> — verification plan in §4a and §5a.</li>
+<li><strong>Keka <code>write()</code> still unverified against the real API</strong> — risk noted in §5a's "write() risk" row.</li>
+<li><strong>Parent-reference field names</strong> (Project → Company, Timesheet → Project) — needed for canonical <code>clientId</code>/<code>projectId</code> fields (see <code>LLD-mapping-engine.md</code>); tracked in §4a's and §5a's "Known dependency" rows.</li>
+</ul>
+
+</body>
+</html>
