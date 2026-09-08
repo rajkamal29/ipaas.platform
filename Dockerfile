@@ -1,9 +1,13 @@
-# Orchestration Engine container image.
+# Orchestration Engine container image (batch/polling engine — one_time
+# and interval sync types only; real_time is a separate, not-yet-built
+# engine).
 #
-# One container instance is scoped to exactly one sync_requests row — the
-# ONLY tenant-scoped input is the SYNC_REQUEST_ID env var at runtime.
-# Everything else (tenant, source/target provider, entities, credentials,
-# mapping profiles) is loaded from Postgres from that one ID. See
+# One container invocation is scoped to exactly one sync_entities row — the
+# ONLY tenant-scoped input is the SYNC_ENTITY_ID env var at runtime.
+# Everything else (tenant, source/target provider, credentials, mapping
+# profiles) is loaded from Postgres from that one ID. Every invocation runs
+# its one cycle once and exits — timing (when to invoke this again) is the
+# Provisioning Engine / infra layer's job, not this image's. See
 # docs/LLD-orchestration-engine.md ("Containerization") for the full design
 # and for the platform-secret env vars (DATABASE_URL, ENCRYPTION_MASTER_KEY)
 # this image needs at runtime but never bakes in.

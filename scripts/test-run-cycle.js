@@ -1,42 +1,41 @@
 /**
  * Throwaway verification script — runs one full Orchestration Engine
- * cycle (Step 3) against the mock server, and prints the resulting
- * sync_state so the failed/retry reconciliation logic can be inspected
- * across repeated runs.
+ * cycle against the mock server, and prints the resulting sync_state so
+ * the failed/retry reconciliation logic can be inspected across repeated
+ * runs.
  *
- * Usage: node scripts/test-run-cycle.js <sync_request_id>
+ * Updated 2026-09-08 for the entity-scoped redesign — takes a
+ * sync_entity_id directly now, not a sync_request_id (no more searching
+ * for the 'client' entity inside a list — the loaded run IS the entity).
+ *
+ * Usage: node scripts/test-run-cycle.js <sync_entity_id>
  */
 require('dotenv').config();
-const { loadSyncRequest } = require('../lib/orchestration/bootstrap');
+const { loadSyncEntityRun } = require('../lib/orchestration/bootstrap');
 const { createAdapter } = require('../lib/orchestration/adapter-registry');
 const { runCycle } = require('../lib/orchestration/cycle');
 const { loadOrCreateSyncState } = require('../lib/orchestration/sync-state');
 const { pool } = require('../lib/db');
 
 async function main() {
-  const syncRequestId = process.argv[2];
-  if (!syncRequestId) {
-    console.error('Usage: node scripts/test-run-cycle.js <sync_request_id>');
+  const syncEntityId = process.argv[2];
+  if (!syncEntityId) {
+    console.error('Usage: node scripts/test-run-cycle.js <sync_entity_id>');
     process.exit(1);
   }
 
-  const request = await loadSyncRequest(syncRequestId);
-  const sourceAdapter = createAdapter(request.source, request.tenantId);
-  const targetAdapter = createAdapter(request.target, request.tenantId);
+  const run = await loadSyncEntityRun(syncEntityId);
+  const sourceAdapter = createAdapter(run.source, run.tenantId);
+  const targetAdapter = createAdapter(run.target, run.tenantId);
 
-  const clientEntity = request.entities.find((e) => e.entity === 'client');
-  if (!clientEntity) {
-    console.error('No client entity found on this sync request');
-    process.exit(1);
-  }
-
-  const context = { tenantId: request.tenantId, sourceProvider: request.source, targetProvider: request.target };
+  const context = { tenantId: run.tenantId, sourceProvider: run.source, targetProvider: run.target };
+  const entityRow = { id: run.syncEntityId, entity: run.entity, syncType: run.syncType };
 
   console.log('Running cycle...\n');
-  const result = await runCycle(clientEntity, sourceAdapter, targetAdapter, context);
+  const result = await runCycle(entityRow, sourceAdapter, targetAdapter, context);
   console.log('\nCycle result:', result);
 
-  const state = await loadOrCreateSyncState(clientEntity.id);
+  const state = await loadOrCreateSyncState(entityRow.id);
   console.log('\nsync_state after cycle:');
   console.log(JSON.stringify(state, null, 2));
 

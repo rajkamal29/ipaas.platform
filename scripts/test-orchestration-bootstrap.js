@@ -1,30 +1,33 @@
 /**
  * Throwaway verification script — NOT part of the orchestration engine
  * itself. Confirms lib/orchestration/bootstrap.js and adapter-registry.js
- * work against a real seeded sync_requests row before Step 3 (the actual
+ * work against a real seeded sync_entities row before Step 3 (the actual
  * sync cycle) is built on top of them.
  *
- * Usage: node scripts/test-orchestration-bootstrap.js <sync_request_id>
+ * Updated 2026-09-08 for the entity-scoped redesign — takes a
+ * sync_entity_id now, not a sync_request_id.
+ *
+ * Usage: node scripts/test-orchestration-bootstrap.js <sync_entity_id>
  */
 require('dotenv').config();
-const { loadSyncRequest } = require('../lib/orchestration/bootstrap');
+const { loadSyncEntityRun } = require('../lib/orchestration/bootstrap');
 const { createAdapter } = require('../lib/orchestration/adapter-registry');
 const { pool } = require('../lib/db');
 
 async function main() {
-  const syncRequestId = process.argv[2];
-  if (!syncRequestId) {
-    console.error('Usage: node scripts/test-orchestration-bootstrap.js <sync_request_id>');
+  const syncEntityId = process.argv[2];
+  if (!syncEntityId) {
+    console.error('Usage: node scripts/test-orchestration-bootstrap.js <sync_entity_id>');
     process.exit(1);
   }
 
-  console.log('Loading sync request...');
-  const request = await loadSyncRequest(syncRequestId);
-  console.log(JSON.stringify(request, null, 2));
+  console.log('Loading sync entity run...');
+  const run = await loadSyncEntityRun(syncEntityId);
+  console.log(JSON.stringify(run, null, 2));
 
   console.log('\nInstantiating adapters (no network calls yet — just construction)...');
-  const sourceAdapter = createAdapter(request.source, request.tenantId);
-  const targetAdapter = createAdapter(request.target, request.tenantId);
+  const sourceAdapter = createAdapter(run.source, run.tenantId);
+  const targetAdapter = createAdapter(run.target, run.tenantId);
   console.log('source adapter:', sourceAdapter.constructor.name);
   console.log('target adapter:', targetAdapter.constructor.name);
 
