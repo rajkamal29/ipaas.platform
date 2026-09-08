@@ -114,7 +114,7 @@ This inserts the canonical `client` schema plus the default ConnectWise-inbound 
 
 ### 8. Stand up a mock tenant and sync run
 
-Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s — see `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` for the tenant/`sync_request` IDs already in common use for demos.
+Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s.
 
 For a real tenant, use `docs/setup/TENANT_ONBOARDING.md` instead of this section — real credentials, not mock, so it's a different path, not a more detailed version of this one.
 
