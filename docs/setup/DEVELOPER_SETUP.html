@@ -361,7 +361,7 @@ code {
 <h1 id="developer-setup">Developer Setup</h1>
 <p>Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.</p>
 <p>This doc lives at <code>ipaas.platform/docs/setup/</code> — outside all three repos, since its content already spans them. Every command below assumes your shell's current directory is the parent folder containing all three repos (referred to as <code>ipaas.platform</code> throughout), unless a <code>cd</code> changes that; each section either continues from the previous one's ending directory or explicitly <code>cd</code>s to the one it needs.</p>
-<p>Read this top to bottom once; after that, <code>ipaas.infra/docs/migrations/OPERATIONS.md</code> and <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> are the two you'll come back to.</p>
+<p>Read this top to bottom once, in order — it's the only document you need to get from a fresh clone to a running, debuggable local setup. It references the other docs throughout (schema, engine internals, adapter verification status) purely as optional deeper reading, never as something you have to stop and go read to keep moving. Once you're done, "Where to go from here" at the bottom sequences what to read next — the demo walkthrough, real tenant onboarding, or day-to-day Postgres operations, depending on what you're doing.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li><strong>Docker Desktop</strong> — runs Postgres locally via <code>ipaas.infra/docker-compose.yml</code>. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a <code>Dockerfile</code>, but you run it as a plain Node process locally — see §7).</li>
@@ -370,7 +370,7 @@ code {
 <li>A local <code>psql</code> client is optional — <code>docker exec</code> into the Postgres container works fine without one (§4 below).</li>
 </ul>
 <h2 id="1-clone-and-install">1. Clone and install</h2>
-<p><strong>Three repos as of 2026-09-08.</strong> The platform is split into <code>ipaas.orchestrationengine</code> (this one), <code>ipaas.providers</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>), and <code>ipaas.infra</code> (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.</p>
+<p><strong>Three repos as of 2026-09-08.</strong> The platform is split into <code>ipaas.orchestrationengine</code> (this one), <code>ipaas.providers</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code> — what's actually live-verified vs. still-guessed in each is tracked in <code>ipaas.providers/docs/LLD-connector-auth-layer.md</code>, worth a skim before you rely on anything beyond the <code>client</code> entity), and <code>ipaas.infra</code> (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a>git clone &lt;orchestration-engine-repo-url&gt; ipaas.<span class="fu">orchestrationengine</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>git clone &lt;providers-repo-url&gt; ipaas.<span class="fu">providers</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a>git clone &lt;infra-repo-url&gt; ipaas.<span class="fu">infra</span></span>
@@ -532,7 +532,11 @@ code {
 <p>There's also a compound, <strong>Debug: full cycle against mock server</strong>, which starts the mock server and <code>run.js</code> together in one <code>F5</code> — handy for setting a breakpoint in <code>scripts/mock-server.js</code>'s route handler <em>and</em> in <code>cycle.js</code>'s fetch logic at the same time, to watch a request cross the boundary.</p>
 <p><strong>Breakpoints in the adapters work too.</strong> Because <code>ipaas.providers</code> is a real sibling folder in the same workspace and <code>@ipaas/adapter-connectwise</code>/<code>@ipaas/adapter-keka</code> are resolved via <code>npm link</code> (a symlink, not a copy — see §1), a breakpoint set in <code>ipaas.providers/connectwise/index.js</code> will hit when <code>run.js</code> calls into it through <code>node_modules/@ipaas/adapter-connectwise</code>. If breakpoints there show as unbound (hollow) instead of bound (solid red) once the debugger attaches, the symlink likely isn't in place — re-run the <code>npm link</code> steps from §1 in <code>ipaas.providers/connectwise</code> and <code>ipaas.providers/keka</code>, and confirm with <code>ls node_modules/@ipaas</code> inside <code>ipaas.orchestrationengine</code>; you should see <code>adapter-connectwise</code> and <code>adapter-keka</code> listed as symlinks, not missing entirely.</p>
 <p>All four configs point <code>envFile</code> at <code>ipaas.orchestrationengine</code>'s real <code>.env</code> (§2) — nothing provider-specific needs to be duplicated into <code>launch.json</code> itself, and <code>ENCRYPTION_MASTER_KEY</code>/<code>DATABASE_URL</code> never end up hardcoded in a committed file. Postgres and the mock server both still need to be running as usual (§3, §6) before you launch any of these — the debug configs replace how you <em>start</em> <code>run.js</code>/the test scripts, not the rest of the setup.</p>
-<h2 id="where-things-live-and-what-to-read-next">Where things live, and what to read next</h2>
+<h2 id="where-to-go-from-here">Where to go from here</h2>
+<p>By this point you have the platform running locally, a test sync completed, and a working VS Code debug setup. Where to read next depends on what you're actually doing:</p>
+<p><strong>Exploring the engine's behavior in more depth</strong> (not just "it ran once") → <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code>. Same mock setup as §5–6 above, but walks through the expected output step by step, including what a <em>second</em> run looks like — the self-healing <code>failed</code>/<code>retry</code> reconciliation, which a single run doesn't show.</p>
+<p><strong>Onboarding a real tenant</strong> — real ConnectWise/Keka credentials, not the mock server → <code>docs/setup/TENANT_ONBOARDING.md</code> (right next to this doc). It explicitly assumes everything in this document is already done, and picks up from there.</p>
+<p><strong>Reference docs</strong> — for deeper detail on any one part of what you just did; not required reading, dip in as needed:</p>
 <table>
 <thead>
 <tr class="header">
@@ -550,20 +554,12 @@ code {
 <td><code>ipaas.infra/docs/migrations/OPERATIONS.md</code></td>
 </tr>
 <tr class="odd">
-<td>Onboarding a real tenant (not a demo one) — real credentials, real mapping decisions</td>
-<td><code>docs/setup/TENANT_ONBOARDING.md</code> (next to this doc)</td>
-</tr>
-<tr class="even">
 <td>Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization</td>
 <td><code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>What's live-verified vs. still-guessed in the ConnectWise/Keka adapters</td>
 <td><code>ipaas.providers/docs/LLD-connector-auth-layer.md</code></td>
-</tr>
-<tr class="even">
-<td>Full repeatable demo walkthrough with expected output</td>
-<td><code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code></td>
 </tr>
 </tbody>
 </table>

@@ -4,7 +4,7 @@ Everything a new developer needs to get the platform running locally, end to end
 
 This doc lives at `ipaas.platform/docs/setup/` — outside all three repos, since its content already spans them. Every command below assumes your shell's current directory is the parent folder containing all three repos (referred to as `ipaas.platform` throughout), unless a `cd` changes that; each section either continues from the previous one's ending directory or explicitly `cd`s to the one it needs.
 
-Read this top to bottom once; after that, `ipaas.infra/docs/migrations/OPERATIONS.md` and `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` are the two you'll come back to.
+Read this top to bottom once, in order — it's the only document you need to get from a fresh clone to a running, debuggable local setup. It references the other docs throughout (schema, engine internals, adapter verification status) purely as optional deeper reading, never as something you have to stop and go read to keep moving. Once you're done, "Where to go from here" at the bottom sequences what to read next — the demo walkthrough, real tenant onboarding, or day-to-day Postgres operations, depending on what you're doing.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Read this top to bottom once; after that, `ipaas.infra/docs/migrations/OPERATION
 
 ## 1. Clone and install
 
-**Three repos as of 2026-09-08.** The platform is split into `ipaas.orchestrationengine` (this one), `ipaas.providers` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka`), and `ipaas.infra` (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.
+**Three repos as of 2026-09-08.** The platform is split into `ipaas.orchestrationengine` (this one), `ipaas.providers` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka` — what's actually live-verified vs. still-guessed in each is tracked in `ipaas.providers/docs/LLD-connector-auth-layer.md`, worth a skim before you rely on anything beyond the `client` entity), and `ipaas.infra` (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.
 
 ```powershell
 git clone <orchestration-engine-repo-url> ipaas.orchestrationengine
@@ -166,16 +166,22 @@ There's also a compound, **Debug: full cycle against mock server**, which starts
 
 All four configs point `envFile` at `ipaas.orchestrationengine`'s real `.env` (§2) — nothing provider-specific needs to be duplicated into `launch.json` itself, and `ENCRYPTION_MASTER_KEY`/`DATABASE_URL` never end up hardcoded in a committed file. Postgres and the mock server both still need to be running as usual (§3, §6) before you launch any of these — the debug configs replace how you *start* `run.js`/the test scripts, not the rest of the setup.
 
-## Where things live, and what to read next
+## Where to go from here
+
+By this point you have the platform running locally, a test sync completed, and a working VS Code debug setup. Where to read next depends on what you're actually doing:
+
+**Exploring the engine's behavior in more depth** (not just "it ran once") → `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md`. Same mock setup as §5–6 above, but walks through the expected output step by step, including what a *second* run looks like — the self-healing `failed`/`retry` reconciliation, which a single run doesn't show.
+
+**Onboarding a real tenant** — real ConnectWise/Keka credentials, not the mock server → `docs/setup/TENANT_ONBOARDING.md` (right next to this doc). It explicitly assumes everything in this document is already done, and picks up from there.
+
+**Reference docs** — for deeper detail on any one part of what you just did; not required reading, dip in as needed:
 
 | Topic | Doc |
 |---|---|
 | Full schema — every table, every column, why | `ipaas.infra/docs/migrations/README.md` |
 | Postgres day-to-day commands, resets, troubleshooting | `ipaas.infra/docs/migrations/OPERATIONS.md` |
-| Onboarding a real tenant (not a demo one) — real credentials, real mapping decisions | `docs/setup/TENANT_ONBOARDING.md` (next to this doc) |
 | Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization | `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` |
 | What's live-verified vs. still-guessed in the ConnectWise/Keka adapters | `ipaas.providers/docs/LLD-connector-auth-layer.md` |
-| Full repeatable demo walkthrough with expected output | `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` |
 
 ## Common early mistakes
 
