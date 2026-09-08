@@ -1,0 +1,101 @@
+{
+	"folders": [
+		{
+			"name": "ipaas.orchestrationengine",
+			"path": "ipaas.orchestrationengine"
+		},
+		{
+			"name": "ipaas.providers",
+			"path": "ipaas.providers"
+		},
+		{
+			"name": "ipaas.platform (root docs)",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true
+		}
+	},
+	"launch": {
+		"version": "0.2.0",
+		"compounds": [
+			{
+				"name": "Debug: full cycle against mock server",
+				"configurations": [
+					"Run: mock-server.js",
+					"Debug: run.js (one sync_entities row)"
+				],
+				"stopAll": true
+			}
+		],
+		"configurations": [
+			{
+				"type": "node",
+				"request": "launch",
+				"name": "Debug: run.js (one sync_entities row)",
+				"program": "${workspaceFolder:ipaas.orchestrationengine}/lib/orchestration/run.js",
+				"cwd": "${workspaceFolder:ipaas.orchestrationengine}",
+				"envFile": "${workspaceFolder:ipaas.orchestrationengine}/.env",
+				"env": {
+					"SYNC_ENTITY_ID": "${input:syncEntityId}"
+				},
+				"console": "integratedTerminal",
+				"skipFiles": [
+					"<node_internals>/**"
+				],
+				"outputCapture": "std"
+			},
+			{
+				"type": "node",
+				"request": "launch",
+				"name": "Debug: test-orchestration-bootstrap.js",
+				"program": "${workspaceFolder:ipaas.orchestrationengine}/scripts/test-orchestration-bootstrap.js",
+				"args": [
+					"${input:syncEntityId}"
+				],
+				"cwd": "${workspaceFolder:ipaas.orchestrationengine}",
+				"envFile": "${workspaceFolder:ipaas.orchestrationengine}/.env",
+				"console": "integratedTerminal",
+				"skipFiles": [
+					"<node_internals>/**"
+				]
+			},
+			{
+				"type": "node",
+				"request": "launch",
+				"name": "Debug: test-run-cycle.js",
+				"program": "${workspaceFolder:ipaas.orchestrationengine}/scripts/test-run-cycle.js",
+				"args": [
+					"${input:syncEntityId}"
+				],
+				"cwd": "${workspaceFolder:ipaas.orchestrationengine}",
+				"envFile": "${workspaceFolder:ipaas.orchestrationengine}/.env",
+				"console": "integratedTerminal",
+				"skipFiles": [
+					"<node_internals>/**"
+				]
+			},
+			{
+				"type": "node",
+				"request": "launch",
+				"name": "Run: mock-server.js",
+				"program": "${workspaceFolder:ipaas.orchestrationengine}/scripts/mock-server.js",
+				"cwd": "${workspaceFolder:ipaas.orchestrationengine}",
+				"envFile": "${workspaceFolder:ipaas.orchestrationengine}/.env",
+				"console": "integratedTerminal",
+				"skipFiles": [
+					"<node_internals>/**"
+				]
+			}
+		],
+		"inputs": [
+			{
+				"id": "syncEntityId",
+				"type": "promptString",
+				"description": "sync_entities.id (uuid) to run — see docs/DEMO-orchestration-engine.md for how to seed/find one"
+			}
+		]
+	}
+}

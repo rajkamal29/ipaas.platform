@@ -122,6 +122,25 @@ docker run --rm `
 
 Note the `DATABASE_URL` swap — `localhost` inside the container refers to the container itself, not your host's Postgres. Use `host.docker.internal` (Docker Desktop on Windows/Mac resolves this automatically) instead. Full image design, what's baked in vs. passed at runtime, and the CI pipeline that publishes this automatically on push to `dev`: `docs/LLD-orchestration-engine.md` §9.
 
+## 8. Debugging in VS Code
+
+A multi-root workspace file, `ipaas.platform.code-workspace`, sits one level up from this repo (next to `ipaas.orchestrationengine/` and `ipaas.providers/`). Open it in VS Code (`File > Open Workspace from File...`) instead of opening either folder individually — you get both repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).
+
+It ships four launch configurations (Run and Debug panel, or `F5`):
+
+| Configuration | What it runs | Notes |
+|---|---|---|
+| **Debug: run.js (one sync_entities row)** | The real entrypoint, `lib/orchestration/run.js` | Prompts for a `sync_entity_id` each time you launch it — paste the one from §5. Reads the rest of its config from `.env` via `envFile`, same as running it from the terminal. |
+| **Debug: test-orchestration-bootstrap.js** | The bootstrap + adapter-registry smoke test | Same `sync_entity_id` prompt. Useful for stepping through credential loading and adapter construction in isolation, without running a full cycle. |
+| **Debug: test-run-cycle.js** | One full cycle + prints `sync_state` after | Same prompt. Good for stepping through `cycle.js`'s fetch → map → validate → write loop directly. |
+| **Run: mock-server.js** | The mock ConnectWise/Keka server | No prompt — just starts it. Combine with the compound below instead of running it separately when you want breakpoints on both sides of a request. |
+
+There's also a compound, **Debug: full cycle against mock server**, which starts the mock server and `run.js` together in one `F5` — handy for setting a breakpoint in `scripts/mock-server.js`'s route handler *and* in `cycle.js`'s fetch logic at the same time, to watch a request cross the boundary.
+
+**Breakpoints in the adapters work too.** Because `ipaas.providers` is a real sibling folder in the same workspace and `@ipaas/adapter-connectwise`/`@ipaas/adapter-keka` are resolved via `npm link` (a symlink, not a copy — see §1), a breakpoint set in `ipaas.providers/connectwise/index.js` will hit when `run.js` calls into it through `node_modules/@ipaas/adapter-connectwise`. If breakpoints there show as unbound (hollow) instead of bound (solid red) once the debugger attaches, the symlink likely isn't in place — re-run the `npm link` steps from §1 in `ipaas.providers/connectwise` and `ipaas.providers/keka`, and confirm with `ls node_modules/@ipaas` inside `ipaas.orchestrationengine`; you should see `adapter-connectwise` and `adapter-keka` listed as symlinks, not missing entirely.
+
+All four configs point `envFile` at this repo's real `.env` (§2) — nothing provider-specific needs to be duplicated into `launch.json` itself, and `ENCRYPTION_MASTER_KEY`/`DATABASE_URL` never end up hardcoded in a committed file. Postgres and the mock server both still need to be running as usual (§3, §6) before you launch any of these — the debug configs replace how you *start* `run.js`/the test scripts, not the rest of the setup.
+
 ## Where things live, and what to read next
 
 | Topic | Doc |

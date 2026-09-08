@@ -369,50 +369,62 @@ code {
 <li>A local <code>psql</code> client is optional — <code>docker exec</code> into the Postgres container works fine without one (§4 below).</li>
 </ul>
 <h2 id="1-clone-and-install">1. Clone and install</h2>
-<pre><code class="language-powershell">git clone &lt;repo-url&gt;
-cd ipaas.platform
-npm install
-</code></pre>
-<p><code>npm install</code> installs the root <code>package.json</code> dependencies plus both npm workspaces under <code>packages/adapters/*</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>) in one pass — you don't need to <code>cd</code> into them separately.</p>
+<p><strong>Repo split (2026-09-08).</strong> This engine and the provider adapters now live in two repos: <code>ipaas.orchestrationengine</code> (this one) and <code>ipaas.providers</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>). Check them out as sibling folders — the engine's <code>package.json</code> depends on both adapter packages, but they haven't been published to a registry yet (<code>npm.pkg.github.com</code>, still deferred), so local dev resolves them via <code>npm link</code> instead of a normal <code>npm install</code> of those two packages.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a>git clone &lt;orchestration-engine-repo-url&gt; ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>git clone &lt;providers-repo-url&gt; ipaas.<span class="fu">providers</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a><span class="co"># both folders must sit next to each other — adapter-registry.js&#39;s npm link</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a><span class="co"># target resolves relative to ipaas.orchestrationengine&#39;s sibling directory</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">providers</span>/connectwise</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a>npm install</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a>npm link</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a><span class="fu">cd</span> ../keka</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a>npm install</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true"></a>npm link</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true"></a><span class="fu">cd</span> ../../ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true"></a>npm install</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true"></a>npm link @ipaas/adapter-connectwise @ipaas/adapter-keka</span></code></pre></div>
+<p><code>npm install</code> in <code>ipaas.orchestrationengine</code> installs everything in <code>package.json</code> except the two <code>@ipaas/*</code> packages (unresolvable until they're published); the <code>npm link</code> step after it wires those two up against your local <code>ipaas.providers</code> checkout instead. Re-run the two <code>npm link</code> lines any time you <code>rm -rf node_modules</code> in this repo.</p>
 <h2 id="2-configure-environment">2. Configure environment</h2>
-<pre><code class="language-powershell">cp .env.example .env
-</code></pre>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="fu">cp</span> .<span class="fu">env</span>.<span class="fu">example</span> .<span class="fu">env</span></span></code></pre></div>
 <p>Then edit <code>.env</code>:</p>
 <table>
 <thead>
-<tr>
+<tr class="header">
 <th>Variable</th>
 <th>What it's for</th>
 <th>Notes</th>
 </tr>
 </thead>
 <tbody>
-<tr>
+<tr class="odd">
 <td><code>POSTGRES_USER</code> / <code>POSTGRES_PASSWORD</code> / <code>POSTGRES_DB</code></td>
 <td>Postgres container init</td>
 <td>Change the password from the placeholder; keep <code>DATABASE_URL</code> below in sync with it</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>DATABASE_URL</code></td>
 <td>Every DB connection (<code>lib/db.js</code>, migrations)</td>
 <td>Must match the three vars above</td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>ENCRYPTION_MASTER_KEY</code></td>
 <td>Encrypts the <code>credentials</code> table (<code>lib/crypto.js</code>)</td>
 <td><strong>Required</strong>, no default. Generate one: <code>openssl rand -base64 32</code>. Changing this later makes every existing encrypted credential row undecryptable</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>LOG_LEVEL</code></td>
 <td><code>lib/logger.js</code> (pino)</td>
 <td><code>info</code> is fine day-to-day; <code>debug</code> shows per-page/per-record detail during troubleshooting</td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>NODE_ENV</code></td>
 <td><code>lib/logger.js</code></td>
 <td>Leave unset locally — that's what gives you readable colorized logs (<code>pino-pretty</code>). Only set to <code>production</code> inside the container</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>SYNC_ENTITY_ID</code></td>
 <td><code>lib/orchestration/run.js</code></td>
 <td>Not a fixed setting — this is which entity's sync you're running. Leave blank in <code>.env</code>; set it per-run (§6). Scoped to one <code>sync_entities</code> row, not a whole <code>sync_requests</code> row — see <code>docs/LLD-orchestration-engine.md</code> §1</td>
@@ -421,69 +433,99 @@ npm install
 </table>
 <p><code>.env</code> is gitignored — it never gets committed, and nothing in it should ever be pasted into a PR, a Slack message, or a CI log.</p>
 <h2 id="3-start-postgres-and-run-migrations">3. Start Postgres and run migrations</h2>
-<pre><code class="language-powershell">docker compose up -d
-docker compose ps          # confirm it's healthy
-npm run migrate:up
-</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>docker compose up -d</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a>docker compose <span class="fu">ps</span>          <span class="co"># confirm it&#39;s healthy</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>npm run migrate:up</span></code></pre></div>
 <p>This creates all 8 tables — <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>. Full command reference, troubleshooting, and reset instructions: <code>docs/migrations/OPERATIONS.md</code>. Schema details, why each table looks the way it does: <code>docs/migrations/README.md</code>.</p>
 <h2 id="4-seed-the-platform-level-mapping-defaults">4. Seed the platform-level mapping defaults</h2>
-<pre><code class="language-powershell">node scripts/seed-global-mapping.js
-</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a>node scripts/seed-global-mapping.<span class="fu">js</span></span></code></pre></div>
 <p>This inserts the canonical <code>client</code> schema plus the default ConnectWise-inbound and Keka-outbound field mappings into <code>global_mapping_profiles</code>. Any tenant that doesn't define its own <code>mapping_profiles</code> override automatically inherits these — see <code>docs/LLD-orchestration-engine.md</code> §5. Safe to re-run any time (it upserts).</p>
 <h2 id="5-stand-up-a-tenant-and-a-mock-sync-run">5. Stand up a tenant and a mock sync run</h2>
 <p>Nothing syncs without a tenant, a <code>sync_requests</code> row (a source→target pairing), and at least one <code>sync_entities</code> row. There's no UI yet, so this is a few <code>INSERT</code>s — see <code>docs/DEMO-orchestration-engine.md</code> for the exact, copy-pasteable SQL block and the tenant/<code>sync_request</code> IDs already in common use for demos. In short:</p>
-<pre><code class="language-sql">INSERT INTO tenants (name) VALUES ('YourTestTenant') RETURNING id AS tenant_id \gset
-INSERT INTO sync_requests (tenant_id, source, target) VALUES (:'tenant_id', 'connectwise', 'keka') RETURNING id AS sync_request_id \gset
-INSERT INTO sync_entities (sync_request_id, entity, sync_type, status) VALUES (:'sync_request_id', 'client', 'one_time', 'submitted') RETURNING id AS sync_entity_id \gset
-</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;YourTestTenant&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> tenant_id \gset</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_requests (tenant_id, <span class="kw">source</span>, target) <span class="kw">VALUES</span> (:<span class="st">&#39;tenant_id&#39;</span>, <span class="st">&#39;connectwise&#39;</span>, <span class="st">&#39;keka&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_request_id \gset</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_entities (sync_request_id, entity, sync_type, status) <span class="kw">VALUES</span> (:<span class="st">&#39;sync_request_id&#39;</span>, <span class="st">&#39;client&#39;</span>, <span class="st">&#39;one_time&#39;</span>, <span class="st">&#39;submitted&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_entity_id \gset</span></code></pre></div>
 <p>Keep the <code>sync_entity_id</code> this prints out — that's what the engine actually takes as input (§6), not <code>sync_request_id</code>.</p>
 <p>Then seed fake credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
-<pre><code class="language-powershell">node scripts/seed-mock-credentials.js &lt;tenant_id&gt;
-</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a>node scripts/seed-mock-credentials.<span class="fu">js</span> &lt;tenant_id&gt;</span></code></pre></div>
 <p>If you want this tenant to use its <strong>own</strong> mapping instead of the global default, also run <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code> — otherwise skip it and it'll inherit what you seeded in §4.</p>
 <h2 id="6-run-the-engine">6. Run the engine</h2>
 <p>Start the mock server in its own terminal (leave it running):</p>
-<pre><code class="language-powershell">node scripts/mock-server.js
-</code></pre>
+<div class="sourceCode" id="cb7"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a>node scripts/mock-server.<span class="fu">js</span></span></code></pre></div>
 <p>Then run the actual entrypoint — this is the real code, not a test harness:</p>
-<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
-</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a><span class="va">$env</span>:SYNC_ENTITY_ID=<span class="st">&quot;&lt;sync_entity_id&gt;&quot;</span>; node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
 <p>You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update, then the process exits — every invocation runs exactly one cycle and exits, regardless of <code>sync_type</code> (see <code>docs/LLD-orchestration-engine.md</code> §7 for why). <code>docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
 <h2 id="7-building-and-running-the-container-image">7. Building and running the container image</h2>
-<pre><code class="language-powershell">docker build -t ipaas-orchestration-engine:local .
-docker run --rm `
-  -e SYNC_ENTITY_ID=&lt;sync_entity_id&gt; `
-  -e DATABASE_URL=&lt;same value as your .env, but with host.docker.internal instead of localhost&gt; `
-  -e ENCRYPTION_MASTER_KEY=&lt;same as your .env&gt; `
-  ipaas-orchestration-engine:local
-</code></pre>
+<div class="sourceCode" id="cb9"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true"></a>docker build -t ipaas-orchestration-engine:local .</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true"></a>docker run --rm `</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true"></a>  -e SYNC_ENTITY_ID=&lt;sync_entity_id&gt; `</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true"></a>  -e DATABASE_URL=&lt;same value as your .<span class="fu">env</span>, but with host.<span class="fu">docker</span>.<span class="fu">internal</span> instead of localhost&gt; `</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true"></a>  -e ENCRYPTION_MASTER_KEY=&lt;same as your .<span class="fu">env</span>&gt; `</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true"></a>  ipaas-orchestration-engine:local</span></code></pre></div>
 <p>Note the <code>DATABASE_URL</code> swap — <code>localhost</code> inside the container refers to the container itself, not your host's Postgres. Use <code>host.docker.internal</code> (Docker Desktop on Windows/Mac resolves this automatically) instead. Full image design, what's baked in vs. passed at runtime, and the CI pipeline that publishes this automatically on push to <code>dev</code>: <code>docs/LLD-orchestration-engine.md</code> §9.</p>
+<h2 id="8-debugging-in-vs-code">8. Debugging in VS Code</h2>
+<p>A multi-root workspace file, <code>ipaas.platform.code-workspace</code>, sits one level up from this repo (next to <code>ipaas.orchestrationengine/</code> and <code>ipaas.providers/</code>). Open it in VS Code (<code>File &gt; Open Workspace from File...</code>) instead of opening either folder individually — you get both repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).</p>
+<p>It ships four launch configurations (Run and Debug panel, or <code>F5</code>):</p>
+<table>
+<thead>
+<tr class="header">
+<th>Configuration</th>
+<th>What it runs</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Debug: run.js (one sync_entities row)</strong></td>
+<td>The real entrypoint, <code>lib/orchestration/run.js</code></td>
+<td>Prompts for a <code>sync_entity_id</code> each time you launch it — paste the one from §5. Reads the rest of its config from <code>.env</code> via <code>envFile</code>, same as running it from the terminal.</td>
+</tr>
+<tr class="even">
+<td><strong>Debug: test-orchestration-bootstrap.js</strong></td>
+<td>The bootstrap + adapter-registry smoke test</td>
+<td>Same <code>sync_entity_id</code> prompt. Useful for stepping through credential loading and adapter construction in isolation, without running a full cycle.</td>
+</tr>
+<tr class="odd">
+<td><strong>Debug: test-run-cycle.js</strong></td>
+<td>One full cycle + prints <code>sync_state</code> after</td>
+<td>Same prompt. Good for stepping through <code>cycle.js</code>'s fetch → map → validate → write loop directly.</td>
+</tr>
+<tr class="even">
+<td><strong>Run: mock-server.js</strong></td>
+<td>The mock ConnectWise/Keka server</td>
+<td>No prompt — just starts it. Combine with the compound below instead of running it separately when you want breakpoints on both sides of a request.</td>
+</tr>
+</tbody>
+</table>
+<p>There's also a compound, <strong>Debug: full cycle against mock server</strong>, which starts the mock server and <code>run.js</code> together in one <code>F5</code> — handy for setting a breakpoint in <code>scripts/mock-server.js</code>'s route handler <em>and</em> in <code>cycle.js</code>'s fetch logic at the same time, to watch a request cross the boundary.</p>
+<p><strong>Breakpoints in the adapters work too.</strong> Because <code>ipaas.providers</code> is a real sibling folder in the same workspace and <code>@ipaas/adapter-connectwise</code>/<code>@ipaas/adapter-keka</code> are resolved via <code>npm link</code> (a symlink, not a copy — see §1), a breakpoint set in <code>ipaas.providers/connectwise/index.js</code> will hit when <code>run.js</code> calls into it through <code>node_modules/@ipaas/adapter-connectwise</code>. If breakpoints there show as unbound (hollow) instead of bound (solid red) once the debugger attaches, the symlink likely isn't in place — re-run the <code>npm link</code> steps from §1 in <code>ipaas.providers/connectwise</code> and <code>ipaas.providers/keka</code>, and confirm with <code>ls node_modules/@ipaas</code> inside <code>ipaas.orchestrationengine</code>; you should see <code>adapter-connectwise</code> and <code>adapter-keka</code> listed as symlinks, not missing entirely.</p>
+<p>All four configs point <code>envFile</code> at this repo's real <code>.env</code> (§2) — nothing provider-specific needs to be duplicated into <code>launch.json</code> itself, and <code>ENCRYPTION_MASTER_KEY</code>/<code>DATABASE_URL</code> never end up hardcoded in a committed file. Postgres and the mock server both still need to be running as usual (§3, §6) before you launch any of these — the debug configs replace how you <em>start</em> <code>run.js</code>/the test scripts, not the rest of the setup.</p>
 <h2 id="where-things-live-and-what-to-read-next">Where things live, and what to read next</h2>
 <table>
 <thead>
-<tr>
+<tr class="header">
 <th>Topic</th>
 <th>Doc</th>
 </tr>
 </thead>
 <tbody>
-<tr>
+<tr class="odd">
 <td>Full schema — every table, every column, why</td>
 <td><code>docs/migrations/README.md</code></td>
 </tr>
-<tr>
+<tr class="even">
 <td>Postgres day-to-day commands, resets, troubleshooting</td>
 <td><code>docs/migrations/OPERATIONS.md</code></td>
 </tr>
-<tr>
+<tr class="odd">
 <td>Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization</td>
 <td><code>docs/LLD-orchestration-engine.md</code></td>
 </tr>
-<tr>
+<tr class="even">
 <td>What's live-verified vs. still-guessed in the ConnectWise/Keka adapters</td>
 <td><code>docs/LLD-connector-auth-layer.md</code></td>
 </tr>
-<tr>
+<tr class="odd">
 <td>Full repeatable demo walkthrough with expected output</td>
 <td><code>docs/DEMO-orchestration-engine.md</code></td>
 </tr>
@@ -497,5 +539,6 @@ docker run --rm `
 <li><strong>Expecting <code>SYNC_ENTITY_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.</li>
 <li><strong>Using the <code>sync_request_id</code> instead of the <code>sync_entity_id</code></strong> — easy to grab the wrong one from the SQL output in §5, since both look like plain UUIDs. The engine takes <code>SYNC_ENTITY_ID</code> only.</li>
 </ul>
+
 </body>
 </html>
