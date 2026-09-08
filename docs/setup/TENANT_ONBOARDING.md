@@ -146,7 +146,7 @@ Only add a tenant-specific override if this tenant genuinely needs different fie
 ## Step 5 — Verify everything is in place
 
 ```sql
-SELECT id, name FROM sync_entities WHERE id = '<sync_entity_id>';
+SELECT id, entity, sync_type, status FROM sync_entities WHERE id = '<sync_entity_id>';
 SELECT provider, created_at FROM credentials WHERE tenant_id = '<tenant_id>';
 ```
 
