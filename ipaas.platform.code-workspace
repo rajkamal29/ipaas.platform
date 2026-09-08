@@ -9,6 +9,10 @@
 			"path": "ipaas.providers"
 		},
 		{
+			"name": "ipaas.infra",
+			"path": "ipaas.infra"
+		},
+		{
 			"name": "ipaas.platform (root docs)",
 			"path": "."
 		}

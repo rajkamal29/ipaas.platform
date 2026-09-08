@@ -362,138 +362,125 @@ code {
 <p>Reference commands for standing up, inspecting, and resetting Postgres locally. Run all commands from the project root (where <code>docker-compose.yml</code> and <code>package.json</code> live), in PowerShell, unless noted otherwise.</p>
 <p>Schema covered: <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code> — see <code>docs/migrations/README.md</code> for what each table means and how they relate.</p>
 <h2 id="1-one-time-environment-setup">1. One-time environment setup</h2>
-<pre><code class="language-powershell">cp .env.example .env
-</code></pre>
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="fu">cp</span> .<span class="fu">env</span>.<span class="fu">example</span> .<span class="fu">env</span></span></code></pre></div>
 <p>Then open <code>.env</code> and set a real <code>POSTGRES_PASSWORD</code>, updating the matching password in <code>DATABASE_URL</code> on the line below it so the two stay in sync. <code>.env</code> is gitignored — it never gets committed.</p>
 <h2 id="2-start-postgres">2. Start Postgres</h2>
-<pre><code class="language-powershell">docker compose up -d
-</code></pre>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a>docker compose up -d</span></code></pre></div>
 <p>Starts the <code>ipaas-postgres</code> container in the background. On first run against an empty volume, the init script (<code>docker/postgres/init/01-create-extensions.sh</code> — creates the <code>pgcrypto</code> extension that <code>gen_random_uuid()</code> depends on) runs automatically.</p>
 <p><strong>Check it came up healthy:</strong></p>
-<pre><code class="language-powershell">docker compose ps
-</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>docker compose <span class="fu">ps</span></span></code></pre></div>
 <p><strong>Watch the logs</strong> (useful the first time, to confirm the init script ran without errors):</p>
-<pre><code class="language-powershell">docker compose logs -f postgres
-</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a>docker compose logs -f postgres</span></code></pre></div>
 <p>(Ctrl+C to stop tailing — this doesn't stop the container.)</p>
 <p><strong>Validate the connection actually works</strong> (not just that the container is running):</p>
-<pre><code class="language-powershell">docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform -c &quot;SELECT version();&quot;
-</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform -c <span class="st">&quot;SELECT version();&quot;</span></span></code></pre></div>
 <h2 id="3-install-dependencies-and-run-migrations">3. Install dependencies and run migrations</h2>
-<pre><code class="language-powershell">npm install
-npm run migrate:up
-</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a>npm install</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true"></a>npm run migrate:up</span></code></pre></div>
 <p><code>npm run migrate:up</code> runs <code>node-pg-migrate up</code>, which connects using <code>DATABASE_URL</code> from <code>.env</code> and applies every migration in <code>migrations/</code> that hasn't run yet. It tracks what's already applied in its own <code>pgmigrations</code> table, so re-running this later only applies new migrations.</p>
 <p><strong>To roll back the last migration</strong> (if you need to undo a schema change):</p>
-<pre><code class="language-powershell">npm run migrate:down
-</code></pre>
+<div class="sourceCode" id="cb7"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a>npm run migrate:down</span></code></pre></div>
 <p><strong>Important:</strong> <code>migrations/</code> must contain <em>only</em> migration files — <code>node-pg-migrate</code> tries to parse every file in that folder for a numeric timestamp prefix. Anything else (a stray <code>README.md</code>, notes, etc.) breaks the runner with <code>Cannot determine numeric prefix for "&lt;file&gt;"</code>. Keep docs like <code>LLD-core-schema.md</code> in <code>docs/</code> instead.</p>
 <h2 id="4-connect-to-postgres">4. Connect to Postgres</h2>
 <p><strong>Via the container (no local psql install needed):</strong></p>
-<pre><code class="language-powershell">docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform
-</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform</span></code></pre></div>
 <p>(swap <code>ipaas</code> for your actual <code>POSTGRES_USER</code> if you changed it in <code>.env</code>)</p>
 <p><strong>Via a local psql client, if installed:</strong></p>
-<pre><code class="language-powershell">psql &quot;postgresql://ipaas:&lt;your-password&gt;@localhost:5432/ipaas_platform&quot;
-</code></pre>
+<div class="sourceCode" id="cb9"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true"></a>psql <span class="st">&quot;postgresql://ipaas:&lt;your-password&gt;@localhost:5432/ipaas_platform&quot;</span></span></code></pre></div>
 <h2 id="5-inspect-the-schema-inside-psql">5. Inspect the schema (inside psql)</h2>
 <table>
 <thead>
-<tr>
+<tr class="header">
 <th>Command</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
-<tr>
+<tr class="odd">
 <td><code>\l</code></td>
 <td>List databases — confirms <code>ipaas_platform</code> exists</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>\dt</code></td>
 <td>List all tables — should show <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>, plus <code>pgmigrations</code></td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>\d sync_entities</code></td>
 <td>Describe a table's columns and constraints</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>\di</code></td>
 <td>List indexes</td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>\x</code></td>
 <td>Toggle expanded (vertical) row display — helpful for wide columns</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>\q</code></td>
 <td>Exit</td>
 </tr>
 </tbody>
 </table>
 <h2 id="6-view-records">6. View records</h2>
-<pre><code class="language-sql">SELECT * FROM tenants;
-SELECT id, tenant_id, source, target, created_at FROM sync_requests;
-SELECT id, sync_request_id, entity, sync_type, status FROM sync_entities;
-SELECT id, tenant_id, provider, created_at, updated_at FROM credentials;  -- avoid SELECT *, encrypted_payload/iv/auth_tag are raw bytea
-</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> tenants;</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">id</span>, tenant_id, <span class="kw">source</span>, target, created_at <span class="kw">FROM</span> sync_requests;</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">id</span>, sync_request_id, entity, sync_type, status <span class="kw">FROM</span> sync_entities;</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">id</span>, tenant_id, provider, created_at, updated_at <span class="kw">FROM</span> credentials;  <span class="co">-- avoid SELECT *, encrypted_payload/iv/auth_tag are raw bytea</span></span></code></pre></div>
 <h2 id="7-get-a-tenants-id">7. Get a tenant's ID</h2>
 <p>No seed script creates a tenant automatically — a tenant is a row you insert directly (or, later, via the API layer once it exists):</p>
-<pre><code class="language-sql">INSERT INTO tenants (name) VALUES ('OculusIT') RETURNING id;
-</code></pre>
+<div class="sourceCode" id="cb11"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;OculusIT&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span>;</span></code></pre></div>
 <p>or, if it already exists:</p>
-<pre><code class="language-sql">SELECT id FROM tenants WHERE name = 'OculusIT';
-</code></pre>
+<div class="sourceCode" id="cb12"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> tenants <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;OculusIT&#39;</span>;</span></code></pre></div>
 <p>The Orchestration Engine itself doesn't take a tenant ID directly — it takes a <code>SYNC_ENTITY_ID</code> (see <code>lib/orchestration/run.js</code>), scoped to a single <code>sync_entities</code> row (one entity within one tenant's source→target pairing — see <code>docs/LLD-orchestration-engine.md</code> §1 for why it's entity-scoped, not request-scoped). The full sequence for creating a tenant, a <code>sync_requests</code> row, and its <code>sync_entities</code> rows together is in <code>docs/DEVELOPER_SETUP.md</code> and <code>docs/DEMO-orchestration-engine.md</code> — this section is just for when you need a tenant's raw <code>id</code>, e.g. to seed credentials or mapping profiles against it.</p>
-<h2 id="8-stop-reset">8. Stop / reset</h2>
+<h2 id="8-stop--reset">8. Stop / reset</h2>
 <p><strong>Stop the container, keep the data:</strong></p>
-<pre><code class="language-powershell">docker compose down
-</code></pre>
+<div class="sourceCode" id="cb13"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true"></a>docker compose down</span></code></pre></div>
 <p><strong>Stop and wipe all data</strong> (genuinely fresh start — drops the volume, so all tables and migration history are gone; you'll need to re-run <code>npm run migrate:up</code> afterward):</p>
-<pre><code class="language-powershell">docker compose down -v
-</code></pre>
+<div class="sourceCode" id="cb14"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true"></a>docker compose down -v</span></code></pre></div>
 <p><strong>Gotcha to know about:</strong> <code>docker compose up -d</code> reattaches to an <em>existing</em> named volume (<code>ipaas_postgres_data</code>) if one is already on your machine — it does not silently give you a fresh database just because you deleted migration files or restarted the container. If you want a truly clean database, you need <code>down -v</code>, not just <code>up -d</code> again.</p>
 <h2 id="9-troubleshooting">9. Troubleshooting</h2>
 <table>
 <thead>
-<tr>
+<tr class="header">
 <th>Symptom</th>
 <th>Cause</th>
 <th>Fix</th>
 </tr>
 </thead>
 <tbody>
-<tr>
+<tr class="odd">
 <td><code>The DATABASE_URL environment variable is not set or incomplete connection parameters are provided.</code></td>
 <td><code>node-pg-migrate</code> only loads <code>.env</code> automatically if the <code>dotenv</code> package is installed</td>
 <td>Run <code>npm install</code> — <code>dotenv</code> is already in <code>package.json</code></td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>connect ECONNREFUSED 127.0.0.1:5432</code></td>
 <td>Postgres container isn't running yet, or hasn't finished its healthcheck</td>
 <td>Run <code>docker compose ps</code> to check status; wait a few seconds after <code>docker compose up -d</code> before running migrations</td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>password authentication failed</code></td>
 <td><code>.env</code> was edited <em>after</em> the container and volume were first created — Postgres only reads <code>POSTGRES_PASSWORD</code> on first initialization of an empty data directory</td>
 <td><code>docker compose down -v</code> then <code>docker compose up -d</code> again to reinitialize with the current <code>.env</code> values</td>
 </tr>
-<tr>
+<tr class="even">
 <td><code>Cannot determine numeric prefix for "&lt;file&gt;"</code></td>
 <td>A non-migration file (e.g. a <code>README.md</code>) is sitting inside <code>migrations/</code></td>
 <td>Move it out — <code>node-pg-migrate</code> treats every file in that folder as a migration</td>
 </tr>
-<tr>
+<tr class="odd">
 <td><code>Not run migration X is preceding already run migration Y</code></td>
 <td>The Postgres volume already has an older migration history in it (e.g. left over from a previous version of the schema) that doesn't match what's on disk now</td>
 <td><code>docker compose down -v &amp;&amp; docker compose up -d</code> to start from a genuinely empty volume, then <code>npm run migrate:up</code></td>
 </tr>
-<tr>
+<tr class="even">
 <td>Table missing after <code>npm run migrate:up</code></td>
 <td>Migration didn't actually run, or ran against the wrong database</td>
 <td>Check <code>SELECT * FROM pgmigrations;</code> inside psql to see which migrations have been recorded as applied</td>
 </tr>
 </tbody>
 </table>
+
 </body>
 </html>

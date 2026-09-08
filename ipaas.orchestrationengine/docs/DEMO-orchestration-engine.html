@@ -358,13 +358,12 @@ code {
 </head>
 <body>
 
-<h1 id="orchestration-engine-demo-mock-connectwisekeka-walkthrough">Orchestration Engine Demo — Mock ConnectWise/Keka Walkthrough</h1>
+<h1 id="orchestration-engine-demo--mock-connectwisekeka-walkthrough">Orchestration Engine Demo — Mock ConnectWise/Keka Walkthrough</h1>
 <p>A repeatable, no-real-credentials-needed demo of the Orchestration Engine running end-to-end: dynamic adapter loading, real mapping/canonical validation, the fetch → map → write cycle, and the self-healing <code>failed</code>/<code>retry</code> reconciliation on <code>sync_state</code>.</p>
-<p><strong>What this proves:</strong> the engine's own logic works correctly, through the real code path — not a simplified stand-in.
-<strong>What this does NOT prove:</strong> anything about the real ConnectWise/Keka APIs. The mock server fakes response <em>shapes</em> only; endpoint paths, auth mechanics, and <code>fetchByIds</code> filter syntax are still unverified against the real systems (see <code>docs/LLD-connector-auth-layer.md</code>). Say this explicitly when presenting — it's a logic demo, not proof the real integrations work yet.</p>
+<p><strong>What this proves:</strong> the engine's own logic works correctly, through the real code path — not a simplified stand-in. <strong>What this does NOT prove:</strong> anything about the real ConnectWise/Keka APIs. The mock server fakes response <em>shapes</em> only; endpoint paths, auth mechanics, and <code>fetchByIds</code> filter syntax are still unverified against the real systems (see <code>docs/LLD-connector-auth-layer.md</code>). Say this explicitly when presenting — it's a logic demo, not proof the real integrations work yet.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li>Postgres running and migrated — see <code>docs/migrations/OPERATIONS.md</code> (<code>docker compose up -d</code>, <code>npm install</code>, <code>npm run migrate:up</code>)</li>
+<li>Postgres running and migrated — see <code>ipaas.infra/docs/migrations/OPERATIONS.md</code> (<code>docker compose up -d</code>, <code>npm install</code>, <code>npm run migrate:up</code>, all run from the <code>ipaas.infra</code> folder as of the 2026-09-08 infra split)</li>
 <li>Mock server + test data set up once (below) — persists in Postgres, so this is normally a one-time step per database</li>
 </ul>
 <h2 id="one-time-setup">One-time setup</h2>
@@ -376,28 +375,25 @@ code {
 </ul>
 <p><strong>If starting from a fresh database</strong>, recreate everything in order:</p>
 <ol>
-<li>Create the tenant, sync request, and entity — via <code>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform</code>:
-   ```sql
-   INSERT INTO tenants (name) VALUES ('OculusIT') RETURNING id AS tenant_id \gset</li>
-</ol>
-<p>INSERT INTO sync_requests (tenant_id, source, target)
-   VALUES (:'tenant_id', 'connectwise', 'keka')
-   RETURNING id AS sync_request_id \gset</p>
-<p>INSERT INTO sync_entities (sync_request_id, entity, sync_type, status)
-   VALUES (:'sync_request_id', 'client', 'one_time', 'submitted')
-   RETURNING id AS sync_entity_id \gset</p>
-<p>SELECT :'tenant_id' AS tenant_id, :'sync_request_id' AS sync_request_id, :'sync_entity_id' AS sync_entity_id;
-   <code>``
-   Note down all three IDs — the engine itself only ever needs</code>sync_entity_id<code>(below), but</code>tenant_id` is needed for the credential/mapping seed scripts in steps 2–3.</p>
-<ol>
-<li>
-<p>Seed fake credentials pointing at the mock server (needs the mock server already running — see step 1 below):
-   <code>node scripts/seed-mock-credentials.js &lt;tenant_id&gt;</code></p>
-</li>
-<li>
-<p>Seed the canonical Client schema + both mapping profiles:
-   <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code></p>
-</li>
+<li><p>Create the tenant, sync request, and entity — via <code>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform</code>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;OculusIT&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> tenant_id \gset</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_requests (tenant_id, <span class="kw">source</span>, target)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a><span class="kw">VALUES</span> (:<span class="st">&#39;tenant_id&#39;</span>, <span class="st">&#39;connectwise&#39;</span>, <span class="st">&#39;keka&#39;</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a><span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_request_id \gset</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_entities (sync_request_id, entity, sync_type, status)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="kw">VALUES</span> (:<span class="st">&#39;sync_request_id&#39;</span>, <span class="st">&#39;client&#39;</span>, <span class="st">&#39;one_time&#39;</span>, <span class="st">&#39;submitted&#39;</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a><span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_entity_id \gset</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a><span class="kw">SELECT</span> :<span class="st">&#39;tenant_id&#39;</span> <span class="kw">AS</span> tenant_id, :<span class="st">&#39;sync_request_id&#39;</span> <span class="kw">AS</span> sync_request_id, :<span class="st">&#39;sync_entity_id&#39;</span> <span class="kw">AS</span> sync_entity_id;</span></code></pre></div>
+<p>Note down all three IDs — the engine itself only ever needs <code>sync_entity_id</code> (below), but <code>tenant_id</code> is needed for the credential/mapping seed scripts in steps 2–3.</p></li>
+<li><p>Seed fake credentials pointing at the mock server (needs the mock server already running — see step 1 below):</p>
+<pre><code>node scripts/seed-mock-credentials.js &lt;tenant_id&gt;
+</code></pre></li>
+<li><p>Seed the canonical Client schema + both mapping profiles:</p>
+<pre><code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;
+</code></pre></li>
 </ol>
 <h2 id="running-the-demo">Running the demo</h2>
 <p><strong>1. Start the mock server</strong> (its own terminal, leave running):</p>
@@ -405,18 +401,15 @@ code {
 </code></pre>
 <p>Fakes 5 ConnectWise "companies" and a Keka write endpoint rigged to demonstrate specific outcomes (see script comments): 3 always succeed, 1 always fails with a data-shape rejection (HTTP 400), 1 fails once with a rate limit (HTTP 429) then succeeds.</p>
 <p><strong>2. Run the actual engine entrypoint</strong> (PowerShell — note the <code>$env:</code> syntax, the Unix <code>VAR=value command</code> form won't work in this shell). Use the <code>sync_entity_id</code> you noted above, not the <code>sync_request_id</code>:</p>
-<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
-</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="va">$env</span>:SYNC_ENTITY_ID=<span class="st">&quot;&lt;sync_entity_id&gt;&quot;</span>; node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
 <p>This is the real <code>lib/orchestration/run.js</code> — the same entrypoint a container would run in production, with <code>SYNC_ENTITY_ID</code> standing in for what the (not-yet-built) Provisioning Engine will eventually pass in automatically. Everything else — tenant, source, target, credentials, mapping profiles — is loaded from Postgres using just that one ID. Every invocation runs one cycle and exits; there's no "stay alive" behavior to demonstrate anymore even if you switch <code>client</code> to <code>interval</code> — that would just mean you'd normally expect something external (a scheduler) to invoke this same command again later, not that this one run behaves differently.</p>
 <p><strong>Expected output, run 1:</strong> logs show the full pipeline — fetch, real mapping (inbound → canonical → outbound), schema validation, write, <code>sync_state</code> update. 5 records fetched; 3 written successfully; <code>id: 2</code> lands in <code>sync_state.failed</code> (data-shape rejection — HTTP 400, classified as <code>validation</code>); <code>id: 3</code> lands in <code>sync_state.retry</code> (HTTP 429, classified as <code>rate_limit</code>). The process exits cleanly once done — every invocation does now, regardless of <code>sync_type</code>.</p>
 <p><strong>3. Run it again, same command, mock server left untouched:</strong></p>
-<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
-</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="va">$env</span>:SYNC_ENTITY_ID=<span class="st">&quot;&lt;sync_entity_id&gt;&quot;</span>; node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
 <p><strong>Expected output, run 2:</strong> <code>id: 2</code> is still in <code>failed</code> (it always fails — the list is genuinely self-maintaining, re-checked every run, not just cleared blindly). <code>id: 3</code> has dropped out of <code>retry</code> entirely — it was re-fetched by ID and re-written successfully. This is the reconciliation logic actually running, not the happy path.</p>
 <p>To inspect <code>sync_state</code> directly instead of relying on log output:</p>
-<pre><code class="language-sql">SELECT cursor, last_run_status, failed, retry FROM sync_state
-WHERE sync_entity_id = (SELECT id FROM sync_entities WHERE entity = 'client');
-</code></pre>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a><span class="kw">SELECT</span> <span class="kw">cursor</span>, last_run_status, failed, retry <span class="kw">FROM</span> sync_state</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true"></a><span class="kw">WHERE</span> sync_entity_id <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> sync_entities <span class="kw">WHERE</span> entity <span class="op">=</span> <span class="st">&#39;client&#39;</span>);</span></code></pre></div>
 <h2 id="talking-points-for-each-step">Talking points for each step</h2>
 <ul>
 <li><strong>Dynamic adapter loading:</strong> the container never hardcodes ConnectWise or Keka by name — <code>source</code>/<code>target</code> come from the <code>sync_requests</code> row, and the right adapter class is chosen at runtime via a lookup table.</li>
@@ -427,18 +420,18 @@ WHERE sync_entity_id = (SELECT id FROM sync_entities WHERE entity = 'client');
 </ul>
 <h2 id="resetting-for-a-clean-re-run">Resetting for a clean re-run</h2>
 <p>Not required for the demo to work correctly (state accumulating and self-healing across runs is the point), but to reproduce the exact "fresh first run" a second time:</p>
-<pre><code class="language-sql">DELETE FROM sync_state WHERE sync_entity_id = (SELECT id FROM sync_entities WHERE entity = 'client');
-UPDATE sync_entities SET status = 'submitted' WHERE entity = 'client';
-</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a><span class="kw">DELETE</span> <span class="kw">FROM</span> sync_state <span class="kw">WHERE</span> sync_entity_id <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> sync_entities <span class="kw">WHERE</span> entity <span class="op">=</span> <span class="st">&#39;client&#39;</span>);</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true"></a><span class="kw">UPDATE</span> sync_entities <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;submitted&#39;</span> <span class="kw">WHERE</span> entity <span class="op">=</span> <span class="st">&#39;client&#39;</span>;</span></code></pre></div>
 <p>and restart the mock server (Ctrl+C, then <code>node scripts/mock-server.js</code> again) — its in-memory retry counter for <code>id: 3</code> only resets when the process restarts, not between cycles.</p>
 <h2 id="lower-level-debugging-alternative">Lower-level debugging alternative</h2>
 <p><code>scripts/test-run-cycle.js &lt;sync_entity_id&gt;</code> runs a single entity's cycle directly (bypassing the status-update policy in <code>schedule.js</code>) and prints <code>sync_state</code> inline — useful for isolating a problem in the fetch/map/write pipeline itself without anything else in the way. Not what should be shown in an actual demo — <code>run.js</code> is the real thing.</p>
 <h2 id="related-docs">Related docs</h2>
 <ul>
-<li><code>docs/migrations/README.md</code> — schema this demo runs against (<code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>sync_state</code>, <code>credentials</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>)</li>
+<li><code>ipaas.infra/docs/migrations/README.md</code> — schema this demo runs against (<code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>sync_state</code>, <code>credentials</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>)</li>
 <li><code>docs/LLD-connector-auth-layer.md</code> — what's real/verified vs. guessed in the actual adapters</li>
 <li><code>scripts/mock-server.js</code>, <code>scripts/seed-mock-credentials.js</code>, <code>scripts/seed-mock-mapping.js</code> — the three one-time setup scripts</li>
 <li><code>lib/orchestration/run.js</code> — the real entrypoint this demo runs</li>
 </ul>
+
 </body>
 </html>

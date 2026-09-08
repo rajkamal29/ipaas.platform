@@ -360,36 +360,46 @@ code {
 
 <h1 id="developer-setup">Developer Setup</h1>
 <p>Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.</p>
-<p>Read this top to bottom once; after that, <code>docs/migrations/OPERATIONS.md</code> and <code>docs/DEMO-orchestration-engine.md</code> are the two you'll come back to.</p>
+<p>Read this top to bottom once; after that, <code>ipaas.infra/docs/migrations/OPERATIONS.md</code> and <code>docs/DEMO-orchestration-engine.md</code> are the two you'll come back to.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><strong>Docker Desktop</strong> — runs Postgres locally via <code>docker-compose.yml</code>. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a <code>Dockerfile</code>, but you run it as a plain Node process locally — see §7).</li>
+<li><strong>Docker Desktop</strong> — runs Postgres locally via <code>ipaas.infra/docker-compose.yml</code>. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a <code>Dockerfile</code>, but you run it as a plain Node process locally — see §7).</li>
 <li><strong>Node.js 22.x</strong> and npm (bundled with Node). The project doesn't pin an <code>engines</code> field yet, but the <code>Dockerfile</code> and everyone's local setup so far use Node 22 — install that, not an older LTS.</li>
 <li><strong>Git</strong>.</li>
 <li>A local <code>psql</code> client is optional — <code>docker exec</code> into the Postgres container works fine without one (§4 below).</li>
 </ul>
 <h2 id="1-clone-and-install">1. Clone and install</h2>
-<p><strong>Repo split (2026-09-08).</strong> This engine and the provider adapters now live in two repos: <code>ipaas.orchestrationengine</code> (this one) and <code>ipaas.providers</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>). Check them out as sibling folders — the engine's <code>package.json</code> depends on both adapter packages, but they haven't been published to a registry yet (<code>npm.pkg.github.com</code>, still deferred), so local dev resolves them via <code>npm link</code> instead of a normal <code>npm install</code> of those two packages.</p>
+<p><strong>Three repos as of 2026-09-08.</strong> The platform is split into <code>ipaas.orchestrationengine</code> (this one), <code>ipaas.providers</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>), and <code>ipaas.infra</code> (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a>git clone &lt;orchestration-engine-repo-url&gt; ipaas.<span class="fu">orchestrationengine</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>git clone &lt;providers-repo-url&gt; ipaas.<span class="fu">providers</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a><span class="co"># both folders must sit next to each other — adapter-registry.js&#39;s npm link</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a><span class="co"># target resolves relative to ipaas.orchestrationengine&#39;s sibling directory</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">providers</span>/connectwise</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a>npm install</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a>npm link</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a><span class="fu">cd</span> ../keka</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a>npm install</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true"></a>npm link</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true"></a></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true"></a><span class="fu">cd</span> ../../ipaas.<span class="fu">orchestrationengine</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true"></a>npm install</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true"></a>npm link @ipaas/adapter-connectwise @ipaas/adapter-keka</span></code></pre></div>
-<p><code>npm install</code> in <code>ipaas.orchestrationengine</code> installs everything in <code>package.json</code> except the two <code>@ipaas/*</code> packages (unresolvable until they're published); the <code>npm link</code> step after it wires those two up against your local <code>ipaas.providers</code> checkout instead. Re-run the two <code>npm link</code> lines any time you <code>rm -rf node_modules</code> in this repo.</p>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a>git clone &lt;infra-repo-url&gt; ipaas.<span class="fu">infra</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a><span class="co"># all three folders must sit next to each other — adapter-registry.js&#39;s</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a><span class="co"># npm link target resolves relative to ipaas.orchestrationengine&#39;s sibling</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a><span class="co"># directory, and ipaas.infra is where Postgres + migrations now live</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">providers</span>/connectwise</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a>npm install</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a>npm link</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true"></a><span class="fu">cd</span> ../keka</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true"></a>npm install</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true"></a>npm link</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true"></a><span class="fu">cd</span> ../../ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true"></a>npm install</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true"></a>npm link @ipaas/adapter-connectwise @ipaas/adapter-keka</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true"></a><span class="fu">cd</span> ../ipaas.<span class="fu">infra</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true"></a>npm install</span></code></pre></div>
+<p><code>npm install</code> in <code>ipaas.orchestrationengine</code> installs everything in <code>package.json</code> except the two <code>@ipaas/*</code> packages (unresolvable until they're published); the <code>npm link</code> step after it wires those two up against your local <code>ipaas.providers</code> checkout instead. Re-run the two <code>npm link</code> lines any time you <code>rm -rf node_modules</code> in this repo. <code>ipaas.infra</code>'s <code>npm install</code> is a normal one — it only carries <code>node-pg-migrate</code> and <code>pg</code> as dev tooling, nothing to link.</p>
 <h2 id="2-configure-environment">2. Configure environment</h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="fu">cp</span> .<span class="fu">env</span>.<span class="fu">example</span> .<span class="fu">env</span></span></code></pre></div>
-<p>Then edit <code>.env</code>:</p>
+<p>Two separate <code>.env</code> files now — one per concern:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">infra</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a><span class="fu">cp</span> .<span class="fu">env</span>.<span class="fu">example</span> .<span class="fu">env</span>    <span class="co"># Postgres container + migrations</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a><span class="fu">cd</span> ../ipaas.<span class="fu">orchestrationengine</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a><span class="fu">cp</span> .<span class="fu">env</span>.<span class="fu">example</span> .<span class="fu">env</span>    <span class="co"># the app itself</span></span></code></pre></div>
+<p><code>ipaas.infra/.env</code>:</p>
 <table>
 <thead>
 <tr class="header">
@@ -401,42 +411,61 @@ code {
 <tbody>
 <tr class="odd">
 <td><code>POSTGRES_USER</code> / <code>POSTGRES_PASSWORD</code> / <code>POSTGRES_DB</code></td>
-<td>Postgres container init</td>
-<td>Change the password from the placeholder; keep <code>DATABASE_URL</code> below in sync with it</td>
+<td>Postgres container init (<code>docker-compose.yml</code>)</td>
+<td>Change the password from the placeholder</td>
 </tr>
 <tr class="even">
 <td><code>DATABASE_URL</code></td>
-<td>Every DB connection (<code>lib/db.js</code>, migrations)</td>
+<td><code>node-pg-migrate</code> connection, when you run <code>npm run migrate:*</code> here</td>
 <td>Must match the three vars above</td>
 </tr>
+</tbody>
+</table>
+<p><code>ipaas.orchestrationengine/.env</code>:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it's for</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
+<td><code>DATABASE_URL</code></td>
+<td>Every DB connection the app makes (<code>lib/db.js</code>)</td>
+<td>Must match <code>ipaas.infra/.env</code>'s <code>POSTGRES_USER</code>/<code>PASSWORD</code>/<code>DB</code> — same Postgres instance, two <code>.env</code> files pointing at it</td>
+</tr>
+<tr class="even">
 <td><code>ENCRYPTION_MASTER_KEY</code></td>
 <td>Encrypts the <code>credentials</code> table (<code>lib/crypto.js</code>)</td>
 <td><strong>Required</strong>, no default. Generate one: <code>openssl rand -base64 32</code>. Changing this later makes every existing encrypted credential row undecryptable</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LOG_LEVEL</code></td>
 <td><code>lib/logger.js</code> (pino)</td>
 <td><code>info</code> is fine day-to-day; <code>debug</code> shows per-page/per-record detail during troubleshooting</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NODE_ENV</code></td>
 <td><code>lib/logger.js</code></td>
 <td>Leave unset locally — that's what gives you readable colorized logs (<code>pino-pretty</code>). Only set to <code>production</code> inside the container</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SYNC_ENTITY_ID</code></td>
 <td><code>lib/orchestration/run.js</code></td>
 <td>Not a fixed setting — this is which entity's sync you're running. Leave blank in <code>.env</code>; set it per-run (§6). Scoped to one <code>sync_entities</code> row, not a whole <code>sync_requests</code> row — see <code>docs/LLD-orchestration-engine.md</code> §1</td>
 </tr>
 </tbody>
 </table>
-<p><code>.env</code> is gitignored — it never gets committed, and nothing in it should ever be pasted into a PR, a Slack message, or a CI log.</p>
+<p>Both <code>.env</code> files are gitignored — they never get committed, and nothing in either should ever be pasted into a PR, a Slack message, or a CI log.</p>
 <h2 id="3-start-postgres-and-run-migrations">3. Start Postgres and run migrations</h2>
-<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>docker compose up -d</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a>docker compose <span class="fu">ps</span>          <span class="co"># confirm it&#39;s healthy</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>npm run migrate:up</span></code></pre></div>
-<p>This creates all 8 tables — <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>. Full command reference, troubleshooting, and reset instructions: <code>docs/migrations/OPERATIONS.md</code>. Schema details, why each table looks the way it does: <code>docs/migrations/README.md</code>.</p>
+<p>Both commands now run from <code>ipaas.infra</code>, not from this repo:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">infra</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a>docker compose up -d</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>docker compose <span class="fu">ps</span>          <span class="co"># confirm it&#39;s healthy</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a>npm run migrate:up</span></code></pre></div>
+<p>This creates all 8 tables — <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>. Full command reference, troubleshooting, and reset instructions: <code>ipaas.infra/docs/migrations/OPERATIONS.md</code>. Schema details, why each table looks the way it does: <code>ipaas.infra/docs/migrations/README.md</code>.</p>
 <h2 id="4-seed-the-platform-level-mapping-defaults">4. Seed the platform-level mapping defaults</h2>
 <div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a>node scripts/seed-global-mapping.<span class="fu">js</span></span></code></pre></div>
 <p>This inserts the canonical <code>client</code> schema plus the default ConnectWise-inbound and Keka-outbound field mappings into <code>global_mapping_profiles</code>. Any tenant that doesn't define its own <code>mapping_profiles</code> override automatically inherits these — see <code>docs/LLD-orchestration-engine.md</code> §5. Safe to re-run any time (it upserts).</p>
@@ -464,7 +493,7 @@ code {
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true"></a>  ipaas-orchestration-engine:local</span></code></pre></div>
 <p>Note the <code>DATABASE_URL</code> swap — <code>localhost</code> inside the container refers to the container itself, not your host's Postgres. Use <code>host.docker.internal</code> (Docker Desktop on Windows/Mac resolves this automatically) instead. Full image design, what's baked in vs. passed at runtime, and the CI pipeline that publishes this automatically on push to <code>dev</code>: <code>docs/LLD-orchestration-engine.md</code> §9.</p>
 <h2 id="8-debugging-in-vs-code">8. Debugging in VS Code</h2>
-<p>A multi-root workspace file, <code>ipaas.platform.code-workspace</code>, sits one level up from this repo (next to <code>ipaas.orchestrationengine/</code> and <code>ipaas.providers/</code>). Open it in VS Code (<code>File &gt; Open Workspace from File...</code>) instead of opening either folder individually — you get both repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).</p>
+<p>A multi-root workspace file, <code>ipaas.platform.code-workspace</code>, sits one level up from this repo (next to <code>ipaas.orchestrationengine/</code>, <code>ipaas.providers/</code>, and <code>ipaas.infra/</code>). Open it in VS Code (<code>File &gt; Open Workspace from File...</code>) instead of opening any one folder individually — you get all three repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).</p>
 <p>It ships four launch configurations (Run and Debug panel, or <code>F5</code>):</p>
 <table>
 <thead>
@@ -511,11 +540,11 @@ code {
 <tbody>
 <tr class="odd">
 <td>Full schema — every table, every column, why</td>
-<td><code>docs/migrations/README.md</code></td>
+<td><code>ipaas.infra/docs/migrations/README.md</code></td>
 </tr>
 <tr class="even">
 <td>Postgres day-to-day commands, resets, troubleshooting</td>
-<td><code>docs/migrations/OPERATIONS.md</code></td>
+<td><code>ipaas.infra/docs/migrations/OPERATIONS.md</code></td>
 </tr>
 <tr class="odd">
 <td>Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization</td>
@@ -533,11 +562,12 @@ code {
 </table>
 <h2 id="common-early-mistakes">Common early mistakes</h2>
 <ul>
-<li><strong>Running <code>npm run migrate:up</code> before Postgres is healthy</strong> — <code>docker compose ps</code> first; the healthcheck takes a few seconds after <code>up -d</code>.</li>
-<li><strong>Editing <code>.env</code>'s Postgres password after the container's already initialized</strong> — Postgres only reads <code>POSTGRES_PASSWORD</code> on first init of an empty volume. If you change it later, <code>docker compose down -v &amp;&amp; docker compose up -d</code> to reinitialize (this wipes local data — fine in dev, never do this against anything real).</li>
-<li><strong>Forgetting <code>ENCRYPTION_MASTER_KEY</code></strong> — <code>lib/crypto.js</code> throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying <code>.env.example</code> quickly.</li>
+<li><strong>Running <code>npm run migrate:up</code> before Postgres is healthy</strong> — <code>docker compose ps</code> first (from <code>ipaas.infra</code>); the healthcheck takes a few seconds after <code>up -d</code>.</li>
+<li><strong>Editing <code>ipaas.infra/.env</code>'s Postgres password after the container's already initialized</strong> — Postgres only reads <code>POSTGRES_PASSWORD</code> on first init of an empty volume. If you change it later, <code>docker compose down -v &amp;&amp; docker compose up -d</code> (from <code>ipaas.infra</code>) to reinitialize (this wipes local data — fine in dev, never do this against anything real).</li>
+<li><strong>Forgetting <code>ENCRYPTION_MASTER_KEY</code></strong> in <code>ipaas.orchestrationengine/.env</code> — <code>lib/crypto.js</code> throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying <code>.env.example</code> quickly.</li>
 <li><strong>Expecting <code>SYNC_ENTITY_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.</li>
 <li><strong>Using the <code>sync_request_id</code> instead of the <code>sync_entity_id</code></strong> — easy to grab the wrong one from the SQL output in §5, since both look like plain UUIDs. The engine takes <code>SYNC_ENTITY_ID</code> only.</li>
+<li><strong>Letting the two <code>.env</code> files' Postgres values drift</strong> — <code>ipaas.infra/.env</code> and <code>ipaas.orchestrationengine/.env</code> both describe the same Postgres instance from two sides (the container's init vs. the app's connection string). Change one, change the other.</li>
 </ul>
 
 </body>

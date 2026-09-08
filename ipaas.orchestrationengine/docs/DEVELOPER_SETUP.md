@@ -2,24 +2,26 @@
 
 Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.
 
-Read this top to bottom once; after that, `docs/migrations/OPERATIONS.md` and `docs/DEMO-orchestration-engine.md` are the two you'll come back to.
+Read this top to bottom once; after that, `ipaas.infra/docs/migrations/OPERATIONS.md` and `docs/DEMO-orchestration-engine.md` are the two you'll come back to.
 
 ## Prerequisites
 
-- **Docker Desktop** — runs Postgres locally via `docker-compose.yml`. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a `Dockerfile`, but you run it as a plain Node process locally — see §7).
+- **Docker Desktop** — runs Postgres locally via `ipaas.infra/docker-compose.yml`. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a `Dockerfile`, but you run it as a plain Node process locally — see §7).
 - **Node.js 22.x** and npm (bundled with Node). The project doesn't pin an `engines` field yet, but the `Dockerfile` and everyone's local setup so far use Node 22 — install that, not an older LTS.
 - **Git**.
 - A local `psql` client is optional — `docker exec` into the Postgres container works fine without one (§4 below).
 
 ## 1. Clone and install
 
-**Repo split (2026-09-08).** This engine and the provider adapters now live in two repos: `ipaas.orchestrationengine` (this one) and `ipaas.providers` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka`). Check them out as sibling folders — the engine's `package.json` depends on both adapter packages, but they haven't been published to a registry yet (`npm.pkg.github.com`, still deferred), so local dev resolves them via `npm link` instead of a normal `npm install` of those two packages.
+**Three repos as of 2026-09-08.** The platform is split into `ipaas.orchestrationengine` (this one), `ipaas.providers` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka`), and `ipaas.infra` (Postgres container + schema migrations — pulled out separately from the adapters, since the database is shared by any future engine, not just this one, and has its own independent change lifecycle). Check all three out as sibling folders.
 
 ```powershell
 git clone <orchestration-engine-repo-url> ipaas.orchestrationengine
 git clone <providers-repo-url> ipaas.providers
-# both folders must sit next to each other — adapter-registry.js's npm link
-# target resolves relative to ipaas.orchestrationengine's sibling directory
+git clone <infra-repo-url> ipaas.infra
+# all three folders must sit next to each other — adapter-registry.js's
+# npm link target resolves relative to ipaas.orchestrationengine's sibling
+# directory, and ipaas.infra is where Postgres + migrations now live
 
 cd ipaas.providers/connectwise
 npm install
@@ -32,38 +34,56 @@ npm link
 cd ../../ipaas.orchestrationengine
 npm install
 npm link @ipaas/adapter-connectwise @ipaas/adapter-keka
+
+cd ../ipaas.infra
+npm install
 ```
 
-`npm install` in `ipaas.orchestrationengine` installs everything in `package.json` except the two `@ipaas/*` packages (unresolvable until they're published); the `npm link` step after it wires those two up against your local `ipaas.providers` checkout instead. Re-run the two `npm link` lines any time you `rm -rf node_modules` in this repo.
+`npm install` in `ipaas.orchestrationengine` installs everything in `package.json` except the two `@ipaas/*` packages (unresolvable until they're published); the `npm link` step after it wires those two up against your local `ipaas.providers` checkout instead. Re-run the two `npm link` lines any time you `rm -rf node_modules` in this repo. `ipaas.infra`'s `npm install` is a normal one — it only carries `node-pg-migrate` and `pg` as dev tooling, nothing to link.
 
 ## 2. Configure environment
 
+Two separate `.env` files now — one per concern:
+
 ```powershell
-cp .env.example .env
+cd ipaas.infra
+cp .env.example .env    # Postgres container + migrations
+
+cd ../ipaas.orchestrationengine
+cp .env.example .env    # the app itself
 ```
 
-Then edit `.env`:
+`ipaas.infra/.env`:
 
 | Variable | What it's for | Notes |
 |---|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres container init | Change the password from the placeholder; keep `DATABASE_URL` below in sync with it |
-| `DATABASE_URL` | Every DB connection (`lib/db.js`, migrations) | Must match the three vars above |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres container init (`docker-compose.yml`) | Change the password from the placeholder |
+| `DATABASE_URL` | `node-pg-migrate` connection, when you run `npm run migrate:*` here | Must match the three vars above |
+
+`ipaas.orchestrationengine/.env`:
+
+| Variable | What it's for | Notes |
+|---|---|---|
+| `DATABASE_URL` | Every DB connection the app makes (`lib/db.js`) | Must match `ipaas.infra/.env`'s `POSTGRES_USER`/`PASSWORD`/`DB` — same Postgres instance, two `.env` files pointing at it |
 | `ENCRYPTION_MASTER_KEY` | Encrypts the `credentials` table (`lib/crypto.js`) | **Required**, no default. Generate one: `openssl rand -base64 32`. Changing this later makes every existing encrypted credential row undecryptable |
 | `LOG_LEVEL` | `lib/logger.js` (pino) | `info` is fine day-to-day; `debug` shows per-page/per-record detail during troubleshooting |
 | `NODE_ENV` | `lib/logger.js` | Leave unset locally — that's what gives you readable colorized logs (`pino-pretty`). Only set to `production` inside the container |
 | `SYNC_ENTITY_ID` | `lib/orchestration/run.js` | Not a fixed setting — this is which entity's sync you're running. Leave blank in `.env`; set it per-run (§6). Scoped to one `sync_entities` row, not a whole `sync_requests` row — see `docs/LLD-orchestration-engine.md` §1 |
 
-`.env` is gitignored — it never gets committed, and nothing in it should ever be pasted into a PR, a Slack message, or a CI log.
+Both `.env` files are gitignored — they never get committed, and nothing in either should ever be pasted into a PR, a Slack message, or a CI log.
 
 ## 3. Start Postgres and run migrations
 
+Both commands now run from `ipaas.infra`, not from this repo:
+
 ```powershell
+cd ipaas.infra
 docker compose up -d
 docker compose ps          # confirm it's healthy
 npm run migrate:up
 ```
 
-This creates all 8 tables — `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles`. Full command reference, troubleshooting, and reset instructions: `docs/migrations/OPERATIONS.md`. Schema details, why each table looks the way it does: `docs/migrations/README.md`.
+This creates all 8 tables — `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles`. Full command reference, troubleshooting, and reset instructions: `ipaas.infra/docs/migrations/OPERATIONS.md`. Schema details, why each table looks the way it does: `ipaas.infra/docs/migrations/README.md`.
 
 ## 4. Seed the platform-level mapping defaults
 
@@ -124,7 +144,7 @@ Note the `DATABASE_URL` swap — `localhost` inside the container refers to the 
 
 ## 8. Debugging in VS Code
 
-A multi-root workspace file, `ipaas.platform.code-workspace`, sits one level up from this repo (next to `ipaas.orchestrationengine/` and `ipaas.providers/`). Open it in VS Code (`File > Open Workspace from File...`) instead of opening either folder individually — you get both repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).
+A multi-root workspace file, `ipaas.platform.code-workspace`, sits one level up from this repo (next to `ipaas.orchestrationengine/`, `ipaas.providers/`, and `ipaas.infra/`). Open it in VS Code (`File > Open Workspace from File...`) instead of opening any one folder individually — you get all three repos in one window, and their debug configurations only resolve correctly this way (they reference each other by workspace-folder name).
 
 It ships four launch configurations (Run and Debug panel, or `F5`):
 
@@ -145,16 +165,17 @@ All four configs point `envFile` at this repo's real `.env` (§2) — nothing pr
 
 | Topic | Doc |
 |---|---|
-| Full schema — every table, every column, why | `docs/migrations/README.md` |
-| Postgres day-to-day commands, resets, troubleshooting | `docs/migrations/OPERATIONS.md` |
+| Full schema — every table, every column, why | `ipaas.infra/docs/migrations/README.md` |
+| Postgres day-to-day commands, resets, troubleshooting | `ipaas.infra/docs/migrations/OPERATIONS.md` |
 | Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization | `docs/LLD-orchestration-engine.md` |
 | What's live-verified vs. still-guessed in the ConnectWise/Keka adapters | `docs/LLD-connector-auth-layer.md` |
 | Full repeatable demo walkthrough with expected output | `docs/DEMO-orchestration-engine.md` |
 
 ## Common early mistakes
 
-- **Running `npm run migrate:up` before Postgres is healthy** — `docker compose ps` first; the healthcheck takes a few seconds after `up -d`.
-- **Editing `.env`'s Postgres password after the container's already initialized** — Postgres only reads `POSTGRES_PASSWORD` on first init of an empty volume. If you change it later, `docker compose down -v && docker compose up -d` to reinitialize (this wipes local data — fine in dev, never do this against anything real).
-- **Forgetting `ENCRYPTION_MASTER_KEY`** — `lib/crypto.js` throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying `.env.example` quickly.
+- **Running `npm run migrate:up` before Postgres is healthy** — `docker compose ps` first (from `ipaas.infra`); the healthcheck takes a few seconds after `up -d`.
+- **Editing `ipaas.infra/.env`'s Postgres password after the container's already initialized** — Postgres only reads `POSTGRES_PASSWORD` on first init of an empty volume. If you change it later, `docker compose down -v && docker compose up -d` (from `ipaas.infra`) to reinitialize (this wipes local data — fine in dev, never do this against anything real).
+- **Forgetting `ENCRYPTION_MASTER_KEY`** in `ipaas.orchestrationengine/.env` — `lib/crypto.js` throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying `.env.example` quickly.
 - **Expecting `SYNC_ENTITY_ID` to live in `.env` permanently** — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.
 - **Using the `sync_request_id` instead of the `sync_entity_id`** — easy to grab the wrong one from the SQL output in §5, since both look like plain UUIDs. The engine takes `SYNC_ENTITY_ID` only.
+- **Letting the two `.env` files' Postgres values drift** — `ipaas.infra/.env` and `ipaas.orchestrationengine/.env` both describe the same Postgres instance from two sides (the container's init vs. the app's connection string). Change one, change the other.

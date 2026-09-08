@@ -3,11 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "description": "iPaaS batch/polling Orchestration Engine — one_time and interval sync types",
-  "scripts": {
-    "migrate:up": "node-pg-migrate up",
-    "migrate:down": "node-pg-migrate down",
-    "migrate:create": "node-pg-migrate create"
-  },
   "dependencies": {
     "@ipaas/adapter-connectwise": "^0.1.0",
     "@ipaas/adapter-keka": "^0.1.0",
@@ -19,7 +14,6 @@
     "pino": "^10.3.1"
   },
   "devDependencies": {
-    "node-pg-migrate": "^9.0.0",
     "pino-pretty": "^13.1.3"
   }
 }
