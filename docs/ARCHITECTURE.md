@@ -2,6 +2,8 @@
 
 Status: Draft — pending real capacity inputs and sign-off on open items (Section 6)
 
+> **⚠ Stale relative to the actual implementation, as of 2026-09-08.** This document describes the original platform vision (persisted canonical records, a client-facing configuration UI, one container per active tenant, real-time as an equal sync mode alongside scheduled/one-time). The Orchestration Engine actually built diverges in real ways: canonical records are never persisted (see `docs/migrations/README.md`, `mapping_profiles`/`canonical_entities`), there is no UI yet (all intake is manual SQL, see `docs/DEVELOPER_SETUP.md`), one container invocation is scoped to a single `sync_entities` row rather than a whole tenant, and `real_time` sync has been split out entirely into a separate, not-yet-designed engine (batch/polling only here). For the current, accurate design, see `docs/LLD-orchestration-engine.md` and `docs/migrations/README.md`. This file is kept as historical/vision context, not as a source of truth — treat any conflict between this and those two docs as this one being wrong.
+
 ## 1. Overview
 
 An Integration Platform as a Service (iPaaS) that replaces bespoke, per-client integration builds with a reusable platform: a canonical data model that every connector maps to and from, a common connector framework, and configuration-driven field mapping that clients themselves configure through a UI. Built on open-source tooling where it clearly fits, custom-built where it doesn't, starting on local Docker and designed to be cloud-agnostic from day one.

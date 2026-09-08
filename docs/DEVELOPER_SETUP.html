@@ -357,14 +357,7 @@ code {
 <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
-          ? 'dark'
-          : 'default'
-    });
-  </script>
+
 <h1 id="developer-setup">Developer Setup</h1>
 <p>Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.</p>
 <p>Read this top to bottom once; after that, <code>docs/migrations/OPERATIONS.md</code> and <code>docs/DEMO-orchestration-engine.md</code> are the two you'll come back to.</p>
@@ -376,14 +369,14 @@ code {
 <li>A local <code>psql</code> client is optional — <code>docker exec</code> into the Postgres container works fine without one (§4 below).</li>
 </ul>
 <h2 id="1-clone-and-install">1. Clone and install</h2>
-<pre class="hljs"><code><div>git clone &lt;repo<span class="hljs-literal">-url</span>&gt;
-<span class="hljs-built_in">cd</span> ipaas.platform
+<pre><code class="language-powershell">git clone &lt;repo-url&gt;
+cd ipaas.platform
 npm install
-</div></code></pre>
+</code></pre>
 <p><code>npm install</code> installs the root <code>package.json</code> dependencies plus both npm workspaces under <code>packages/adapters/*</code> (<code>@ipaas/adapter-connectwise</code>, <code>@ipaas/adapter-keka</code>) in one pass — you don't need to <code>cd</code> into them separately.</p>
 <h2 id="2-configure-environment">2. Configure environment</h2>
-<pre class="hljs"><code><div><span class="hljs-built_in">cp</span> .env.example .env
-</div></code></pre>
+<pre><code class="language-powershell">cp .env.example .env
+</code></pre>
 <p>Then edit <code>.env</code>:</p>
 <table>
 <thead>
@@ -420,49 +413,50 @@ npm install
 <td>Leave unset locally — that's what gives you readable colorized logs (<code>pino-pretty</code>). Only set to <code>production</code> inside the container</td>
 </tr>
 <tr>
-<td><code>SYNC_REQUEST_ID</code></td>
+<td><code>SYNC_ENTITY_ID</code></td>
 <td><code>lib/orchestration/run.js</code></td>
-<td>Not a fixed setting — this is which sync run you're starting. Leave blank in <code>.env</code>; set it per-run (§6)</td>
+<td>Not a fixed setting — this is which entity's sync you're running. Leave blank in <code>.env</code>; set it per-run (§6). Scoped to one <code>sync_entities</code> row, not a whole <code>sync_requests</code> row — see <code>docs/LLD-orchestration-engine.md</code> §1</td>
 </tr>
 </tbody>
 </table>
 <p><code>.env</code> is gitignored — it never gets committed, and nothing in it should ever be pasted into a PR, a Slack message, or a CI log.</p>
 <h2 id="3-start-postgres-and-run-migrations">3. Start Postgres and run migrations</h2>
-<pre class="hljs"><code><div>docker compose up <span class="hljs-literal">-d</span>
-docker compose <span class="hljs-built_in">ps</span>          <span class="hljs-comment"># confirm it&#x27;s healthy</span>
+<pre><code class="language-powershell">docker compose up -d
+docker compose ps          # confirm it's healthy
 npm run migrate:up
-</div></code></pre>
+</code></pre>
 <p>This creates all 8 tables — <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>. Full command reference, troubleshooting, and reset instructions: <code>docs/migrations/OPERATIONS.md</code>. Schema details, why each table looks the way it does: <code>docs/migrations/README.md</code>.</p>
 <h2 id="4-seed-the-platform-level-mapping-defaults">4. Seed the platform-level mapping defaults</h2>
-<pre class="hljs"><code><div>node scripts/seed<span class="hljs-literal">-global-mapping</span>.js
-</div></code></pre>
+<pre><code class="language-powershell">node scripts/seed-global-mapping.js
+</code></pre>
 <p>This inserts the canonical <code>client</code> schema plus the default ConnectWise-inbound and Keka-outbound field mappings into <code>global_mapping_profiles</code>. Any tenant that doesn't define its own <code>mapping_profiles</code> override automatically inherits these — see <code>docs/LLD-orchestration-engine.md</code> §5. Safe to re-run any time (it upserts).</p>
 <h2 id="5-stand-up-a-tenant-and-a-mock-sync-run">5. Stand up a tenant and a mock sync run</h2>
 <p>Nothing syncs without a tenant, a <code>sync_requests</code> row (a source→target pairing), and at least one <code>sync_entities</code> row. There's no UI yet, so this is a few <code>INSERT</code>s — see <code>docs/DEMO-orchestration-engine.md</code> for the exact, copy-pasteable SQL block and the tenant/<code>sync_request</code> IDs already in common use for demos. In short:</p>
-<pre class="hljs"><code><div><span class="hljs-keyword">INSERT INTO</span> tenants (name) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;YourTestTenant&#x27;</span>) RETURNING id <span class="hljs-keyword">AS</span> tenant_id \gset
-<span class="hljs-keyword">INSERT INTO</span> sync_requests (tenant_id, source, target) <span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;tenant_id&#x27;</span>, <span class="hljs-string">&#x27;connectwise&#x27;</span>, <span class="hljs-string">&#x27;keka&#x27;</span>) RETURNING id <span class="hljs-keyword">AS</span> sync_request_id \gset
-<span class="hljs-keyword">INSERT INTO</span> sync_entities (sync_request_id, entity, sync_type, status) <span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;sync_request_id&#x27;</span>, <span class="hljs-string">&#x27;client&#x27;</span>, <span class="hljs-string">&#x27;one_time&#x27;</span>, <span class="hljs-string">&#x27;submitted&#x27;</span>);
-</div></code></pre>
+<pre><code class="language-sql">INSERT INTO tenants (name) VALUES ('YourTestTenant') RETURNING id AS tenant_id \gset
+INSERT INTO sync_requests (tenant_id, source, target) VALUES (:'tenant_id', 'connectwise', 'keka') RETURNING id AS sync_request_id \gset
+INSERT INTO sync_entities (sync_request_id, entity, sync_type, status) VALUES (:'sync_request_id', 'client', 'one_time', 'submitted') RETURNING id AS sync_entity_id \gset
+</code></pre>
+<p>Keep the <code>sync_entity_id</code> this prints out — that's what the engine actually takes as input (§6), not <code>sync_request_id</code>.</p>
 <p>Then seed fake credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
-<pre class="hljs"><code><div>node scripts/seed<span class="hljs-literal">-mock-credentials</span>.js &lt;tenant_id&gt;
-</div></code></pre>
+<pre><code class="language-powershell">node scripts/seed-mock-credentials.js &lt;tenant_id&gt;
+</code></pre>
 <p>If you want this tenant to use its <strong>own</strong> mapping instead of the global default, also run <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code> — otherwise skip it and it'll inherit what you seeded in §4.</p>
 <h2 id="6-run-the-engine">6. Run the engine</h2>
 <p>Start the mock server in its own terminal (leave it running):</p>
-<pre class="hljs"><code><div>node scripts/mock<span class="hljs-literal">-server</span>.js
-</div></code></pre>
+<pre><code class="language-powershell">node scripts/mock-server.js
+</code></pre>
 <p>Then run the actual entrypoint — this is the real code, not a test harness:</p>
-<pre class="hljs"><code><div><span class="hljs-variable">$env:SYNC_REQUEST_ID</span>=<span class="hljs-string">&quot;&lt;sync_request_id&gt;&quot;</span>; node lib/orchestration/run.js
-</div></code></pre>
-<p>You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update. <code>docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
+<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
+</code></pre>
+<p>You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update, then the process exits — every invocation runs exactly one cycle and exits, regardless of <code>sync_type</code> (see <code>docs/LLD-orchestration-engine.md</code> §7 for why). <code>docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
 <h2 id="7-building-and-running-the-container-image">7. Building and running the container image</h2>
-<pre class="hljs"><code><div>docker build <span class="hljs-literal">-t</span> ipaas<span class="hljs-literal">-orchestration-engine</span>:local .
-docker run <span class="hljs-literal">--rm</span> `
-  <span class="hljs-literal">-e</span> SYNC_REQUEST_ID=&lt;sync_request_id&gt; `
-  <span class="hljs-literal">-e</span> DATABASE_URL=&lt;same value as your .env, but with host.docker.internal instead of localhost&gt; `
-  <span class="hljs-literal">-e</span> ENCRYPTION_MASTER_KEY=&lt;same as your .env&gt; `
-  ipaas<span class="hljs-literal">-orchestration-engine</span>:local
-</div></code></pre>
+<pre><code class="language-powershell">docker build -t ipaas-orchestration-engine:local .
+docker run --rm `
+  -e SYNC_ENTITY_ID=&lt;sync_entity_id&gt; `
+  -e DATABASE_URL=&lt;same value as your .env, but with host.docker.internal instead of localhost&gt; `
+  -e ENCRYPTION_MASTER_KEY=&lt;same as your .env&gt; `
+  ipaas-orchestration-engine:local
+</code></pre>
 <p>Note the <code>DATABASE_URL</code> swap — <code>localhost</code> inside the container refers to the container itself, not your host's Postgres. Use <code>host.docker.internal</code> (Docker Desktop on Windows/Mac resolves this automatically) instead. Full image design, what's baked in vs. passed at runtime, and the CI pipeline that publishes this automatically on push to <code>dev</code>: <code>docs/LLD-orchestration-engine.md</code> §9.</p>
 <h2 id="where-things-live-and-what-to-read-next">Where things live, and what to read next</h2>
 <table>
@@ -500,8 +494,8 @@ docker run <span class="hljs-literal">--rm</span> `
 <li><strong>Running <code>npm run migrate:up</code> before Postgres is healthy</strong> — <code>docker compose ps</code> first; the healthcheck takes a few seconds after <code>up -d</code>.</li>
 <li><strong>Editing <code>.env</code>'s Postgres password after the container's already initialized</strong> — Postgres only reads <code>POSTGRES_PASSWORD</code> on first init of an empty volume. If you change it later, <code>docker compose down -v &amp;&amp; docker compose up -d</code> to reinitialize (this wipes local data — fine in dev, never do this against anything real).</li>
 <li><strong>Forgetting <code>ENCRYPTION_MASTER_KEY</code></strong> — <code>lib/crypto.js</code> throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying <code>.env.example</code> quickly.</li>
-<li><strong>Expecting <code>SYNC_REQUEST_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's &quot;which run am I starting right now.&quot; Set it inline per command.</li>
+<li><strong>Expecting <code>SYNC_ENTITY_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.</li>
+<li><strong>Using the <code>sync_request_id</code> instead of the <code>sync_entity_id</code></strong> — easy to grab the wrong one from the SQL output in §5, since both look like plain UUIDs. The engine takes <code>SYNC_ENTITY_ID</code> only.</li>
 </ul>
-
 </body>
 </html>

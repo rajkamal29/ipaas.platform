@@ -357,15 +357,8 @@ code {
 <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
-          ? 'dark'
-          : 'default'
-    });
-  </script>
-<h1 id="orchestration-engine-demo--mock-connectwisekeka-walkthrough">Orchestration Engine Demo — Mock ConnectWise/Keka Walkthrough</h1>
+
+<h1 id="orchestration-engine-demo-mock-connectwisekeka-walkthrough">Orchestration Engine Demo — Mock ConnectWise/Keka Walkthrough</h1>
 <p>A repeatable, no-real-credentials-needed demo of the Orchestration Engine running end-to-end: dynamic adapter loading, real mapping/canonical validation, the fetch → map → write cycle, and the self-healing <code>failed</code>/<code>retry</code> reconciliation on <code>sync_state</code>.</p>
 <p><strong>What this proves:</strong> the engine's own logic works correctly, through the real code path — not a simplified stand-in.
 <strong>What this does NOT prove:</strong> anything about the real ConnectWise/Keka APIs. The mock server fakes response <em>shapes</em> only; endpoint paths, auth mechanics, and <code>fetchByIds</code> filter syntax are still unverified against the real systems (see <code>docs/LLD-connector-auth-layer.md</code>). Say this explicitly when presenting — it's a logic demo, not proof the real integrations work yet.</p>
@@ -375,74 +368,71 @@ code {
 <li>Mock server + test data set up once (below) — persists in Postgres, so this is normally a one-time step per database</li>
 </ul>
 <h2 id="one-time-setup">One-time setup</h2>
-<p><strong>IDs already created and in use for every demo so far</strong> — reuse these unless the database has been wiped (<code>docker compose down -v</code>):</p>
+<p><strong>IDs already created and in use for every demo so far</strong> — reuse these unless the database has been wiped (<code>docker compose down -v</code>), or unless you're on a database from before the 2026-09-08 entity-scoped redesign, in which case you'll need to look up the entity's own id (see the fresh-setup block below, step 1's last query).</p>
 <ul>
 <li><code>tenant_id</code>: <code>e21e3c1a-730f-4134-bd4f-5290aeb73628</code> (OculusIT)</li>
 <li><code>sync_request_id</code>: <code>3ead6a00-870e-46fa-81c4-546f2f6a5709</code> (ConnectWise → Keka)</li>
-<li><code>client</code> entity: <code>sync_type = 'one_time'</code> (runs once per invocation — good for a demo; switch to <code>interval</code> to show recurring behavior instead)</li>
+<li><code>client</code> entity: <code>sync_type = 'one_time'</code> (runs once per invocation — good for a demo; switch to <code>interval</code> to show recurring behavior instead — see the note in "Running the demo" about what that means post-redesign)</li>
 </ul>
 <p><strong>If starting from a fresh database</strong>, recreate everything in order:</p>
 <ol>
+<li>Create the tenant, sync request, and entity — via <code>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform</code>:
+   ```sql
+   INSERT INTO tenants (name) VALUES ('OculusIT') RETURNING id AS tenant_id \gset</li>
+</ol>
+<p>INSERT INTO sync_requests (tenant_id, source, target)
+   VALUES (:'tenant_id', 'connectwise', 'keka')
+   RETURNING id AS sync_request_id \gset</p>
+<p>INSERT INTO sync_entities (sync_request_id, entity, sync_type, status)
+   VALUES (:'sync_request_id', 'client', 'one_time', 'submitted')
+   RETURNING id AS sync_entity_id \gset</p>
+<p>SELECT :'tenant_id' AS tenant_id, :'sync_request_id' AS sync_request_id, :'sync_entity_id' AS sync_entity_id;
+   <code>``
+   Note down all three IDs — the engine itself only ever needs</code>sync_entity_id<code>(below), but</code>tenant_id` is needed for the credential/mapping seed scripts in steps 2–3.</p>
+<ol>
 <li>
-<p>Create the tenant, sync request, and entity — via <code>docker exec -it ipaas-postgres psql -U ipaas -d ipaas_platform</code>:</p>
-<pre class="hljs"><code><div><span class="hljs-keyword">INSERT INTO</span> tenants (name) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;OculusIT&#x27;</span>) RETURNING id <span class="hljs-keyword">AS</span> tenant_id \gset
-
-<span class="hljs-keyword">INSERT INTO</span> sync_requests (tenant_id, source, target)
-<span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;tenant_id&#x27;</span>, <span class="hljs-string">&#x27;connectwise&#x27;</span>, <span class="hljs-string">&#x27;keka&#x27;</span>)
-RETURNING id <span class="hljs-keyword">AS</span> sync_request_id \gset
-
-<span class="hljs-keyword">INSERT INTO</span> sync_entities (sync_request_id, entity, sync_type, status)
-<span class="hljs-keyword">VALUES</span> (:<span class="hljs-string">&#x27;sync_request_id&#x27;</span>, <span class="hljs-string">&#x27;client&#x27;</span>, <span class="hljs-string">&#x27;one_time&#x27;</span>, <span class="hljs-string">&#x27;submitted&#x27;</span>);
-
-<span class="hljs-keyword">SELECT</span> :<span class="hljs-string">&#x27;tenant_id&#x27;</span> <span class="hljs-keyword">AS</span> tenant_id, :<span class="hljs-string">&#x27;sync_request_id&#x27;</span> <span class="hljs-keyword">AS</span> sync_request_id;
-</div></code></pre>
-<p>Note down both IDs — needed below.</p>
+<p>Seed fake credentials pointing at the mock server (needs the mock server already running — see step 1 below):
+   <code>node scripts/seed-mock-credentials.js &lt;tenant_id&gt;</code></p>
 </li>
 <li>
-<p>Seed fake credentials pointing at the mock server (needs the mock server already running — see step 1 below):</p>
-<pre class="hljs"><code><div>node scripts/seed-mock-credentials.js &lt;tenant_id&gt;
-</div></code></pre>
-</li>
-<li>
-<p>Seed the canonical Client schema + both mapping profiles:</p>
-<pre class="hljs"><code><div>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;
-</div></code></pre>
+<p>Seed the canonical Client schema + both mapping profiles:
+   <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code></p>
 </li>
 </ol>
 <h2 id="running-the-demo">Running the demo</h2>
 <p><strong>1. Start the mock server</strong> (its own terminal, leave running):</p>
-<pre class="hljs"><code><div>node scripts/mock-server.js
-</div></code></pre>
-<p>Fakes 5 ConnectWise &quot;companies&quot; and a Keka write endpoint rigged to demonstrate specific outcomes (see script comments): 3 always succeed, 1 always fails with a data-shape rejection (HTTP 400), 1 fails once with a rate limit (HTTP 429) then succeeds.</p>
-<p><strong>2. Run the actual engine entrypoint</strong> (PowerShell — note the <code>$env:</code> syntax, the Unix <code>VAR=value command</code> form won't work in this shell):</p>
-<pre class="hljs"><code><div><span class="hljs-variable">$env:SYNC_REQUEST_ID</span>=<span class="hljs-string">&quot;3ead6a00-870e-46fa-81c4-546f2f6a5709&quot;</span>; node lib/orchestration/run.js
-</div></code></pre>
-<p>This is the real <code>lib/orchestration/run.js</code> — the same entrypoint a container would run in production, with <code>SYNC_REQUEST_ID</code> standing in for what the (not-yet-built) Provisioning Engine will eventually pass in automatically. Everything else — tenant, source, target, entities, credentials, mapping profiles — is loaded from Postgres using just that one ID.</p>
-<p><strong>Expected output, run 1:</strong> logs show the full pipeline — fetch, real mapping (inbound → canonical → outbound), schema validation, write, <code>sync_state</code> update. 5 records fetched; 3 written successfully; <code>id: 2</code> lands in <code>sync_state.failed</code> (data-shape rejection — HTTP 400, classified as <code>validation</code>); <code>id: 3</code> lands in <code>sync_state.retry</code> (HTTP 429, classified as <code>rate_limit</code>). The process exits cleanly once done (since <code>client</code> is <code>one_time</code>, there's nothing recurring to stay alive for).</p>
+<pre><code>node scripts/mock-server.js
+</code></pre>
+<p>Fakes 5 ConnectWise "companies" and a Keka write endpoint rigged to demonstrate specific outcomes (see script comments): 3 always succeed, 1 always fails with a data-shape rejection (HTTP 400), 1 fails once with a rate limit (HTTP 429) then succeeds.</p>
+<p><strong>2. Run the actual engine entrypoint</strong> (PowerShell — note the <code>$env:</code> syntax, the Unix <code>VAR=value command</code> form won't work in this shell). Use the <code>sync_entity_id</code> you noted above, not the <code>sync_request_id</code>:</p>
+<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
+</code></pre>
+<p>This is the real <code>lib/orchestration/run.js</code> — the same entrypoint a container would run in production, with <code>SYNC_ENTITY_ID</code> standing in for what the (not-yet-built) Provisioning Engine will eventually pass in automatically. Everything else — tenant, source, target, credentials, mapping profiles — is loaded from Postgres using just that one ID. Every invocation runs one cycle and exits; there's no "stay alive" behavior to demonstrate anymore even if you switch <code>client</code> to <code>interval</code> — that would just mean you'd normally expect something external (a scheduler) to invoke this same command again later, not that this one run behaves differently.</p>
+<p><strong>Expected output, run 1:</strong> logs show the full pipeline — fetch, real mapping (inbound → canonical → outbound), schema validation, write, <code>sync_state</code> update. 5 records fetched; 3 written successfully; <code>id: 2</code> lands in <code>sync_state.failed</code> (data-shape rejection — HTTP 400, classified as <code>validation</code>); <code>id: 3</code> lands in <code>sync_state.retry</code> (HTTP 429, classified as <code>rate_limit</code>). The process exits cleanly once done — every invocation does now, regardless of <code>sync_type</code>.</p>
 <p><strong>3. Run it again, same command, mock server left untouched:</strong></p>
-<pre class="hljs"><code><div><span class="hljs-variable">$env:SYNC_REQUEST_ID</span>=<span class="hljs-string">&quot;3ead6a00-870e-46fa-81c4-546f2f6a5709&quot;</span>; node lib/orchestration/run.js
-</div></code></pre>
+<pre><code class="language-powershell">$env:SYNC_ENTITY_ID=&quot;&lt;sync_entity_id&gt;&quot;; node lib/orchestration/run.js
+</code></pre>
 <p><strong>Expected output, run 2:</strong> <code>id: 2</code> is still in <code>failed</code> (it always fails — the list is genuinely self-maintaining, re-checked every run, not just cleared blindly). <code>id: 3</code> has dropped out of <code>retry</code> entirely — it was re-fetched by ID and re-written successfully. This is the reconciliation logic actually running, not the happy path.</p>
 <p>To inspect <code>sync_state</code> directly instead of relying on log output:</p>
-<pre class="hljs"><code><div><span class="hljs-keyword">SELECT</span> <span class="hljs-keyword">cursor</span>, last_run_status, failed, retry <span class="hljs-keyword">FROM</span> sync_state
-<span class="hljs-keyword">WHERE</span> sync_entity_id <span class="hljs-operator">=</span> (<span class="hljs-keyword">SELECT</span> id <span class="hljs-keyword">FROM</span> sync_entities <span class="hljs-keyword">WHERE</span> entity <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;client&#x27;</span>);
-</div></code></pre>
+<pre><code class="language-sql">SELECT cursor, last_run_status, failed, retry FROM sync_state
+WHERE sync_entity_id = (SELECT id FROM sync_entities WHERE entity = 'client');
+</code></pre>
 <h2 id="talking-points-for-each-step">Talking points for each step</h2>
 <ul>
 <li><strong>Dynamic adapter loading:</strong> the container never hardcodes ConnectWise or Keka by name — <code>source</code>/<code>target</code> come from the <code>sync_requests</code> row, and the right adapter class is chosen at runtime via a lookup table.</li>
 <li><strong>Real mapping, not a stand-in:</strong> every record goes through an actual per-tenant mapping profile (provider → canonical → provider) and is validated against a canonical JSON Schema before being written — this is the same mapping engine any provider pairing would use, not a demo-only shortcut.</li>
 <li><strong>Two distinct failure classes, both live in the same run:</strong> a data-shape rejection (<code>failed</code>) is assumed to need a real fix and is re-checked every cycle with a 30-day cutoff; a technical failure (<code>retry</code>) is assumed transient and is retried wholesale every cycle. Run 2 shows both behaviors side by side.</li>
 <li><strong>Nothing hardcoded per entity:</strong> the same code ran for the <code>client</code> entity here — the same engine handles <code>project</code>/<code>timesheet</code> once those adapters are extended, no branching required.</li>
-<li><strong>This is the real entrypoint, not a test harness:</strong> <code>run.js</code> is what a container actually executes — the only thing standing in for production here is that a person set <code>SYNC_REQUEST_ID</code> by hand instead of the Provisioning Engine doing it automatically.</li>
+<li><strong>This is the real entrypoint, not a test harness:</strong> <code>run.js</code> is what a container actually executes — the only thing standing in for production here is that a person set <code>SYNC_ENTITY_ID</code> by hand instead of the Provisioning Engine doing it automatically. Every invocation runs one cycle and exits, whether triggered by a person right now or by an infra scheduler later — the code doesn't know or care which.</li>
 </ul>
 <h2 id="resetting-for-a-clean-re-run">Resetting for a clean re-run</h2>
-<p>Not required for the demo to work correctly (state accumulating and self-healing across runs is the point), but to reproduce the exact &quot;fresh first run&quot; a second time:</p>
-<pre class="hljs"><code><div><span class="hljs-keyword">DELETE</span> <span class="hljs-keyword">FROM</span> sync_state <span class="hljs-keyword">WHERE</span> sync_entity_id <span class="hljs-operator">=</span> (<span class="hljs-keyword">SELECT</span> id <span class="hljs-keyword">FROM</span> sync_entities <span class="hljs-keyword">WHERE</span> entity <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;client&#x27;</span>);
-<span class="hljs-keyword">UPDATE</span> sync_entities <span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;submitted&#x27;</span> <span class="hljs-keyword">WHERE</span> entity <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;client&#x27;</span>;
-</div></code></pre>
+<p>Not required for the demo to work correctly (state accumulating and self-healing across runs is the point), but to reproduce the exact "fresh first run" a second time:</p>
+<pre><code class="language-sql">DELETE FROM sync_state WHERE sync_entity_id = (SELECT id FROM sync_entities WHERE entity = 'client');
+UPDATE sync_entities SET status = 'submitted' WHERE entity = 'client';
+</code></pre>
 <p>and restart the mock server (Ctrl+C, then <code>node scripts/mock-server.js</code> again) — its in-memory retry counter for <code>id: 3</code> only resets when the process restarts, not between cycles.</p>
 <h2 id="lower-level-debugging-alternative">Lower-level debugging alternative</h2>
-<p><code>scripts/test-run-cycle.js &lt;sync_request_id&gt;</code> runs a single entity's cycle directly (bypassing scheduling/status updates) and prints <code>sync_state</code> inline — useful for isolating a problem in the fetch/map/write pipeline itself without the full engine's scheduling logic in the way. Not what should be shown in an actual demo — <code>run.js</code> is the real thing.</p>
+<p><code>scripts/test-run-cycle.js &lt;sync_entity_id&gt;</code> runs a single entity's cycle directly (bypassing the status-update policy in <code>schedule.js</code>) and prints <code>sync_state</code> inline — useful for isolating a problem in the fetch/map/write pipeline itself without anything else in the way. Not what should be shown in an actual demo — <code>run.js</code> is the real thing.</p>
 <h2 id="related-docs">Related docs</h2>
 <ul>
 <li><code>docs/migrations/README.md</code> — schema this demo runs against (<code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>sync_state</code>, <code>credentials</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>)</li>
@@ -450,6 +440,5 @@ RETURNING id <span class="hljs-keyword">AS</span> sync_request_id \gset
 <li><code>scripts/mock-server.js</code>, <code>scripts/seed-mock-credentials.js</code>, <code>scripts/seed-mock-mapping.js</code> — the three one-time setup scripts</li>
 <li><code>lib/orchestration/run.js</code> — the real entrypoint this demo runs</li>
 </ul>
-
 </body>
 </html>
