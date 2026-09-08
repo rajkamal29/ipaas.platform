@@ -11,7 +11,7 @@ Read this top to bottom once, in order — it's the only document you need to ge
 - **Docker Desktop** — runs Postgres locally via `ipaas.infra/docker-compose.yml`. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a `Dockerfile`, but you run it as a plain Node process locally — see §7).
 - **Node.js 22.x** and npm (bundled with Node). The project doesn't pin an `engines` field yet, but the `Dockerfile` and everyone's local setup so far use Node 22 — install that, not an older LTS.
 - **Git**.
-- A local `psql` client is optional — `docker exec` into the Postgres container works fine without one (§4 below).
+- A local `psql` client is optional — `docker exec` into the Postgres container works fine without one (§5 below).
 
 ## 1. Clone and install
 
@@ -98,7 +98,16 @@ This inserts the canonical `client` schema plus the default ConnectWise-inbound 
 
 ## 5. Stand up a tenant and a mock sync run
 
-Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s — see `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` for the tenant/`sync_request` IDs already in common use for demos, or `docs/setup/TENANT_ONBOARDING.md` if this is a real tenant, not a local test. In short, from a psql session (`docker compose exec postgres psql -U ipaas -d ipaas_platform`, run from `ipaas.infra`):
+Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s — see `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` for the tenant/`sync_request` IDs already in common use for demos, or `docs/setup/TENANT_ONBOARDING.md` if this is a real tenant, not a local test.
+
+Open a psql session:
+
+```powershell
+cd ipaas.infra
+docker compose exec postgres psql -U ipaas -d ipaas_platform
+```
+
+Then paste:
 
 ```sql
 INSERT INTO tenants (name) VALUES ('YourTestTenant') RETURNING id AS tenant_id \gset
@@ -106,7 +115,13 @@ INSERT INTO sync_requests (tenant_id, source, target) VALUES (:'tenant_id', 'con
 INSERT INTO sync_entities (sync_request_id, entity, sync_type, status) VALUES (:'sync_request_id', 'client', 'one_time', 'submitted') RETURNING id AS sync_entity_id \gset
 ```
 
-Back in `ipaas.orchestrationengine` for the rest of this section (§5–§7 all assume that directory).
+`\q` to exit psql, then back to `ipaas.orchestrationengine` for the rest of this section:
+
+```powershell
+cd ../ipaas.orchestrationengine
+```
+
+§5 (from here on)–§7 all assume that directory.
 
 Keep the `sync_entity_id` this prints out — that's what the engine actually takes as input (§6), not `sync_request_id`.
 
