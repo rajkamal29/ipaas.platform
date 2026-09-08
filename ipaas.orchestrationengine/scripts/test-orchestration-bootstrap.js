@@ -26,8 +26,8 @@ async function main() {
   console.log(JSON.stringify(run, null, 2));
 
   console.log('\nInstantiating adapters (no network calls yet — just construction)...');
-  const sourceAdapter = createAdapter(run.source, run.tenantId);
-  const targetAdapter = createAdapter(run.target, run.tenantId);
+  const sourceAdapter = await createAdapter(run.source, run.tenantId);
+  const targetAdapter = await createAdapter(run.target, run.tenantId);
   console.log('source adapter:', sourceAdapter.constructor.name);
   console.log('target adapter:', targetAdapter.constructor.name);
 

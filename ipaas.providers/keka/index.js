@@ -10,10 +10,20 @@
  * yet verified (Timesheet especially — two candidate paths exist, see the
  * comment below). write() and fetchByIds are both unverified surface —
  * see their comments before trusting them.
+ *
+ * Storage-agnostic as of the ipaas.providers split (2026-09-08): this
+ * adapter no longer loads its own credentials from Postgres, or persists
+ * a refreshed token itself. The caller (the orchestration engine's
+ * adapter-registry.js) loads the initial credentials and passes them into
+ * the constructor, along with an onCredentialsRefreshed callback this
+ * adapter invokes whenever it refreshes Keka's OAuth token — the adapter
+ * still knows WHEN a refresh happened, it just no longer knows HOW or
+ * WHERE that gets persisted. This package has zero knowledge of Postgres
+ * or encryption — see the repo README for why (packages must be
+ * self-contained to be independently published).
  */
 
-const { loadCredentials, saveCredentials } = require('../../../lib/credentials');
-const { logger: defaultLogger } = require('../../../lib/logger');
+const { logger: defaultLogger } = require('./logger');
 
 // Canonical entity name -> Keka REST resource path.
 // "client" is verified live. "project"/"timesheet" are best guesses (§5a).
@@ -29,26 +39,28 @@ const ENTITY_ENDPOINTS = {
 class KekaAdapter {
   /**
    * @param {string} tenantId - this container is scoped to one
-   *   sync_requests row (one tenant), so tenantId is fixed for this
-   *   adapter's lifetime — passed in from the container's own config.
+   *   sync_entities row (one tenant), so tenantId is fixed for this
+   *   adapter's lifetime — passed in from the caller.
+   * @param {object} credentials - the decrypted credential payload for
+   *   this tenant+provider, already loaded by the caller:
+   *   {apiBaseUrl, identityUrl, tokenEndpoint, clientId, clientSecret,
+   *   apiKey, grantType, scope, accessToken?, tokenExpiresAt?}. Required.
+   * @param {object} [options] - { onCredentialsRefreshed(creds) } —
+   *   called (awaited) whenever this adapter refreshes the OAuth token,
+   *   with the full updated credential payload, so the caller can persist
+   *   it. Optional, but a refreshed token will simply not be saved
+   *   anywhere if omitted — every call in a fresh process will hit the
+   *   token endpoint again.
    * @param logger - defaults to a base child logger; the orchestration
    *   engine should pass a run-scoped child logger instead.
    */
-  constructor(tenantId, logger = defaultLogger.child({ component: 'keka-adapter' })) {
+  constructor(tenantId, credentials, { onCredentialsRefreshed } = {}, logger = defaultLogger.child({ component: 'keka-adapter' })) {
     if (!tenantId) throw new Error('KekaAdapter requires a tenantId');
+    if (!credentials) throw new Error('KekaAdapter requires credentials to be provided by the caller');
     this._tenantId = tenantId;
-    this._creds = null; // decrypted payload: {apiBaseUrl, identityUrl, tokenEndpoint, clientId, clientSecret, apiKey, grantType, scope, accessToken, tokenExpiresAt}
+    this._creds = credentials;
+    this._onCredentialsRefreshed = onCredentialsRefreshed;
     this._logger = logger.child({ tenantId, provider: 'keka' });
-  }
-
-  async _loadCreds() {
-    if (!this._creds) {
-      this._creds = await loadCredentials(this._tenantId, 'keka');
-      if (!this._creds) {
-        throw new Error(`No Keka credentials found for tenant ${this._tenantId}`);
-      }
-    }
-    return this._creds;
   }
 
   _isTokenValid(creds) {
@@ -59,17 +71,16 @@ class KekaAdapter {
 
   /**
    * Ensures a valid access token is cached on this._creds, fetching a new
-   * one from Keka's token endpoint if missing or expired, and persisting
-   * the refreshed token back into the encrypted `credentials` row so other
-   * processes (or the next run) can reuse it instead of re-authenticating.
+   * one from Keka's token endpoint if missing or expired, and invoking
+   * onCredentialsRefreshed (if provided) with the updated payload so the
+   * caller can persist it — this adapter no longer persists it itself.
    */
   async authenticate() {
-    const creds = await this._loadCreds();
-    if (this._isTokenValid(creds)) return creds;
+    if (this._isTokenValid(this._creds)) return this._creds;
 
     this._logger.info('token expired or missing — requesting a new one');
 
-    const tokenUrl = `${creds.identityUrl}${creds.tokenEndpoint}`;
+    const tokenUrl = `${this._creds.identityUrl}${this._creds.tokenEndpoint}`;
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -77,11 +88,11 @@ class KekaAdapter {
         'User-Agent': 'Mozilla', // required per Keka's own docs
       },
       body: new URLSearchParams({
-        client_id: creds.clientId,
-        client_secret: creds.clientSecret,
-        api_key: creds.apiKey,
-        grant_type: creds.grantType,
-        scope: creds.scope,
+        client_id: this._creds.clientId,
+        client_secret: this._creds.clientSecret,
+        api_key: this._creds.apiKey,
+        grant_type: this._creds.grantType,
+        scope: this._creds.scope,
       }),
     });
 
@@ -95,13 +106,15 @@ class KekaAdapter {
     }
 
     const body = await res.json();
-    creds.accessToken = body.access_token;
+    this._creds.accessToken = body.access_token;
     // expires_in is seconds-from-now, not an absolute timestamp — compute our own.
-    creds.tokenExpiresAt = new Date(Date.now() + body.expires_in * 1000).toISOString();
+    this._creds.tokenExpiresAt = new Date(Date.now() + body.expires_in * 1000).toISOString();
 
-    await saveCredentials(this._tenantId, 'keka', creds);
-    this._logger.info({ tokenExpiresAt: creds.tokenExpiresAt }, 'token refreshed');
-    return creds;
+    if (this._onCredentialsRefreshed) {
+      await this._onCredentialsRefreshed(this._creds);
+    }
+    this._logger.info({ tokenExpiresAt: this._creds.tokenExpiresAt }, 'token refreshed');
+    return this._creds;
   }
 
   async _throwForResponse(res) {

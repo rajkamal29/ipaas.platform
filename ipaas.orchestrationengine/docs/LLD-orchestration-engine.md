@@ -2,7 +2,9 @@
 
 Audience: engineers implementing, extending, or debugging the Orchestration Engine. This document describes the system as it actually exists in code today, not as originally planned — where an earlier design was corrected or diverged, that's called out explicitly.
 
-Related docs: `docs/migrations/README.md` (full schema reference), `docs/LLD-connector-auth-layer.md` (what's live-verified vs. guessed per provider), `docs/DEMO-orchestration-engine.md` (runnable walkthrough against a mock server).
+Related docs: `docs/migrations/README.md` (full schema reference), `docs/LLD-connector-auth-layer.md` (what's live-verified vs. guessed per provider, now in the `ipaas.providers` repo), `docs/DEMO-orchestration-engine.md` (runnable walkthrough against a mock server).
+
+**Repo split (2026-09-08).** This engine's code now lives in its own repo, `ipaas.orchestrationengine`, separate from the provider adapters, which moved to `ipaas.providers` (`@ipaas/adapter-connectwise` and `@ipaas/adapter-keka`, each an independently publishable npm package — see that repo's `README.md`). The two repos exist side by side today only as sibling folders inside one working tree; the actual GitHub-repo split and package-registry connection (`npm.pkg.github.com`) are deliberately deferred — see §9's Docker build note. Locally, the adapters resolve via `npm link`, not a published package.
 
 ---
 
@@ -24,7 +26,8 @@ Deciding *when* to invoke the container — once for a `one_time` entity, repeat
 lib/orchestration/
   run.js              entrypoint — what the container actually executes
   bootstrap.js         loads one sync_entities row + its parent sync_requests row
-  adapter-registry.js  provider name -> adapter class lookup
+  adapter-registry.js  provider name -> adapter class lookup; loads credentials
+                        and injects them into the adapter constructor (see §4)
   schedule.js           run-once policy: decides sync_entities.status per sync_type
   cycle.js              the actual fetch -> map -> validate -> write pipeline
   sync-state.js         sync_state read/write
@@ -38,19 +41,17 @@ lib/
   credentials.js        loadCredentials / saveCredentials (AES-256-GCM at rest)
   db.js                 pg Pool
   logger.js             pino, with .child() scoping used throughout
-
-packages/adapters/
-  connectwise/index.js  ConnectWiseAdapter
-  keka/index.js          KekaAdapter
 ```
+
+Provider adapters (`ConnectWiseAdapter`, `KekaAdapter`) are **no longer part of this repo**. They live in the sibling `ipaas.providers` repo as `@ipaas/adapter-connectwise` and `@ipaas/adapter-keka`, declared as normal npm dependencies in `package.json` and resolved locally via `npm link` (see the repo-split note above). `adapter-registry.js` is the only file in this repo that touches them.
 
 ## 3. Execution flow
 
 ```
 run.js
   -> loadSyncEntityRun(SYNC_ENTITY_ID)         [bootstrap.js — one JOIN, one entity]
-  -> createAdapter(source, tenantId)            [adapter-registry.js]
-  -> createAdapter(target, tenantId)
+  -> await createAdapter(source, tenantId, log) [adapter-registry.js — loads
+  -> await createAdapter(target, tenantId, log)  credentials, injects them; async]
   -> runEntityOnce(entityRow, ...)              [schedule.js]
        one_time  -> runCycle() once -> sync_entities.status = completed|failed
        interval  -> sync_entities.status = active (set before the attempt,
@@ -88,12 +89,19 @@ Every provider adapter (`ConnectWiseAdapter`, `KekaAdapter`) implements the same
 
 ```js
 class SomeAdapter {
-  constructor(tenantId, logger)
+  // Storage-agnostic as of the ipaas.providers split (2026-09-08): the
+  // adapter no longer loads its own credentials. The caller — this repo's
+  // adapter-registry.js — loads them via lib/credentials.js and passes
+  // them in, along with a save-back callback for providers that refresh a
+  // token mid-flow (Keka). createAdapter() is async for this reason.
+  constructor(tenantId, credentials, { onCredentialsRefreshed } = {}, logger)
 
-  // Loads/refreshes credentials for this tenant+provider. Cached for the
-  // adapter instance's lifetime (ConnectWise: static key pair, nothing to
-  // refresh. Keka: OAuth client-credentials token, refreshed and written
-  // back to `credentials` when within 60s of expiry).
+  // Ensures a valid token/credential is cached for this call. ConnectWise:
+  // static key pair, nothing to refresh, just returns the credentials as
+  // given. Keka: OAuth client-credentials token, refreshed when within 60s
+  // of expiry, then reported back via onCredentialsRefreshed(updatedCreds)
+  // so the caller can persist it — the adapter itself never writes to
+  // storage.
   async authenticate()
 
   // One page of delta records.
@@ -200,7 +208,9 @@ What **is** verified live: ConnectWise `client` fetch (pagination via `Link` hea
 
 ## 9. Containerization
 
-**Image**: `Dockerfile` at the repo root, multi-stage (`node:22-alpine`). The `deps` stage runs `npm ci --omit=dev` from `package.json`/`package-lock.json` plus each adapter workspace's own `package.json` (needed for npm to resolve the workspace tree before any source is copied — keeps this layer cached across unrelated code changes). The `runtime` stage copies only `node_modules`, `lib/`, `packages/adapters/` (real source, not just manifests — npm's workspace symlinks under `node_modules/@ipaas/*` point at these relative paths and resolve to nothing without it), and `package.json`; runs as the non-root `node` user; entrypoint is `CMD ["node", "lib/orchestration/run.js"]`. `migrations/` and `scripts/` are intentionally not in the image — migrations run separately against Postgres, never inside this container, and `scripts/` is mock/demo tooling.
+**Image**: `Dockerfile` at the repo root, multi-stage (`node:22-alpine`). The `deps` stage runs `npm ci --omit=dev` from `package.json`/`package-lock.json` alone — since the 2026-09-08 repo split, `@ipaas/adapter-connectwise` and `@ipaas/adapter-keka` are ordinary npm dependencies (see `package.json`), not local workspace packages, so there's no adapter source to copy into this stage anymore. The `runtime` stage copies only `node_modules`, `lib/`, and `package.json`; runs as the non-root `node` user; entrypoint is `CMD ["node", "lib/orchestration/run.js"]`. `migrations/` and `scripts/` are intentionally not in the image — migrations run separately against Postgres, never inside this container, and `scripts/` is mock/demo tooling.
+
+**Docker build is currently broken** until the registry connection deferred by the repo split is set up: `npm ci` needs to resolve the two `@ipaas/*` packages from GitHub Packages' npm registry (`npm.pkg.github.com`), and neither has been published there yet. Locally this repo works around it with `npm link` against the sibling `ipaas.providers` folder (not usable inside a container build, which has no access to a sibling checkout). Before this image builds again: publish both adapter packages, then add an `.npmrc` (registry + auth token) step to both this Dockerfile and `.github/workflows/build-orchestration-engine.yml`.
 
 **Runtime inputs split into two categories, not one flat list of "env vars":**
 

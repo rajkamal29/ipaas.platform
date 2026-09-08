@@ -9,10 +9,16 @@
  * §4). Project and Time Entry endpoints below are best guesses (§4a) — NOT
  * yet verified. fetchByIds is new, unverified surface for every entity —
  * see the note on that method before trusting it.
+ *
+ * Storage-agnostic as of the ipaas.providers split (2026-09-08): this
+ * adapter no longer loads its own credentials from Postgres — the caller
+ * (the orchestration engine's adapter-registry.js) loads them and passes
+ * them into the constructor. This package has zero knowledge of Postgres,
+ * encryption, or how/where credentials are stored — see the repo README
+ * for why (packages must be self-contained to be independently published).
  */
 
-const { loadCredentials } = require('../../../lib/credentials');
-const { logger: defaultLogger } = require('../../../lib/logger');
+const { logger: defaultLogger } = require('./logger');
 
 // Canonical entity name -> ConnectWise REST resource path.
 // "client" is verified live. "project"/"timesheet" are best guesses,
@@ -26,32 +32,36 @@ const ENTITY_ENDPOINTS = {
 class ConnectWiseAdapter {
   /**
    * @param {string} tenantId - this container is scoped to one
-   *   sync_requests row (one tenant), so tenantId is fixed for this
-   *   adapter's lifetime — passed in from the container's own config.
+   *   sync_entities row (one tenant), so tenantId is fixed for this
+   *   adapter's lifetime — passed in from the caller.
+   * @param {object} credentials - the decrypted credential payload for
+   *   this tenant+provider, already loaded by the caller. Required —
+   *   this adapter does not know how to load its own credentials.
+   * @param {object} [options] - { onCredentialsRefreshed } — ConnectWise's
+   *   API Member auth is a static key pair with nothing to refresh, so
+   *   this adapter never calls it. Accepted anyway so the constructor
+   *   signature stays uniform across every adapter (see KekaAdapter,
+   *   which does use it).
    * @param logger - defaults to a base child logger; the orchestration
    *   engine should pass a run-scoped child logger instead so log lines
    *   carry that run's syncRunId.
    */
-  constructor(tenantId, logger = defaultLogger.child({ component: 'connectwise-adapter' })) {
+  constructor(tenantId, credentials, { onCredentialsRefreshed } = {}, logger = defaultLogger.child({ component: 'connectwise-adapter' })) {
     if (!tenantId) throw new Error('ConnectWiseAdapter requires a tenantId');
+    if (!credentials) throw new Error('ConnectWiseAdapter requires credentials to be provided by the caller');
     this._tenantId = tenantId;
-    this._creds = null; // cached decrypted payload from `credentials`
+    this._creds = credentials; // static key pair — provided once, nothing to refresh
+    this._onCredentialsRefreshed = onCredentialsRefreshed; // unused by this adapter, kept for contract uniformity
     this._logger = logger.child({ tenantId, provider: 'connectwise' });
   }
 
   /**
    * API Member auth is a static key pair (company ID + public/private
-   * key), not a token — there's nothing to refresh. This just loads and
-   * caches the decrypted credential payload from Postgres on first use.
+   * key), not a token — there's nothing to load or refresh. Kept as an
+   * async method (rather than removed) so the adapter contract stays
+   * uniform across providers that DO need to refresh (see Keka).
    */
   async authenticate() {
-    if (!this._creds) {
-      this._creds = await loadCredentials(this._tenantId, 'connectwise');
-      if (!this._creds) {
-        throw new Error(`No ConnectWise credentials found for tenant ${this._tenantId}`);
-      }
-      this._logger.debug('credentials loaded');
-    }
     return this._creds;
   }
 

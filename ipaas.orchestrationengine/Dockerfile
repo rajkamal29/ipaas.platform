@@ -14,19 +14,23 @@
 #
 # Built and published by .github/workflows/build-orchestration-engine.yml
 # on every push to the `dev` branch.
+#
+# 2026-09-08 repo split: @ipaas/adapter-connectwise and @ipaas/adapter-keka
+# now live in the separate ipaas.providers repo and are declared as normal
+# npm dependencies (see package.json) instead of local workspace packages.
+# BUILD IS CURRENTLY BROKEN: npm ci below needs to resolve those two
+# packages from GitHub Packages' npm registry (npm.pkg.github.com), which
+# they have not been published to yet — the repo split's registry
+# connection is deliberately deferred (see docs/LLD-orchestration-engine.md
+# and the repo-split backlog task). Publish both packages and add an
+# .npmrc / NODE_AUTH_TOKEN step here (and in the CI workflow) before this
+# image will build again.
 
 # ---- deps: installed in its own layer, cached unless package.json/lockfile change ----
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Root manifest + lockfile, plus each npm workspace's own package.json —
-# npm needs these paths present to resolve the workspace tree, but not yet
-# their source, so copying just this keeps the install layer cached across
-# unrelated code changes.
 COPY package.json package-lock.json ./
-COPY packages/adapters/connectwise/package.json packages/adapters/connectwise/package.json
-COPY packages/adapters/keka/package.json packages/adapters/keka/package.json
-
 RUN npm ci --omit=dev
 
 # ---- runtime: only what lib/orchestration/run.js actually needs ----
@@ -37,10 +41,6 @@ WORKDIR /app
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json ./
 COPY --chown=node:node lib ./lib
-# Real source for the two adapter workspaces — required because npm's
-# workspace symlinks under node_modules/@ipaas/* point at these relative
-# paths; without this, the symlinks above resolve to nothing.
-COPY --chown=node:node packages/adapters ./packages/adapters
 
 USER node
 

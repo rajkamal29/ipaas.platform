@@ -25,8 +25,8 @@ async function main() {
   }
 
   const run = await loadSyncEntityRun(syncEntityId);
-  const sourceAdapter = createAdapter(run.source, run.tenantId);
-  const targetAdapter = createAdapter(run.target, run.tenantId);
+  const sourceAdapter = await createAdapter(run.source, run.tenantId);
+  const targetAdapter = await createAdapter(run.target, run.tenantId);
 
   const context = { tenantId: run.tenantId, sourceProvider: run.source, targetProvider: run.target };
   const entityRow = { id: run.syncEntityId, entity: run.entity, syncType: run.syncType };

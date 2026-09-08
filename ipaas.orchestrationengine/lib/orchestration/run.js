@@ -31,8 +31,8 @@ async function main() {
   const log = logger.child({ syncEntityId: run.syncEntityId, tenantId: run.tenantId, entity: run.entity });
   log.info({ source: run.source, target: run.target, syncType: run.syncType }, 'starting');
 
-  const sourceAdapter = createAdapter(run.source, run.tenantId);
-  const targetAdapter = createAdapter(run.target, run.tenantId);
+  const sourceAdapter = await createAdapter(run.source, run.tenantId, log);
+  const targetAdapter = await createAdapter(run.target, run.tenantId, log);
   const context = { tenantId: run.tenantId, sourceProvider: run.source, targetProvider: run.target };
   const entityRow = {
     id: run.syncEntityId,

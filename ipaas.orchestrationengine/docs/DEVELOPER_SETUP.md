@@ -13,13 +13,28 @@ Read this top to bottom once; after that, `docs/migrations/OPERATIONS.md` and `d
 
 ## 1. Clone and install
 
+**Repo split (2026-09-08).** This engine and the provider adapters now live in two repos: `ipaas.orchestrationengine` (this one) and `ipaas.providers` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka`). Check them out as sibling folders — the engine's `package.json` depends on both adapter packages, but they haven't been published to a registry yet (`npm.pkg.github.com`, still deferred), so local dev resolves them via `npm link` instead of a normal `npm install` of those two packages.
+
 ```powershell
-git clone <repo-url>
-cd ipaas.platform
+git clone <orchestration-engine-repo-url> ipaas.orchestrationengine
+git clone <providers-repo-url> ipaas.providers
+# both folders must sit next to each other — adapter-registry.js's npm link
+# target resolves relative to ipaas.orchestrationengine's sibling directory
+
+cd ipaas.providers/connectwise
 npm install
+npm link
+
+cd ../keka
+npm install
+npm link
+
+cd ../../ipaas.orchestrationengine
+npm install
+npm link @ipaas/adapter-connectwise @ipaas/adapter-keka
 ```
 
-`npm install` installs the root `package.json` dependencies plus both npm workspaces under `packages/adapters/*` (`@ipaas/adapter-connectwise`, `@ipaas/adapter-keka`) in one pass — you don't need to `cd` into them separately.
+`npm install` in `ipaas.orchestrationengine` installs everything in `package.json` except the two `@ipaas/*` packages (unresolvable until they're published); the `npm link` step after it wires those two up against your local `ipaas.providers` checkout instead. Re-run the two `npm link` lines any time you `rm -rf node_modules` in this repo.
 
 ## 2. Configure environment
 

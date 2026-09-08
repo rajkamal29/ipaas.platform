@@ -1,17 +1,16 @@
 {
-  "name": "ipaas-platform",
+  "name": "ipaas-orchestration-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "iPaaS platform related packages",
-  "workspaces": [
-    "packages/*/*"
-  ],
+  "description": "iPaaS batch/polling Orchestration Engine — one_time and interval sync types",
   "scripts": {
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "migrate:create": "node-pg-migrate create"
   },
   "dependencies": {
+    "@ipaas/adapter-connectwise": "^0.1.0",
+    "@ipaas/adapter-keka": "^0.1.0",
     "ajv": "^8.17.1",
     "dotenv": "^17.4.2",
     "jsonata": "^2.2.2",
