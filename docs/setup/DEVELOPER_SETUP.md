@@ -96,9 +96,11 @@ node scripts/seed-global-mapping.js
 
 This inserts the canonical `client` schema plus the default ConnectWise-inbound and Keka-outbound field mappings into `global_mapping_profiles`. Any tenant that doesn't define its own `mapping_profiles` override automatically inherits these — see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` §5. Safe to re-run any time (it upserts).
 
-## 5. Stand up a tenant and a mock sync run
+## 5. Stand up a mock tenant and sync run
 
-Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s — see `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` for the tenant/`sync_request` IDs already in common use for demos, or `docs/setup/TENANT_ONBOARDING.md` if this is a real tenant, not a local test.
+Nothing syncs without a tenant, a `sync_requests` row (a source→target pairing), and at least one `sync_entities` row. There's no UI yet, so this is a few `INSERT`s — see `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` for the tenant/`sync_request` IDs already in common use for demos.
+
+For a real tenant, use `docs/setup/TENANT_ONBOARDING.md` instead of this section — real credentials, not mock, so it's a different path, not a more detailed version of this one.
 
 Open a psql session:
 
@@ -110,7 +112,7 @@ docker compose exec postgres psql -U ipaas -d ipaas_platform
 Then paste:
 
 ```sql
-INSERT INTO tenants (name) VALUES ('YourTestTenant') RETURNING id AS tenant_id \gset
+INSERT INTO tenants (name) VALUES ('MockTestTenant') RETURNING id AS tenant_id \gset
 INSERT INTO sync_requests (tenant_id, source, target) VALUES (:'tenant_id', 'connectwise', 'keka') RETURNING id AS sync_request_id \gset
 INSERT INTO sync_entities (sync_request_id, entity, sync_type, status) VALUES (:'sync_request_id', 'client', 'one_time', 'submitted') RETURNING id AS sync_entity_id \gset
 ```
@@ -125,7 +127,7 @@ cd ../ipaas.orchestrationengine
 
 Keep the `sync_entity_id` this prints out — that's what the engine actually takes as input (§6), not `sync_request_id`.
 
-Then seed fake credentials pointing at the mock server (no real ConnectWise/Keka account needed):
+Then seed mock credentials pointing at the mock server (no real ConnectWise/Keka account needed):
 
 ```powershell
 node scripts/seed-mock-credentials.js <tenant_id>
@@ -133,7 +135,7 @@ node scripts/seed-mock-credentials.js <tenant_id>
 
 If you want this tenant to use its **own** mapping instead of the global default, also run `node scripts/seed-mock-mapping.js <tenant_id>` — otherwise skip it and it'll inherit what you seeded in §4.
 
-## 6. Run the engine
+## 6. Run the engine against the mock server
 
 Start the mock server in its own terminal (leave it running):
 

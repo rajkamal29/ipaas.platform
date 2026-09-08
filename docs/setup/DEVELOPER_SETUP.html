@@ -357,7 +357,6 @@ code {
 <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-
 <h1 id="developer-setup">Developer Setup</h1>
 <p>Everything a new developer needs to get the platform running locally, end to end: Postgres, the schema, a working mapping configuration, and the Orchestration Engine actually syncing records against a mock ConnectWise/Keka server. No real provider accounts are needed for any of this.</p>
 <p>This doc lives at <code>ipaas.platform/docs/setup/</code> — outside all three repos, since its content already spans them. Every command below assumes your shell's current directory is the parent folder containing all three repos (referred to as <code>ipaas.platform</code> throughout), unless a <code>cd</code> changes that; each section either continues from the previous one's ending directory or explicitly <code>cd</code>s to the one it needs.</p>
@@ -471,23 +470,24 @@ code {
 <div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">orchestrationengine</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a>node scripts/seed-global-mapping.<span class="fu">js</span></span></code></pre></div>
 <p>This inserts the canonical <code>client</code> schema plus the default ConnectWise-inbound and Keka-outbound field mappings into <code>global_mapping_profiles</code>. Any tenant that doesn't define its own <code>mapping_profiles</code> override automatically inherits these — see <code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code> §5. Safe to re-run any time (it upserts).</p>
-<h2 id="5-stand-up-a-tenant-and-a-mock-sync-run">5. Stand up a tenant and a mock sync run</h2>
-<p>Nothing syncs without a tenant, a <code>sync_requests</code> row (a source→target pairing), and at least one <code>sync_entities</code> row. There's no UI yet, so this is a few <code>INSERT</code>s — see <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> for the tenant/<code>sync_request</code> IDs already in common use for demos, or <code>docs/setup/TENANT_ONBOARDING.md</code> if this is a real tenant, not a local test.</p>
+<h2 id="5-stand-up-a-mock-tenant-and-sync-run">5. Stand up a mock tenant and sync run</h2>
+<p>Nothing syncs without a tenant, a <code>sync_requests</code> row (a source→target pairing), and at least one <code>sync_entities</code> row. There's no UI yet, so this is a few <code>INSERT</code>s — see <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> for the tenant/<code>sync_request</code> IDs already in common use for demos.</p>
+<p>For a real tenant, use <code>docs/setup/TENANT_ONBOARDING.md</code> instead of this section — real credentials, not mock, so it's a different path, not a more detailed version of this one.</p>
 <p>Open a psql session:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="fu">cd</span> ipaas.<span class="fu">infra</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a>docker compose exec postgres psql -U ipaas -d ipaas_platform</span></code></pre></div>
 <p>Then paste:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;YourTestTenant&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> tenant_id \gset</span>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> tenants (name) <span class="kw">VALUES</span> (<span class="st">&#39;MockTestTenant&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> tenant_id \gset</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_requests (tenant_id, <span class="kw">source</span>, target) <span class="kw">VALUES</span> (:<span class="st">&#39;tenant_id&#39;</span>, <span class="st">&#39;connectwise&#39;</span>, <span class="st">&#39;keka&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_request_id \gset</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sync_entities (sync_request_id, entity, sync_type, status) <span class="kw">VALUES</span> (:<span class="st">&#39;sync_request_id&#39;</span>, <span class="st">&#39;client&#39;</span>, <span class="st">&#39;one_time&#39;</span>, <span class="st">&#39;submitted&#39;</span>) <span class="kw">RETURNING</span> <span class="kw">id</span> <span class="kw">AS</span> sync_entity_id \gset</span></code></pre></div>
 <p><code>\q</code> to exit psql, then back to <code>ipaas.orchestrationengine</code> for the rest of this section:</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a><span class="fu">cd</span> ../ipaas.<span class="fu">orchestrationengine</span></span></code></pre></div>
 <p>§5 (from here on)–§7 all assume that directory.</p>
 <p>Keep the <code>sync_entity_id</code> this prints out — that's what the engine actually takes as input (§6), not <code>sync_request_id</code>.</p>
-<p>Then seed fake credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
+<p>Then seed mock credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a>node scripts/seed-mock-credentials.<span class="fu">js</span> &lt;tenant_id&gt;</span></code></pre></div>
 <p>If you want this tenant to use its <strong>own</strong> mapping instead of the global default, also run <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code> — otherwise skip it and it'll inherit what you seeded in §4.</p>
-<h2 id="6-run-the-engine">6. Run the engine</h2>
+<h2 id="6-run-the-engine-against-the-mock-server">6. Run the engine against the mock server</h2>
 <p>Start the mock server in its own terminal (leave it running):</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true"></a>node scripts/mock-server.<span class="fu">js</span></span></code></pre></div>
 <p>Then run the actual entrypoint — this is the real code, not a test harness:</p>
