@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="core-schema--tenant-intake-credentials-run-state--mapping">Core Schema — Tenant Intake, Credentials, Run State &amp; Mapping</h1>
+<p>Covers <code>20260901120000_create-core-schema.js</code>, <code>20260901140000_create-sync-state.js</code>, <code>20260901150000_add-interval-seconds.js</code>, <code>20260901160000_create-mapping-layer.js</code>, and <code>20260903120000_create-global-mapping-profiles.js</code>. Eight tables: <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>.</p>
+<p>This schema covers <strong>intake</strong> (a tenant selecting providers, entities, and a sync type), <strong>credentials</strong> (encrypted per-provider secrets), <strong>run state</strong> (per-entity cursor and failure tracking), and <strong>mapping</strong> (canonical schema + per-tenant field mappings). It does not persist canonical records — see the <code>mapping_profiles</code>/<code>canonical_entities</code> section below for why.</p>
+<h2 id="relationships">Relationships</h2>
+<pre class="hljs"><code><div>tenants (1) ──&lt; sync_requests (1) ──&lt; sync_entities (1) ── (1) sync_state
+tenants (1) ──&lt; credentials
+</div></code></pre>
+<ul>
+<li>One tenant has many <code>sync_requests</code>.</li>
+<li>One <code>sync_requests</code> row has many <code>sync_entities</code> rows.</li>
+<li>One <code>sync_entities</code> row has exactly one <code>sync_state</code> row (1:1) — created once that entity starts running.</li>
+<li>One tenant has many <code>credentials</code> rows — at most one per provider (enforced by a unique constraint on <code>tenant_id, provider</code>).</li>
+<li><code>credentials</code> is <strong>not</strong> linked to <code>sync_requests</code> directly. A request's engine looks up credentials by <code>(tenant_id, source)</code> and <code>(tenant_id, target)</code> at run time, so the same provider's credentials are reused across every request that touches that provider — nothing is duplicated if, say, Keka is a target in one request and a source in another.</li>
+</ul>
+<h2 id="tenants"><code>tenants</code></h2>
+<p>Identity only — who the tenant is. Nothing about what they're syncing lives here.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>text</td>
+<td>unique — the tenant's name (e.g. <code>OculusIT</code>)</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="sync_requests"><code>sync_requests</code></h2>
+<p>One row per source→target pairing a tenant has asked for (e.g. &quot;ConnectWise to Keka&quot;). A tenant can submit as many of these as it wants over time — including a reverse pairing (Keka to ConnectWise) as a separate row.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tenant_id</code></td>
+<td>uuid, FK → <code>tenants.id</code></td>
+<td><code>ON DELETE CASCADE</code></td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>text</td>
+<td><code>connectwise</code> or <code>keka</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>text</td>
+<td><code>connectwise</code> or <code>keka</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>No <code>status</code> column here on purpose — see <code>sync_entities</code> below. A request's overall status, if ever needed, is an aggregate over its entities' statuses, not a separately stored value that could drift out of sync with them.</p>
+<h2 id="sync_entities"><code>sync_entities</code></h2>
+<p>One row per entity selected within a <code>sync_requests</code> row, each with its <strong>own</strong> sync type and lifecycle. This is what lets Client run on <code>interval</code> while Timesheet runs <code>one_time</code>, under the same request.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sync_request_id</code></td>
+<td>uuid, FK → <code>sync_requests.id</code></td>
+<td><code>ON DELETE CASCADE</code></td>
+</tr>
+<tr>
+<td><code>entity</code></td>
+<td>text</td>
+<td><code>client</code>, <code>project</code>, or <code>timesheet</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>sync_type</code></td>
+<td>text</td>
+<td><code>real_time</code>, <code>interval</code>, or <code>one_time</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>text</td>
+<td><code>submitted</code>, <code>provisioning</code>, <code>active</code>, <code>completed</code>, or <code>failed</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>interval_seconds</code></td>
+<td>integer</td>
+<td>required + floored at 60 when <code>sync_type = 'interval'</code>; must be <code>NULL</code> otherwise (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Unique constraint on <code>(sync_request_id, entity)</code> — the same entity can't be added twice to one request.</p>
+<p><strong>On <code>sync_type</code>:</strong> <code>real_time</code> is a valid, storable value today even though nothing can execute it yet — the current design has no webhook/event layer, only polling. It's there so the intake schema doesn't block the UI later; the engine just won't pick up <code>real_time</code> rows until that layer exists.</p>
+<p><strong>On <code>interval_seconds</code>:</strong> per-entity cadence, not a single platform-wide default — each tenant's <code>interval</code> entity can run on its own schedule. The 60-second floor exists to prevent a misconfigured tenant from polling a source API too aggressively.</p>
+<p><strong>On <code>status</code>:</strong> this is the <em>provisioning</em> lifecycle, not run health. <code>submitted</code> → <code>provisioning</code> → <code>active</code> (recurring types) or <code>completed</code> (<code>one_time</code> only) → <code>failed</code>. Whether the <em>last run</em> actually succeeded, and what its incremental cursor was, is tracked separately in <code>sync_state</code> below.</p>
+<h2 id="sync_state"><code>sync_state</code></h2>
+<p>One row per <code>sync_entities</code> row (1:1) — where that entity's sync currently stands. Created once the entity starts running; updated on every subsequent run. Not a run-history log — just the latest state, plus two live, self-maintaining failure lists.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sync_entity_id</code></td>
+<td>uuid, FK → <code>sync_entities.id</code></td>
+<td>unique — one state row per entity</td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td>jsonb</td>
+<td>nullable until the first successful run; <code>{&quot;modifiedSince&quot;: &quot;2026-09-01T10:00:00Z&quot;}</code> — an object rather than a bare string so more watermark/resume state can be added later without a schema change</td>
+</tr>
+<tr>
+<td><code>last_run_at</code></td>
+<td>timestamptz</td>
+<td>nullable</td>
+</tr>
+<tr>
+<td><code>last_run_status</code></td>
+<td>text</td>
+<td>nullable — <code>success</code> or <code>failed</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>last_error</code></td>
+<td>text</td>
+<td>nullable — short message if the last run failed</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>jsonb</td>
+<td>default <code>[]</code> — see below</td>
+</tr>
+<tr>
+<td><code>retry</code></td>
+<td>jsonb</td>
+<td>default <code>[]</code> — see below</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>failed</code> vs. <code>retry</code> — two different failure classes, two different lifecycles:</strong></p>
+<ul>
+<li>
+<p><strong><code>failed</code></strong> holds records that failed for a <em>data</em> reason (mapping or validation errors — the fetch succeeded, the record just didn't shape correctly). Each entry stores only the ID, not the record itself:</p>
+<pre class="hljs"><code><div><span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;external_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CW-CLIENT-042&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;error_message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;missing required field &#x27;name&#x27;&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;first_failed_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;...&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;last_checked_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;...&quot;</span> <span class="hljs-punctuation">}</span>
+</div></code></pre>
+<p>Reconciled on <strong>every run</strong>: the engine re-fetches these specific IDs from the source (via the adapter's <code>fetchByIds</code>, alongside the normal delta fetch) and re-attempts mapping/write; if a record now succeeds, it's dropped; if it still fails, <code>last_checked_at</code>/<code>error_message</code> are updated and it's kept; anything with <code>first_failed_at</code> older than 30 days is dropped regardless of outcome. Re-fetching by ID (rather than replaying a stored payload) matters here — it's the only way a fix made directly in the source system (e.g. someone corrects the record in ConnectWise) is picked up on retry. This keeps the list self-healing and bounded — it never grows without limit. Pruning is application logic, not a database-level TTL.</p>
+</li>
+<li>
+<p><strong><code>retry</code></strong> holds records that failed for a <em>technical</em> reason (rate limiting, network errors, transient timeouts). Also ID-only:</p>
+<pre class="hljs"><code><div><span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;external_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CW-PROJ-007&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;error_message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;429 Too Many Requests&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;error_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;rate_limit&quot;</span> <span class="hljs-punctuation">}</span>
+</div></code></pre>
+<p><strong>Replaced wholesale</strong> on every run, not appended to — the engine re-fetches every ID currently in the list (same <code>fetchByIds</code> path as above) alongside the normal delta records, retries them, and overwrites the column with only whatever's still failing after that attempt. This naturally stays bounded to &quot;what's in flight right now.&quot;</p>
+</li>
+</ul>
+<p>An <code>Info</code>-style open-ended column was considered and deliberately left out — the one concrete use case raised (&quot;skip a no-op run if already synced&quot;) is already covered by <code>cursor</code> being non-null and <code>sync_entities.status = 'completed'</code>, so a new column wasn't needed for it.</p>
+<h2 id="credentials"><code>credentials</code></h2>
+<p>One row per tenant <strong>per provider</strong> — not per source/target role, and not per <code>sync_requests</code> row. Storing it this way means the same provider's credentials are encrypted and stored exactly once, however many requests reference that provider, and a token refresh only ever updates one row.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tenant_id</code></td>
+<td>uuid, FK → <code>tenants.id</code></td>
+<td><code>ON DELETE CASCADE</code></td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>text</td>
+<td><code>connectwise</code> or <code>keka</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>encrypted_payload</code></td>
+<td>bytea</td>
+<td>AES-256-GCM ciphertext</td>
+</tr>
+<tr>
+<td><code>iv</code></td>
+<td>bytea</td>
+<td>AES-256-GCM nonce</td>
+</tr>
+<tr>
+<td><code>auth_tag</code></td>
+<td>bytea</td>
+<td>AES-256-GCM authentication tag</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Unique constraint on <code>(tenant_id, provider)</code> — a tenant can't have two credential rows for the same provider.</p>
+<p>Ciphertext, IV, and auth tag are stored as three separate columns rather than bundled into one JSON blob — standard shape for authenticated encryption, and keeps the encrypted payload itself opaque (no parsing needed to pull out the nonce/tag before decrypting).</p>
+<h2 id="canonical_entities"><code>canonical_entities</code></h2>
+<p>One row per (entity name, version) — the JSON Schema a record must satisfy once mapped to its canonical shape. Global, not per-tenant — a schema itself doesn't vary by tenant, only how a provider maps onto it does (see <code>mapping_profiles</code> below).</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>text</td>
+<td><code>client</code>, <code>project</code>, or <code>timesheet</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td>jsonb</td>
+<td>a JSON Schema, validated via <code>ajv</code></td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Unique constraint on <code>(name, version)</code>.</p>
+<h2 id="mapping_profiles"><code>mapping_profiles</code></h2>
+<p>One row per (tenant, provider, entity, direction) — the field-mapping rules for transforming a record in or out of its canonical shape. <strong>Per-tenant</strong>, not global: each tenant can override its own field mappings for the same provider+entity, rather than sharing one fixed mapping platform-wide. A tenant is not required to have a row here at all — see <code>global_mapping_profiles</code> below for what happens when it doesn't.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tenant_id</code></td>
+<td>uuid, FK → <code>tenants.id</code></td>
+<td><code>ON DELETE CASCADE</code></td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>text</td>
+<td><code>connectwise</code> or <code>keka</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>entity</code></td>
+<td>text</td>
+<td><code>client</code>, <code>project</code>, or <code>timesheet</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td>text</td>
+<td><code>inbound</code> (provider → canonical) or <code>outbound</code> (canonical → provider) (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td><code>field_mappings</code></td>
+<td>jsonb</td>
+<td>the mapping rules array — see <code>lib/mapping/engine.js</code></td>
+</tr>
+<tr>
+<td><code>is_active</code></td>
+<td>boolean</td>
+<td>default <code>true</code></td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Partial unique index on <code>(tenant_id, provider, entity, direction) WHERE is_active</code> — exactly one active profile per combination at a time; older versions can stay in the table with <code>is_active = false</code> rather than being deleted.</p>
+<h2 id="global_mapping_profiles"><code>global_mapping_profiles</code></h2>
+<p>Platform-level default mapping profiles (LLD discussion, 2026-09-03) — same shape as <code>mapping_profiles</code> minus <code>tenant_id</code>. Solves onboarding: without this table, a new tenant on an already-supported provider has nothing to sync with until someone manually seeds its <code>mapping_profiles</code> rows. With it, a tenant that never customizes its mapping inherits this table's active row automatically.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>uuid, PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>text</td>
+<td><code>connectwise</code> or <code>keka</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>entity</code></td>
+<td>text</td>
+<td><code>client</code>, <code>project</code>, or <code>timesheet</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td>text</td>
+<td><code>inbound</code> or <code>outbound</code> (CHECK constraint)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td><code>field_mappings</code></td>
+<td>jsonb</td>
+<td>same rule shape as <code>mapping_profiles</code></td>
+</tr>
+<tr>
+<td><code>is_active</code></td>
+<td>boolean</td>
+<td>default <code>true</code></td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Partial unique index on <code>(provider, entity, direction) WHERE is_active</code> — mirrors <code>mapping_profiles_one_active_idx</code>, just without a tenant dimension.</p>
+<p><strong>Resolution order</strong> (<code>lib/mapping/profiles.js</code>'s <code>loadActiveMappingProfile</code>): look for an active <code>mapping_profiles</code> row for this tenant+provider+entity+direction first; if none exists, fall back to the active <code>global_mapping_profiles</code> row for that same provider+entity+direction; throw only if neither exists.</p>
+<p><strong>Deliberately not copy-on-inherit.</strong> A tenant that inherits does not get a snapshot copied into <code>mapping_profiles</code> at the moment it starts inheriting — it simply has no row there, and the fallback resolves to whatever <code>global_mapping_profiles</code> currently says, fresh every cycle (profiles are never cached across cycles). This means improving the global default improves every inheriting tenant immediately and automatically, with no migration or backfill. It also means &quot;inherited&quot; vs. &quot;customized&quot; needs no separate flag anywhere — it's just &quot;does an active <code>mapping_profiles</code> row exist for this tenant&quot; — but it does mean a global default change is a live behavior change for every tenant still inheriting it, with no per-tenant review point today. Worth a change notice of some kind before this reaches production; not built yet.</p>
+<p><strong>Keyed by a single <code>provider</code>, not a source/target pair, same as <code>mapping_profiles</code>.</strong> An inbound mapping only depends on the source provider, an outbound mapping only depends on the target provider — both go through the shared <code>canonical_entities</code> shape in between. Keying by pairs would grow the seed set as N×N providers; this stays N+N.</p>
+<p><strong>Why no <code>canonical_records</code> table:</strong> the pre-reset design persisted every canonical-shaped record so inbound and outbound could run as decoupled stages — outbound reading already-persisted rows independently of when inbound ran. The current engine doesn't work that way: one <code>sync_requests</code> container runs fetch → map inbound → validate → map outbound → write as a single in-memory pipeline within one cycle (<code>lib/orchestration/cycle.js</code>), never split across separate runs. So a canonical record only ever exists transiently inside one cycle's memory — persisting it would add a table with no current consumer.</p>
+<p>A validation failure against <code>canonical_entities.schema</code> is treated as a data-shape error, landing in <code>sync_state.failed</code> exactly like a mapping error would — no separate error path needed for it.</p>
+<h2 id="deliberately-out-of-scope-here">Deliberately out of scope here</h2>
+<ul>
+<li><strong>Full run history</strong> — <code>sync_state</code> tracks only the <em>current</em> state per entity, not a log of every past run. A history/audit table is a separate, later addition if it's ever needed.</li>
+<li><strong>A <code>providers</code> lookup table</strong> — <code>source</code>/<code>target</code>/<code>provider</code> are plain text with a <code>CHECK</code> constraint today since there are only two providers. Worth revisiting as an actual reference table if a third provider is ever added.</li>
+</ul>
+
+</body>
+</html>

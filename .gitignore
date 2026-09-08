@@ -3,3 +3,8 @@ node_modules/
 *.log
 npm-debug.log*
 .DS_Store
+
+# Defensive backstop for scripts/seed-credentials.js's input file — real
+# plaintext provider secrets should never be committed, wherever they're
+# saved. Don't rely on this alone; keep the file outside the repo.
+*.credentials.json

@@ -102,6 +102,7 @@ and restart the mock server (Ctrl+C, then `node scripts/mock-server.js` again) �
 ## Related docs
 
 - `ipaas.infra/docs/migrations/README.md` — schema this demo runs against (`tenants`, `sync_requests`, `sync_entities`, `sync_state`, `credentials`, `canonical_entities`, `mapping_profiles`)
+- `ipaas.infra/docs/TENANT_ONBOARDING.md` — the real-tenant equivalent of this walkthrough (real credentials via `scripts/seed-credentials.js`, not the mock server)
 - `docs/LLD-connector-auth-layer.md` — what's real/verified vs. guessed in the actual adapters
 - `scripts/mock-server.js`, `scripts/seed-mock-credentials.js`, `scripts/seed-mock-mapping.js` — the three one-time setup scripts
 - `lib/orchestration/run.js` — the real entrypoint this demo runs

@@ -167,6 +167,7 @@ All four configs point `envFile` at this repo's real `.env` (§2) — nothing pr
 |---|---|
 | Full schema — every table, every column, why | `ipaas.infra/docs/migrations/README.md` |
 | Postgres day-to-day commands, resets, troubleshooting | `ipaas.infra/docs/migrations/OPERATIONS.md` |
+| Onboarding a real tenant (not a demo one) — real credentials, real mapping decisions | `ipaas.infra/docs/TENANT_ONBOARDING.md` |
 | Orchestration Engine internals — modules, execution flow, adapter contract, error taxonomy, mapping/canonical resolution, containerization | `docs/LLD-orchestration-engine.md` |
 | What's live-verified vs. still-guessed in the ConnectWise/Keka adapters | `docs/LLD-connector-auth-layer.md` |
 | Full repeatable demo walkthrough with expected output | `docs/DEMO-orchestration-engine.md` |
