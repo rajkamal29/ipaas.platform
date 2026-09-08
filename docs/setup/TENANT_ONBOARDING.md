@@ -8,13 +8,7 @@ If you want to see the engine's logic working without a real tenant (e.g. for a 
 
 ## Prerequisites
 
-- Postgres running and migrated (`ipaas.infra` — `docker compose up -d`, `npm run migrate:up`)
-- The platform-level mapping defaults already seeded once, ever, on this database:
-  ```powershell
-  cd ipaas.orchestrationengine
-  node scripts/seed-global-mapping.js
-  ```
-  This is a one-time thing per database, not per tenant — see step 4 below for why.
+Complete `docs/setup/DEVELOPER_SETUP.md` once first, if you haven't already — this runbook assumes Postgres is already running and migrated, and the platform-level mapping defaults are already seeded (`seed-global-mapping.js`, run from `ipaas.orchestrationengine`). That's a one-time thing per database, not per tenant, which is why it isn't repeated here — see Step 4 below for what it means for a tenant to inherit those defaults.
 
 ## Step 1 — Gather what you need from the tenant
 
