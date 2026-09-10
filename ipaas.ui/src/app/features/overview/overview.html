@@ -1,0 +1,44 @@
+<header class="page-header">
+  <p class="eyebrow">Workspace</p>
+  <h1>Overview</h1>
+  <p class="page-description">A shared workspace for your integration platform.</p>
+</header>
+
+<section class="welcome panel" aria-labelledby="welcome-heading">
+  <div>
+    <span class="status-label">Workspace preview</span>
+    <h2 id="welcome-heading">Bring your integrations together.</h2>
+    <p>Organize tenants, define mapping defaults, and explore canonical schemas from one place.</p>
+  </div>
+  <div class="welcome-note">
+    <span class="note-mark" aria-hidden="true"></span>
+    <p>You’re viewing the application preview. Live integration data is not available yet.</p>
+  </div>
+</section>
+
+<section aria-labelledby="explore-heading">
+  <div class="section-heading">
+    <h2 id="explore-heading">Explore your workspace</h2>
+    <p>Start with the foundations of your integrations.</p>
+  </div>
+  <div class="workspace-cards">
+    <a class="workspace-card panel" [routerLink]="['/', paths.tenants]">
+      <span class="card-category">Organization</span>
+      <h3>Tenants <span aria-hidden="true">↗</span></h3>
+      <p>A dedicated space for each tenant’s integration configuration.</p>
+      <span class="card-link">Explore tenants <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="workspace-card panel" [routerLink]="['/', paths.globalMappings]">
+      <span class="card-category">Transformation</span>
+      <h3>Global mappings <span aria-hidden="true">↗</span></h3>
+      <p>Shared defaults for mapping provider data into and out of a common shape.</p>
+      <span class="card-link">Explore mappings <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="workspace-card panel" [routerLink]="['/', paths.canonicalSchemas]">
+      <span class="card-category">Data definitions</span>
+      <h3>Canonical schemas <span aria-hidden="true">↗</span></h3>
+      <p>Common definitions for client, project, and timesheet data.</p>
+      <span class="card-link">Explore schemas <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
+</section>

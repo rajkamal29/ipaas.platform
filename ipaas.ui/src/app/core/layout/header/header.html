@@ -1,0 +1,31 @@
+<header class="header">
+  <a class="brand" [routerLink]="overviewPath" aria-label="iPaaS overview">
+    <span class="brand-mark" aria-hidden="true">iP</span>
+    <span>{{ config.appName }}<span class="brand-subtitle">Integration platform</span></span>
+  </a>
+  <div class="header-context">
+    <span class="workspace-label">Platform workspace</span>
+    @if (config.dataMode === 'mock') {
+      <span class="preview-badge">Preview</span>
+    }
+    <button
+      #menuButton
+      class="menu-toggle"
+      type="button"
+      aria-controls="primary-navigation"
+      [attr.aria-expanded]="navigationOpen()"
+      [attr.aria-label]="navigationOpen() ? 'Close navigation' : 'Open navigation'"
+      (click)="toggleNavigation.emit()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        aria-hidden="true"
+      >
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </div>
+</header>

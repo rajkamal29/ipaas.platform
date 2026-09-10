@@ -1,0 +1,13 @@
+<a class="skip-link" href="#main-content" (click)="skipToContent($event)">Skip to main content</a>
+<app-header
+  [navigationOpen]="navigationOpen()"
+  (toggleNavigation)="navigationOpen.set(!navigationOpen())"
+/>
+<div class="workspace">
+  <app-sidebar [class.is-open]="navigationOpen()" />
+  <main #mainContent id="main-content" tabindex="-1">
+    <div class="content">
+      <router-outlet />
+    </div>
+  </main>
+</div>
