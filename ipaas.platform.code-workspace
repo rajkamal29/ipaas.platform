@@ -1,6 +1,10 @@
 {
 	"folders": [
 		{
+			"name": "ipaas.ui",
+			"path": "ipaas.ui"
+		},
+		{
 			"name": "ipaas.orchestrationengine",
 			"path": "ipaas.orchestrationengine"
 		},

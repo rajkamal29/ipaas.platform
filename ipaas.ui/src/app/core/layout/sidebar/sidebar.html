@@ -1,0 +1,23 @@
+<nav id="primary-navigation" aria-label="Primary navigation">
+  <p class="nav-heading">Workspace</p>
+  <ul>
+    @for (item of navigationItems; track item.path) {
+      <li>
+        <a [routerLink]="['/', item.path]" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path [attr.d]="item.iconPath" />
+          </svg>
+          {{ item.label }}
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

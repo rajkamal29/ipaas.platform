@@ -1,0 +1,95 @@
+.welcome {
+  padding: var(--space-8);
+  border-top: 3px solid var(--color-brand);
+}
+.welcome h2 {
+  margin-block: var(--space-4) var(--space-3);
+  font-size: clamp(1.375rem, 3vw, 1.875rem);
+  letter-spacing: -0.035em;
+}
+.welcome p {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.welcome-note {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-top: var(--space-6);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+}
+.note-mark {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.section-heading {
+  margin-block: var(--space-8) var(--space-4);
+}
+.section-heading p {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+.workspace-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.workspace-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.workspace-card:hover {
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-card);
+}
+.card-category {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+.workspace-card h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-block: var(--space-4) var(--space-3);
+  font-size: 1rem;
+}
+.workspace-card h3 span {
+  color: var(--color-text-muted);
+}
+.workspace-card p {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-6);
+}
+.card-link {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
+  color: var(--color-brand);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+@media (max-width: 63.99rem) {
+  .workspace-cards {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 47.99rem) {
+  .welcome {
+    padding: var(--space-6);
+  }
+}
