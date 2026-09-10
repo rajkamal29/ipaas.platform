@@ -8,18 +8,28 @@ name: Publish Provider Adapters
 # side, and docs/setup/DEVELOPER_SETUP.md for the local dev toggle
 # (providers:link / providers:unlink).
 #
-# Versioning is manual, on purpose: bump the "version" field in the
-# relevant package's package.json as part of your change. npm registries
-# reject publishing over an existing version anyway, so this workflow
-# checks each package's current package.json version against what's
-# already on the registry and skips publishing if it's unchanged - that's
-# also why both packages run on every trigger regardless of which one's
-# path changed (GitHub's path filter only gates whether the workflow runs
-# at all, not per-package) and it isn't wasted effort: whichever package
-# didn't get a version bump is a fast no-op.
+# Versioning is fully automatic — nobody edits a version number as part of
+# a normal change:
+#   - The "version" field committed in each package's package.json is only
+#     a MAJOR.MINOR floor (its PATCH digit is ignored). Bump MAJOR.MINOR
+#     there only for a deliberate breaking/feature release line; that's a
+#     rare, intentional edit, not something you do per commit.
+#   - Push to `dev`  -> publishes a prerelease, tagged "dev" on the
+#     registry: MAJOR.MINOR.0-dev.<run number>. This never satisfies a
+#     normal "^0.1.0"-style dependency range, so it can't accidentally
+#     leak into a production install.
+#   - Push to `main` -> publishes a real stable release, tagged "latest":
+#     MAJOR.MINOR.<next patch>, where <next patch> is one higher than the
+#     highest already-published stable version in that MAJOR.MINOR line.
+#     This is what ipaas.orchestrationengine's "^0.1.0" dependency
+#     actually resolves to.
+# Both packages run on every trigger regardless of which one's path
+# changed (GitHub's path filter only gates whether the workflow runs at
+# all, not per-package); that's not wasted effort since each publish is
+# a small, independent step.
 on:
   push:
-    branches: [dev]
+    branches: [dev, main]
     paths:
       - "ipaas.providers/connectwise/**"
       - "ipaas.providers/keka/**"
@@ -50,26 +60,49 @@ jobs:
         working-directory: ipaas.providers/${{ matrix.package }}
         run: npm install --omit=dev
 
-      - name: Check if this version is already published
-        id: check
+      - name: Compute next version
+        id: ver
         working-directory: ipaas.providers/${{ matrix.package }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Checking $NAME@$VERSION against the registry..."
-          if npm view "$NAME@$VERSION" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
-            echo "Already published at this version — skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          MAJOR_MINOR=$(node -p "require('./package.json').version.split('-')[0].split('.').slice(0,2).join('.')")
+          echo "Package: $NAME — MAJOR.MINOR floor from package.json: $MAJOR_MINOR"
+
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            # Stable release: next patch above the highest already-published
+            # stable (non-prerelease) version in this MAJOR.MINOR line.
+            LATEST_PATCH=$(npm view "$NAME" versions --json --registry=https://npm.pkg.github.com 2>/dev/null \
+              | node -e "
+                  let v = [];
+                  try { v = JSON.parse(require('fs').readFileSync(0, 'utf8')); } catch (e) {}
+                  if (!Array.isArray(v)) v = v ? [v] : [];
+                  const mm = '$MAJOR_MINOR';
+                  const patches = v
+                    .filter(x => x.startsWith(mm + '.') && !x.includes('-'))
+                    .map(x => parseInt(x.split('.')[2], 10))
+                    .filter(n => !isNaN(n));
+                  console.log(patches.length ? Math.max(...patches) : -1);
+                ")
+            NEXT_PATCH=$((LATEST_PATCH + 1))
+            VERSION="${MAJOR_MINOR}.${NEXT_PATCH}"
+            TAG="latest"
           else
-            echo "Not published at this version yet — will publish."
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            VERSION="${MAJOR_MINOR}.0-dev.${{ github.run_number }}"
+            TAG="dev"
           fi
 
+          echo "Publishing $NAME@$VERSION (dist-tag: $TAG)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set computed version (this run's publish only — never committed back)
+        working-directory: ipaas.providers/${{ matrix.package }}
+        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+
       - name: Publish
-        if: steps.check.outputs.skip != 'true'
         working-directory: ipaas.providers/${{ matrix.package }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish
+        run: npm publish --tag ${{ steps.ver.outputs.tag }}
