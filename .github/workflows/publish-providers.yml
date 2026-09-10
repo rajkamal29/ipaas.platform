@@ -1,0 +1,75 @@
+name: Publish Provider Adapters
+
+# Publishes @ipaas/adapter-connectwise and @ipaas/adapter-keka
+# (ipaas.providers/connectwise, ipaas.providers/keka) to GitHub Packages'
+# npm registry (npm.pkg.github.com) so ipaas.orchestrationengine can
+# install them as real npm dependencies instead of only via `npm link`.
+# See ipaas.orchestrationengine/.npmrc and Dockerfile for the consuming
+# side, and docs/setup/DEVELOPER_SETUP.md for the local dev toggle
+# (providers:link / providers:unlink).
+#
+# Versioning is manual, on purpose: bump the "version" field in the
+# relevant package's package.json as part of your change. npm registries
+# reject publishing over an existing version anyway, so this workflow
+# checks each package's current package.json version against what's
+# already on the registry and skips publishing if it's unchanged - that's
+# also why both packages run on every trigger regardless of which one's
+# path changed (GitHub's path filter only gates whether the workflow runs
+# at all, not per-package) and it isn't wasted effort: whichever package
+# didn't get a version bump is a fast no-op.
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "ipaas.providers/connectwise/**"
+      - "ipaas.providers/keka/**"
+      - ".github/workflows/publish-providers.yml"
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        package: [connectwise, keka]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@ipaas"
+
+      - name: Install (needed to resolve this package's own deps before publish)
+        working-directory: ipaas.providers/${{ matrix.package }}
+        run: npm install --omit=dev
+
+      - name: Check if this version is already published
+        id: check
+        working-directory: ipaas.providers/${{ matrix.package }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Checking $NAME@$VERSION against the registry..."
+          if npm view "$NAME@$VERSION" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "Already published at this version — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not published at this version yet — will publish."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        if: steps.check.outputs.skip != 'true'
+        working-directory: ipaas.providers/${{ matrix.package }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish

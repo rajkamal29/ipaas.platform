@@ -2,19 +2,28 @@ name: Build & Publish Orchestration Engine Image
 
 # Branch model: feature -> dev -> main. A build+publish happens whenever
 # reviewed code lands on `dev` (i.e. a feature branch's PR is approved and
-# merged) — not on every feature-branch push, and not (yet) on `main`.
-# See docs/LLD-orchestration-engine.md ("Containerization") for why.
+# merged) - not on every feature-branch push, and not (yet) on `main`.
+# See ipaas.orchestrationengine/docs/LLD-orchestration-engine.md
+# ("Containerization") for why.
+#
+# 2026-09-10: moved here from ipaas.orchestrationengine/.github/workflows/ -
+# GitHub Actions only discovers workflow files under .github/workflows/ at
+# the actual repository root, not inside a subfolder's own .github/workflows/.
+# Until the real 3-repo split happens, this repo root is ipaas.platform
+# itself, so this is the only location where this workflow actually runs -
+# it never ran from its old location.
 on:
   push:
     branches: [dev]
     paths:
-      - "lib/orchestration/**"
-      - "lib/mapping/**"
-      - "lib/*.js"
-      - "package.json"
-      - "package-lock.json"
-      - "Dockerfile"
-      - ".dockerignore"
+      - "ipaas.orchestrationengine/lib/orchestration/**"
+      - "ipaas.orchestrationengine/lib/mapping/**"
+      - "ipaas.orchestrationengine/lib/*.js"
+      - "ipaas.orchestrationengine/package.json"
+      - "ipaas.orchestrationengine/package-lock.json"
+      - "ipaas.orchestrationengine/Dockerfile"
+      - "ipaas.orchestrationengine/.dockerignore"
+      - "ipaas.orchestrationengine/.npmrc"
       - ".github/workflows/build-orchestration-engine.yml"
   workflow_dispatch: {}
 
@@ -48,9 +57,16 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./ipaas.orchestrationengine
+          file: ./ipaas.orchestrationengine/Dockerfile
           push: true
+          # Lets the Dockerfile's `RUN --mount=type=secret,id=npm_token`
+          # read a GitHub Packages token for the single npm ci instruction
+          # that needs it, without it ever landing in an image layer.
+          # GITHUB_TOKEN has read:packages for this repo's own packages,
+          # which is all @ipaas/adapter-connectwise/keka need.
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/ipaas-orchestration-engine:dev-latest
             ghcr.io/${{ github.repository_owner }}/ipaas-orchestration-engine:dev-${{ steps.vars.outputs.sha_short }}
