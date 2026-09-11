@@ -45,6 +45,15 @@ jobs:
     strategy:
       matrix:
         package: [connectwise, keka]
+    # Two pushes landing close together would otherwise both read the same
+    # "highest published version" before either publishes, then race to
+    # publish the same computed version - the loser just fails. Queue runs
+    # per package+branch instead of cancelling them, so the second run
+    # starts only after the first has actually published and moved the
+    # version forward.
+    concurrency:
+      group: publish-providers-${{ matrix.package }}-${{ github.ref_name }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
