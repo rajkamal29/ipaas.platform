@@ -39,7 +39,7 @@ Page-aware, not "fetch everything internally" — confirmed as the right call no
 | Pagination | Page-based via the `Link` response header (`rel="next"`, `rel="last"`) — e.g. `...?pageSize=1&page=2`. No page-count field in the body; the last page number comes from parsing `rel="last"` out of the header. |
 | Incremental cursor | `_info.lastUpdated` on each record (ISO 8601) — use as the modified-since watermark |
 | Real fields observed | `id, identifier, name, status{id,name}, addressLine1, addressLine2, city, state, zip, country{...}, phoneNumber, website, types[{...}], site{...}, _info{lastUpdated, updatedBy, dateEntered, contacts_href, ...}` |
-| **Known gap** | Primary contact name/email is **not embedded** in the Company record — it's a separate resource at `_info.contacts_href`. Decision needed: a second API call per company, or leave canonical `primaryContactName`/`primaryContactEmail` null for this POC (they're already optional in the draft canonical schema, so leaving them null doesn't break anything — recommend this for now, revisit if the demo needs contact data). |
+| **Decision: primary contact left null** | Primary contact name/email is **not embedded** in the Company record — it's a separate resource at `_info.contacts_href`. Decided: leave canonical `primaryContactName`/`primaryContactEmail` null rather than adding a second API call per company — they're already optional in the canonical schema, so this doesn't break anything. Revisit only if a future tenant/demo actually needs contact data. |
 
 ## 4a. ConnectWise Adapter — Project & Time Entry (planned, pending live verification)
 
@@ -105,7 +105,6 @@ No webhook receiver — the Orchestration Engine drives fetching, on a schedule 
 ## 9. Open Items
 
 - **ConnectWise rate limits** — not yet tested under real load; confirm before scheduled-sync polling frequency is finalized.
-- **ConnectWise primary-contact gap** — decision and recommendation in §4's "Known gap" row.
 - **Live verification for Project/Timesheet** — verification plan in §4a and §5a.
 - **Keka `write()` still unverified against the real API** — risk noted in §5a's "write() risk" row.
 - **Parent-reference field names** (Project → Company, Timesheet → Project) — needed for canonical `clientId`/`projectId` fields (see `LLD-mapping-engine.md`); tracked in §4a's and §5a's "Known dependency" rows.

@@ -364,7 +364,6 @@ code {
           ? 'dark'
           : 'default'
     });
-  </script>
 <h1 id="lld--connector--auth-layer">LLD — Connector &amp; Auth Layer</h1>
 <p>Status: Client entity implemented and verified live (<code>connectwise/index.js</code>, <code>keka/index.js</code>, this repo). Project and Timesheet extension is planned, not yet implemented — endpoints below are best guesses pending live verification (§4a, §5a).</p>
 <h2 id="revision-history">Revision history</h2>
@@ -431,8 +430,8 @@ code {
 <td><code>id, identifier, name, status{id,name}, addressLine1, addressLine2, city, state, zip, country{...}, phoneNumber, website, types[{...}], site{...}, _info{lastUpdated, updatedBy, dateEntered, contacts_href, ...}</code></td>
 </tr>
 <tr class="odd">
-<td><strong>Known gap</strong></td>
-<td>Primary contact name/email is <strong>not embedded</strong> in the Company record — it's a separate resource at <code>_info.contacts_href</code>. Decision needed: a second API call per company, or leave canonical <code>primaryContactName</code>/<code>primaryContactEmail</code> null for this POC (they're already optional in the draft canonical schema, so leaving them null doesn't break anything — recommend this for now, revisit if the demo needs contact data).</td>
+<td><strong>Decision: primary contact left null</strong></td>
+<td>Primary contact name/email is <strong>not embedded</strong> in the Company record — it's a separate resource at <code>_info.contacts_href</code>. Decided: leave canonical <code>primaryContactName</code>/<code>primaryContactEmail</code> null rather than adding a second API call per company — they're already optional in the canonical schema, so this doesn't break anything. Revisit only if a future tenant/demo actually needs contact data.</td>
 </tr>
 </tbody>
 </table>
@@ -557,11 +556,9 @@ code {
 <h2 id="9-open-items">9. Open Items</h2>
 <ul>
 <li><strong>ConnectWise rate limits</strong> — not yet tested under real load; confirm before scheduled-sync polling frequency is finalized.</li>
-<li><strong>ConnectWise primary-contact gap</strong> — decision and recommendation in §4's "Known gap" row.</li>
 <li><strong>Live verification for Project/Timesheet</strong> — verification plan in §4a and §5a.</li>
 <li><strong>Keka <code>write()</code> still unverified against the real API</strong> — risk noted in §5a's "write() risk" row.</li>
 <li><strong>Parent-reference field names</strong> (Project → Company, Timesheet → Project) — needed for canonical <code>clientId</code>/<code>projectId</code> fields (see <code>LLD-mapping-engine.md</code>); tracked in §4a's and §5a's "Known dependency" rows.</li>
 </ul>
-
 </body>
 </html>
