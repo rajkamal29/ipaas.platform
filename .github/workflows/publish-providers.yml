@@ -1,6 +1,6 @@
 name: Publish Provider Adapters
 
-# Publishes @ipaas/adapter-connectwise and @ipaas/adapter-keka
+# Publishes @rajkamal29/adapter-connectwise and @rajkamal29/adapter-keka
 # (ipaas.providers/connectwise, ipaas.providers/keka) to GitHub Packages'
 # npm registry (npm.pkg.github.com) so ipaas.orchestrationengine can
 # install them as real npm dependencies instead of only via `npm link`.
@@ -63,7 +63,7 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://npm.pkg.github.com"
-          scope: "@ipaas"
+          scope: "@rajkamal29"
 
       - name: Install (needed to resolve this package's own deps before publish)
         working-directory: ipaas.providers/${{ matrix.package }}

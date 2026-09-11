@@ -4,7 +4,7 @@ Everything a new developer needs to get the platform running locally, end to end
 
 This doc lives at `ipaas.platform/docs/setup/` — outside all three repos, since its content already spans them. Every command below assumes your shell's current directory is the parent folder containing all three repos (referred to as `ipaas.platform` throughout), unless a `cd` changes that; each section either continues from the previous one's ending directory or explicitly `cd`s to the one it needs.
 
-Read this top to bottom once, in order — it's the only document you need to get from a fresh clone to a running, debuggable local setup. It's organized into three parts, one per repo, in the order you'd actually set them up: `ipaas.infra` (Part 1) is a hard dependency — Postgres has to exist before anything else can connect to it. `ipaas.orchestrationengine` (Part 2) is the engine itself; its `npm install` resolves the real, published `@ipaas/adapter-connectwise`/`adapter-keka` packages on its own, so you can get it fully running without touching `ipaas.providers` at all. `ipaas.providers` (Part 3) is optional and comes last — it's needed only if you want to debug into the adapters' actual source instead of stepping into the published package; Part 2, Step 4 covers the toggle and points forward to it. It references the other docs throughout (schema, engine internals, adapter verification status) purely as optional deeper reading, never as something you have to stop and go read to keep moving. Once you're done, "Where to go from here" at the bottom sequences what to read next — the demo walkthrough, real tenant onboarding, or day-to-day Postgres operations, depending on what you're doing.
+Read this top to bottom once, in order — it's the only document you need to get from a fresh clone to a running, debuggable local setup. It's organized into three parts, one per repo, in the order you'd actually set them up: `ipaas.infra` (Part 1) is a hard dependency — Postgres has to exist before anything else can connect to it. `ipaas.orchestrationengine` (Part 2) is the engine itself; its `npm install` resolves the real, published `@rajkamal29/adapter-connectwise`/`adapter-keka` packages on its own, so you can get it fully running without touching `ipaas.providers` at all. `ipaas.providers` (Part 3) is optional and comes last — it's needed only if you want to debug into the adapters' actual source instead of stepping into the published package; Part 2, Step 4 covers the toggle and points forward to it. It references the other docs throughout (schema, engine internals, adapter verification status) purely as optional deeper reading, never as something you have to stop and go read to keep moving. Once you're done, "Where to go from here" at the bottom sequences what to read next — the demo walkthrough, real tenant onboarding, or day-to-day Postgres operations, depending on what you're doing.
 
 ## Prerequisites
 
@@ -54,9 +54,9 @@ This creates all 8 tables — `tenants`, `sync_requests`, `sync_entities`, `cred
 
 ## Part 2 — ipaas.orchestrationengine: the engine itself
 
-Postgres and the schema from Part 1 are a hard dependency — nothing here connects to anything without them. `ipaas.providers` (Part 3) is not a dependency at all for this part — its own `npm install` resolves `@ipaas/adapter-connectwise`/`@ipaas/adapter-keka` from the published package, so you can finish this entire part, including Step 8's full sync run, without ever cloning `ipaas.providers`.
+Postgres and the schema from Part 1 are a hard dependency — nothing here connects to anything without them. `ipaas.providers` (Part 3) is not a dependency at all for this part — its own `npm install` resolves `@rajkamal29/adapter-connectwise`/`@rajkamal29/adapter-keka` from the published package, so you can finish this entire part, including Step 8's full sync run, without ever cloning `ipaas.providers`.
 
-**One-time: authenticate npm against GitHub Packages.** `@ipaas/adapter-connectwise`/`@ipaas/adapter-keka` are private packages on `npm.pkg.github.com` (see `ipaas.orchestrationengine/.npmrc`) — installing them, not just publishing them, needs a token. Generate a GitHub PAT with `read:packages` scope (GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)), then set it as `NODE_AUTH_TOKEN` in your own environment — not `.env`, npm's config doesn't read that file:
+**One-time: authenticate npm against GitHub Packages.** `@rajkamal29/adapter-connectwise`/`@rajkamal29/adapter-keka` are private packages on `npm.pkg.github.com` (see `ipaas.orchestrationengine/.npmrc`) — installing them, not just publishing them, needs a token. Generate a GitHub PAT with `read:packages` scope (GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)), then set it as `NODE_AUTH_TOKEN` in your own environment — not `.env`, npm's config doesn't read that file:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable('NODE_AUTH_TOKEN', '<your PAT>', 'User')
@@ -72,7 +72,7 @@ cd ipaas.orchestrationengine
 npm install
 ```
 
-Check out as a sibling of `ipaas.infra`. `npm install` resolves `@ipaas/adapter-connectwise`/`@ipaas/adapter-keka` for real now, from `npm.pkg.github.com` (using the token set above) — the actual published packages, like any other dependency in `package.json`, not a local workaround.
+Check out as a sibling of `ipaas.infra`. `npm install` resolves `@rajkamal29/adapter-connectwise`/`@rajkamal29/adapter-keka` for real now, from `npm.pkg.github.com` (using the token set above) — the actual published packages, like any other dependency in `package.json`, not a local workaround.
 
 **Want to debug into the adapters' real source instead of the published package?** That's what Part 3 is for. Once `ipaas.providers` exists as a sibling folder and its own `npm link` has been run in each adapter (Part 3, Step 11):
 
@@ -80,7 +80,7 @@ Check out as a sibling of `ipaas.infra`. `npm install` resolves `@ipaas/adapter-
 npm run providers:link
 ```
 
-This overrides `node_modules/@ipaas/adapter-connectwise`/`adapter-keka` with symlinks to your local `ipaas.providers` checkout — the same mechanism Step 10 relies on for breakpoints in the adapters' actual files to hit. To go back to the published package:
+This overrides `node_modules/@rajkamal29/adapter-connectwise`/`adapter-keka` with symlinks to your local `ipaas.providers` checkout — the same mechanism Step 10 relies on for breakpoints in the adapters' actual files to hit. To go back to the published package:
 
 ```powershell
 npm run providers:unlink
@@ -197,13 +197,13 @@ It ships four launch configurations (Run and Debug panel, or `F5`):
 
 There's also a compound, **Debug: full cycle against mock server**, which starts the mock server and `run.js` together in one `F5` — handy for setting a breakpoint in `scripts/mock-server.js`'s route handler *and* in `cycle.js`'s fetch logic at the same time, to watch a request cross the boundary.
 
-**Breakpoints in the adapters work too — if you've done Part 3 and run `npm run providers:link`.** With that done, `@ipaas/adapter-connectwise`/`@ipaas/adapter-keka` are symlinks into your local `ipaas.providers` checkout instead of the published package, so a breakpoint set in `ipaas.providers/connectwise/index.js` will hit when `run.js` calls into it through `node_modules/@ipaas/adapter-connectwise`. Skipped Part 3, or never ran `providers:link`? Breakpoints there won't hit at all — you're running the published package, which has no source for VS Code to map back to. If breakpoints show as unbound (hollow) instead of bound (solid red) after running `providers:link`, the symlink likely isn't in place — re-run the `npm link` steps from Part 3, Step 11 in `ipaas.providers/connectwise` and `ipaas.providers/keka`, then `npm run providers:link` again, and confirm with `ls node_modules/@ipaas` inside `ipaas.orchestrationengine`; you should see `adapter-connectwise` and `adapter-keka` listed as symlinks, not missing entirely.
+**Breakpoints in the adapters work too — if you've done Part 3 and run `npm run providers:link`.** With that done, `@rajkamal29/adapter-connectwise`/`@rajkamal29/adapter-keka` are symlinks into your local `ipaas.providers` checkout instead of the published package, so a breakpoint set in `ipaas.providers/connectwise/index.js` will hit when `run.js` calls into it through `node_modules/@rajkamal29/adapter-connectwise`. Skipped Part 3, or never ran `providers:link`? Breakpoints there won't hit at all — you're running the published package, which has no source for VS Code to map back to. If breakpoints show as unbound (hollow) instead of bound (solid red) after running `providers:link`, the symlink likely isn't in place — re-run the `npm link` steps from Part 3, Step 11 in `ipaas.providers/connectwise` and `ipaas.providers/keka`, then `npm run providers:link` again, and confirm with `ls node_modules/@rajkamal29` inside `ipaas.orchestrationengine`; you should see `adapter-connectwise` and `adapter-keka` listed as symlinks, not missing entirely.
 
 All four configs point `envFile` at `ipaas.orchestrationengine`'s real `.env` (Part 2, Step 5) — nothing provider-specific needs to be duplicated into `launch.json` itself, and `ENCRYPTION_MASTER_KEY`/`DATABASE_URL` never end up hardcoded in a committed file. Postgres and the mock server both still need to be running as usual (Step 3, Step 8) before you launch any of these — the debug configs replace how you *start* `run.js`/the test scripts, not the rest of the setup.
 
 ## Part 3 — ipaas.providers: the ConnectWise/Keka adapters (optional)
 
-**Optional, and last on purpose.** By this point (Part 2 done) the engine is already running end to end against the published `@ipaas/adapter-connectwise`/`adapter-keka` packages — you don't need this repo at all just to get the engine running. Do this part only if you want to set a breakpoint inside the adapters' actual source and have it hit when the engine calls into them (Part 2, Step 10), instead of stepping into the published package's compiled-in-place code.
+**Optional, and last on purpose.** By this point (Part 2 done) the engine is already running end to end against the published `@rajkamal29/adapter-connectwise`/`adapter-keka` packages — you don't need this repo at all just to get the engine running. Do this part only if you want to set a breakpoint inside the adapters' actual source and have it hit when the engine calls into them (Part 2, Step 10), instead of stepping into the published package's compiled-in-place code.
 
 ### 11. Clone and install
 
@@ -245,5 +245,5 @@ By this point you have the platform running locally, a test sync completed, and 
 - **Expecting `SYNC_ENTITY_ID` to live in `.env` permanently** — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.
 - **Using the `sync_request_id` instead of the `sync_entity_id`** — easy to grab the wrong one from the SQL output in Step 7, since both look like plain UUIDs. The engine takes `SYNC_ENTITY_ID` only.
 - **Letting the two `.env` files' Postgres values drift** — `ipaas.infra/.env` and `ipaas.orchestrationengine/.env` both describe the same Postgres instance from two sides (the container's init vs. the app's connection string). Change one, change the other.
-- **Running `npm install` in `ipaas.orchestrationengine` before setting `NODE_AUTH_TOKEN`** — fails resolving `@ipaas/adapter-connectwise`/`adapter-keka` with a 401/404 from `npm.pkg.github.com`, not an obviously auth-related error. Set the token (Part 2 intro) and restart your terminal first.
-- **Not realizing `providers:link`/`providers:unlink` silently do nothing if the other one was never run** — `providers:unlink` just deletes `node_modules/@ipaas/*` and reinstalls; if you were already on the published package, that's a harmless no-op reinstall, not a sign something's wrong.
+- **Running `npm install` in `ipaas.orchestrationengine` before setting `NODE_AUTH_TOKEN`** — fails resolving `@rajkamal29/adapter-connectwise`/`adapter-keka` with a 401/404 from `npm.pkg.github.com`, not an obviously auth-related error. Set the token (Part 2 intro) and restart your terminal first.
+- **Not realizing `providers:link`/`providers:unlink` silently do nothing if the other one was never run** — `providers:unlink` just deletes `node_modules/@rajkamal29/*` and reinstalls; if you were already on the published package, that's a harmless no-op reinstall, not a sign something's wrong.

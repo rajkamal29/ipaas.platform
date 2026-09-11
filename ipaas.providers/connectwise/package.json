@@ -1,5 +1,5 @@
 {
-  "name": "@ipaas/adapter-connectwise",
+  "name": "@rajkamal29/adapter-connectwise",
   "version": "0.1.0",
   "description": "ConnectWise Manage adapter — authenticate / fetch / fetchByIds / write",
   "main": "index.js",

@@ -22,11 +22,11 @@
 # (repo root — GitHub Actions only discovers workflows there, not in a
 # subfolder's own .github/workflows/) on every push to the `dev` branch.
 #
-# 2026-09-08 repo split: @ipaas/adapter-connectwise and @ipaas/adapter-keka
+# 2026-09-08 repo split: @rajkamal29/adapter-connectwise and @rajkamal29/adapter-keka
 # now live in the sibling ipaas.providers folder and are declared as normal
 # npm dependencies (see package.json), published to GitHub Packages'
 # npm registry (npm.pkg.github.com) by .github/workflows/publish-providers.yml
-# at the repo root. .npmrc (this folder) routes the @ipaas scope there.
+# at the repo root. .npmrc (this folder) routes the @rajkamal29 scope there.
 #
 # GitHub Packages requires auth to install a package, not just to publish
 # one — npm ci below needs NODE_AUTH_TOKEN set to a token with
@@ -37,7 +37,7 @@
 # image locally (e.g. `docker build`) needs the same secret passed via
 # `docker buildx build --secret id=npm_token,env=NODE_AUTH_TOKEN` with
 # NODE_AUTH_TOKEN set in your shell — a plain `docker build` without
-# BuildKit secrets will fail to resolve @ipaas/* here.
+# BuildKit secrets will fail to resolve @rajkamal29/* here.
 
 # ---- deps: installed in its own layer, cached unless package.json/lockfile change ----
 FROM node:22-alpine AS deps

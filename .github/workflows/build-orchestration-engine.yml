@@ -64,7 +64,7 @@ jobs:
           # read a GitHub Packages token for the single npm ci instruction
           # that needs it, without it ever landing in an image layer.
           # GITHUB_TOKEN has read:packages for this repo's own packages,
-          # which is all @ipaas/adapter-connectwise/keka need.
+          # which is all @rajkamal29/adapter-connectwise/keka need.
           secrets: |
             npm_token=${{ secrets.GITHUB_TOKEN }}
           tags: |
