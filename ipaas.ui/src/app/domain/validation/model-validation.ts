@@ -146,26 +146,40 @@ export function validateSyncSchedule(value: unknown): readonly ValidationIssue[]
   return validation.issues;
 }
 
-export function validateTenant(value: unknown): readonly ValidationIssue[] {
-  const validation = metadata(value);
+export function validateTenantInput(value: unknown): readonly ValidationIssue[] {
+  const validation = new RecordValidation(value);
   validation.text('name');
   return validation.issues;
 }
 
-export function validateSyncRequest(value: unknown): readonly ValidationIssue[] {
-  const validation = metadata(value);
-  validation.uuid('tenantId');
+export function validateSyncRequestInput(value: unknown): readonly ValidationIssue[] {
+  const validation = new RecordValidation(value);
   validation.values('source', Object.values(PROVIDERS));
   validation.values('target', Object.values(PROVIDERS));
   return validation.issues;
 }
 
+export function validateSyncEntityInput(value: unknown): readonly ValidationIssue[] {
+  const validation = new RecordValidation(value);
+  validation.values('entity', Object.values(ENTITY_TYPES));
+  return [...validation.issues, ...validateSyncSchedule(value)];
+}
+
+export function validateTenant(value: unknown): readonly ValidationIssue[] {
+  return [...metadata(value).issues, ...validateTenantInput(value)];
+}
+
+export function validateSyncRequest(value: unknown): readonly ValidationIssue[] {
+  const validation = metadata(value);
+  validation.uuid('tenantId');
+  return [...validation.issues, ...validateSyncRequestInput(value)];
+}
+
 export function validateSyncEntity(value: unknown): readonly ValidationIssue[] {
   const validation = metadata(value, true);
   validation.uuid('syncRequestId');
-  validation.values('entity', Object.values(ENTITY_TYPES));
   validation.values('status', Object.values(SYNC_ENTITY_STATUSES));
-  return [...validation.issues, ...validateSyncSchedule(value)];
+  return [...validation.issues, ...validateSyncEntityInput(value)];
 }
 
 export function validateCredential(value: unknown): readonly ValidationIssue[] {

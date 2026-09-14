@@ -16,7 +16,7 @@ export const routes: Routes = [
       {
         path: ROUTE_PATHS.tenants,
         title: 'Tenants | iPaaS',
-        loadComponent: () => import('./features/tenants/tenants').then((m) => m.Tenants),
+        loadChildren: () => import('./features/tenants/tenant.routes').then((m) => m.tenantRoutes),
       },
       {
         path: ROUTE_PATHS.globalMappings,

@@ -1,7 +1,7 @@
 # iPaaS UI
 
 Standalone Angular application for the platform workspace. This foundation implements
-the application shell (#8) and schema-based repository/mock foundation (#9). It runs independently
+the application shell (#8), schema-based repository/mock foundation (#9), and tenant/sync configuration UI (#10). It runs independently
 of infrastructure, provider packages, and the orchestration engine.
 
 ## Prerequisites
@@ -47,20 +47,23 @@ npm run format:check
 
 Tests use the Angular CLI's Vitest runner and cover the root application, lazy routes,
 default redirect, page titles, active navigation, not-found recovery, and navigation
-focus behavior.
+focus behavior, tenant/request/entity creation, domain form validation, relationship filtering,
+duplicate handling, invalid route contexts, and asynchronous page state.
 
 ## Structure
 
 - src/app/app.ts: root router outlet only.
 - src/app/core/layout: shell, header, and responsive navigation.
 - src/app/core/config: typed configuration injection token and navigation definitions.
-- src/app/core/errors: not-found page.
-- src/app/features: lazy-loaded overview, tenants, global mappings, and canonical schemas.
-- src/app/shared/ui: reusable feature placeholder.
+- src/app/core/errors: not-found page and safe repository/route feedback.
+- src/app/features: lazy-loaded pages and page-scoped tenant, sync-request, and sync-entity facades.
+- src/app/shared/ui: shared feedback, display labels, and feature placeholder.
+- src/app/shared/forms: domain-to-reactive-form validation adapter.
+- src/app/shared/state: signal-based async reads and submission state.
 - src/app/domain: schema models, value sets, and runtime validation.
 - src/app/data-access: async contracts, DI tokens, and shared mock repositories.
 - src/environments: typed build-time configuration.
-- src/styles: global design tokens.
+- src/styles: global design tokens and responsive configuration styles.
 
 Components are standalone and use OnPush. The shell owns navigation visibility only;
 it contains no domain state. Mobile navigation is an in-flow disclosure rather than a
@@ -70,18 +73,48 @@ identify the current page.
 
 HTTP DTOs/adapters and additional feature folders will be added when their contracts
 and functionality exist. No empty scaffolding is maintained.
-Angular forms is available for future typed reactive forms; this issue has no form.
+Create pages use typed reactive forms with shared domain input validators.
 
 ## Routes
 
-| Path               | Page                            |
-| ------------------ | ------------------------------- |
-| /                  | Redirect to /overview           |
-| /overview          | Workspace preview               |
-| /tenants           | Tenants placeholder             |
-| /global-mappings   | Global mappings placeholder     |
-| /canonical-schemas | Canonical schemas placeholder   |
-| Any unmatched path | Not-found page within the shell |
+| Path                                                     | Page                             |
+| -------------------------------------------------------- | -------------------------------- |
+| /                                                        | Redirect to /overview            |
+| /overview                                                | Workspace preview                |
+| /tenants                                                 | Tenant list                      |
+| /tenants/new                                             | Create tenant                    |
+| /tenants/:tenantId                                       | Tenant detail and sync requests  |
+| /tenants/:tenantId/sync-requests/new                     | Create sync request              |
+| /tenants/:tenantId/sync-requests/:requestId              | Request detail and sync entities |
+| /tenants/:tenantId/sync-requests/:requestId/entities/new | Add sync entity                  |
+| /global-mappings                                         | Global mappings placeholder      |
+| /canonical-schemas                                       | Canonical schemas placeholder    |
+| Any unmatched path                                       | Not-found page within the shell  |
+
+## Tenant and sync configuration
+
+Pages call page-scoped facades, which use the existing repository DI tokens. A shared,
+stateless context service checks UUIDs, missing records, and request ownership before
+loading children or saving configuration. Route ownership checks establish consistent
+navigation context; they are not authentication or authorization.
+
+Async state handles loading, safe error feedback, retries, and stale responses when
+route parameters change. Forms prevent duplicate submissions, preserve input after
+failed writes, and navigate to the saved record on success. Leaving a page discards
+its pending feedback/navigation, but does not cancel a repository write.
+
+The input validators reuse the same rules as full domain records without fabricating
+IDs or timestamps. Tenant names are saved verbatim, including blank/whitespace names;
+blank names display as "Unnamed tenant". Duplicate names and request/entity pairs are
+enforced by repositories. Provider selections come from the existing value sets;
+identical source/target providers remain permitted by the schema.
+
+Entity creation leaves status to the repository default. Interval schedules require
+whole seconds from 60 through 2147483647. Switching to one-time or real-time clears the
+interval to null. Already-configured entity choices are disabled; a duplicate arising
+after the form loads still receives repository conflict feedback. Real-time remains
+selectable with a "Not yet supported" notice. This UI saves configuration only and
+does not trigger orchestration or runtime execution.
 
 ## Configuration and future data access
 
