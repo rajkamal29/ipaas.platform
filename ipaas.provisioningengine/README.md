@@ -4,6 +4,9 @@ TypeScript control-plane foundation for starting IPAAS Orchestration Engine runt
 This module consumes the shared platform database owned by `../ipaas.infra`; it does not
 own a separate database or a private copy of the platform schema.
 
+For the detailed architecture, file layout, runtime flows, schema contract, configuration,
+verification steps, and implementation roadmap, see `docs/TECHNICAL_OVERVIEW.md`.
+
 ## Platform database contract
 
 The authoritative schema and migrations live in `../ipaas.infra/migrations`. The shared
