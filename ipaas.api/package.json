@@ -1,0 +1,44 @@
+{
+  "name": "ipaas-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production API boundary for tenant and sync configuration",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:http": "vitest run tests/http",
+    "test:integration": "vitest run tests/integration"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "pg": "^8.22.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.6",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^10.0.0",
+    "node-pg-migrate": "^9.0.0",
+    "prettier": "^3.8.1",
+    "supertest": "^7.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.0.8"
+  },
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || ^26.0.0",
+    "npm": ">=10.9.0"
+  }
+}
