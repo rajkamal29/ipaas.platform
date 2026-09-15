@@ -1,0 +1,81 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a [routerLink]="paths.list">Tenants</a><span aria-current="page">Tenant detail</span>
+</nav>
+@let state = facade.detail.state();
+@switch (state.status) {
+  @case ('loading') {
+    <h1>Tenant detail</h1>
+    <p role="status">Loading tenant…</p>
+  }
+  @case ('error') {
+    <h1>Tenant unavailable</h1>
+    <app-feedback-panel [feedback]="state.error" [allowRetry]="true" (retry)="retry()" />
+  }
+  @case ('ready') {
+    @let tenant = state.data.tenant;
+    <header class="page-header">
+      <p class="eyebrow">Tenant</p>
+      <h1>{{ tenantLabel(tenant) }}</h1>
+      <p class="page-description">Tenant details and sync configuration.</p>
+    </header>
+    <dl class="panel metadata">
+      <div>
+        <dt>Tenant ID</dt>
+        <dd class="record-id">{{ tenant.id }}</dd>
+      </div>
+      <div>
+        <dt>Created</dt>
+        <dd>
+          <time [attr.datetime]="tenant.createdAt">{{ tenant.createdAt | date: 'medium' }}</time>
+        </dd>
+      </div>
+    </dl>
+    <section aria-labelledby="requests-heading">
+      <div class="section-heading">
+        <h2 id="requests-heading">Sync requests</h2>
+        <a class="button-link" [routerLink]="paths.createRequest(tenant.id)">Create sync request</a>
+      </div>
+      @if (state.data.requests.length) {
+        <div class="panel table-container">
+          <table class="data-table">
+            <caption class="visually-hidden">
+              Sync requests for
+              {{
+                tenantLabel(tenant)
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Request</th>
+                <th scope="col">Source</th>
+                <th scope="col">Target</th>
+                <th scope="col">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (request of state.data.requests; track request.id) {
+                <tr>
+                  <td data-label="Request" class="record-id">
+                    <a [routerLink]="paths.request(tenant.id, request.id)">{{ request.id }}</a>
+                  </td>
+                  <td data-label="Source">{{ providers[request.source] }}</td>
+                  <td data-label="Target">{{ providers[request.target] }}</td>
+                  <td data-label="Created">
+                    <time [attr.datetime]="request.createdAt">{{
+                      request.createdAt | date: 'medium'
+                    }}</time>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="panel empty-state">
+          <h3>No sync requests yet</h3>
+          <p>Create a sync request to connect a source and target provider.</p>
+        </div>
+      }
+    </section>
+  }
+}

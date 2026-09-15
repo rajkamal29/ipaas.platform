@@ -33,3 +33,18 @@ export const NAVIGATION_ITEMS: readonly NavigationItem[] = [
     iconPath: 'M8 3H5v18h3 M16 3h3v18h-3 M10 8l-3 4 3 4 M14 8l3 4-3 4',
   },
 ];
+
+const tenantRoot = '/' + ROUTE_PATHS.tenants;
+const tenantDetail = (tenantId: string): string => tenantRoot + '/' + encodeURIComponent(tenantId);
+const requestDetail = (tenantId: string, requestId: string): string =>
+  tenantDetail(tenantId) + '/sync-requests/' + encodeURIComponent(requestId);
+
+export const TENANT_PATHS = {
+  list: tenantRoot,
+  create: tenantRoot + '/new',
+  detail: tenantDetail,
+  createRequest: (tenantId: string): string => tenantDetail(tenantId) + '/sync-requests/new',
+  request: requestDetail,
+  createEntity: (tenantId: string, requestId: string): string =>
+    requestDetail(tenantId, requestId) + '/entities/new',
+} as const;
