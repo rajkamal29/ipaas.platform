@@ -1,22 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: ipaas-provisioning-postgres
-    environment:
-      POSTGRES_DB: ipaas_provisioning
-      POSTGRES_USER: provisioning_engine
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment or a local .env file}
-    ports:
-      - "5432:5432"
-    volumes:
-      - provisioning-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U provisioning_engine -d ipaas_provisioning"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
   provisioning-engine:
     build:
       context: .
@@ -27,7 +9,8 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STATUS_LOG_INTERVAL_MS: ${STATUS_LOG_INTERVAL_MS:-60000}
-      DATABASE_URL: postgresql://provisioning_engine:${POSTGRES_PASSWORD}@postgres:5432/ipaas_provisioning
+      DATABASE_URL: postgres://ipaas:${POSTGRES_PASSWORD}@ipaas-postgres:5432/ipaas_platform
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-}
       RUNTIME_IMAGE_MAPPINGS_JSON: ${RUNTIME_IMAGE_MAPPINGS_JSON:-}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       GITHUB_ACTIONS_API_BASE_URL: ${GITHUB_ACTIONS_API_BASE_URL:-https://api.github.com}
@@ -38,12 +21,13 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      postgres:
-        condition: service_healthy
+    networks:
+      - ipaas-network
     restart: unless-stopped
     stop_grace_period: 10s
 
-volumes:
-  provisioning-postgres-data:
+networks:
+  ipaas-network:
+    external: true
+    name: ipaas-network
 

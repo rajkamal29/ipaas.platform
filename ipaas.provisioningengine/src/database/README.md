@@ -1,14 +1,21 @@
 # Database
 
-The Node implementation uses `pg` directly and intentionally avoids an ORM. PostgreSQL
-client and migration behavior live under `infrastructure/postgres`; this directory keeps
-the executable database-initialization entry point. Run the ordered, idempotent SQL files
-in `database/init` with:
+The Provisioning Engine consumes the shared PostgreSQL schema owned by `../ipaas.infra`.
+It must not create or migrate its own copy of the schema. Run platform migrations from
+`ipaas.infra`, then verify compatibility from this module:
 
 ```powershell
-npm run db:initialize
+cd ../ipaas.infra
+npm run migrate:up
+
+cd ../ipaas.provisioningengine
+$env:DATABASE_URL = "postgres://ipaas:<password>@localhost:5432/ipaas_platform"
+npm run db:verify-schema
 ```
 
-This issue provides schema initialization only. Runtime polling and request claiming are
-deferred to later issues.
+The compatibility check covers all eight current platform tables and the columns defined
+by the authoritative migrations. Provisioning work is scoped to `sync_entities`: the
+future worker will claim `submitted` rows, use the parent `sync_requests` row to resolve
+the runtime image, and pass only `SYNC_ENTITY_ID` plus platform secrets to an Orchestration
+Engine invocation.
 

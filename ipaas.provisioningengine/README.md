@@ -1,268 +1,155 @@
-# ipaas-provisioning-engine
+# IPAAS Provisioning Engine
 
-POC for the iPaaS Provisioning Engine to process integration configurations and provision Docker-based runtimes.
+TypeScript control-plane foundation for starting IPAAS Orchestration Engine runtimes.
+This module consumes the shared platform database owned by `../ipaas.infra`; it does not
+own a separate database or a private copy of the platform schema.
 
-This branch contains the Node.js/TypeScript implementation of the Provisioning Engine
-control-plane foundation.
+## Platform database contract
+
+The authoritative schema and migrations live in `../ipaas.infra/migrations`. The shared
+database contains eight tables:
+
+- `tenants`: tenant identity.
+- `sync_requests`: a tenant's source-to-target provider pair.
+- `sync_entities`: independently provisioned entity and its sync type, cadence, and lifecycle status.
+- `credentials`: encrypted credentials per tenant and provider.
+- `sync_state`: latest cursor, run outcome, failed records, and retry records for one entity.
+- `canonical_entities`: versioned canonical JSON schemas.
+- `mapping_profiles`: tenant-specific provider/entity mappings.
+- `global_mapping_profiles`: platform mapping defaults.
+
+Provisioning is scoped to one `sync_entities.id`. The Orchestration Engine is invoked with
+`SYNC_ENTITY_ID` and loads its tenant, provider pair, credentials, mappings, and state from
+PostgreSQL. `one_time` and `interval` belong to the batch engine; `real_time` must eventually
+be routed to a separate event-driven engine.
+
+The Provisioning Engine is expected to own the provisioning portion of the lifecycle:
+
+```text
+submitted -> provisioning -> active       (interval)
+                          \-> completed    (one_time, written by Orchestration Engine)
+                          \-> failed
+```
+
+Run health is separate from lifecycle status and belongs in `sync_state`.
 
 ## Prerequisites
 
-- Node.js 24 LTS
-- npm, included with Node.js
-- Docker Desktop with Docker Compose for local PostgreSQL
+- Node.js 24 or newer
+- npm
+- Docker Desktop
+- Shared PostgreSQL from `../ipaas.infra`
 
-## Install
-
-```powershell
-npm install
-```
-
-## Build
+## Install and verify
 
 ```powershell
+cd ipaas.provisioningengine
+npm ci
+npm run typecheck
+npm test
 npm run build
 ```
 
-Compiled JavaScript and source maps are written to `dist/`.
+## Shared database setup
 
-## Run
+Start and migrate PostgreSQL from its owning module:
 
 ```powershell
-npm start
+cd ../ipaas.infra
+docker compose up -d
+npm ci
+npm run migrate:up
 ```
 
-The process emits structured JSON logs and remains active until it receives `SIGINT` or
-`SIGTERM`. Configuration is read directly from environment variables:
+Set the same connection string in the Provisioning Engine process, then check that the
+database has all required platform tables and columns:
+
+```powershell
+cd ../ipaas.provisioningengine
+$env:DATABASE_URL = "postgres://ipaas:<password>@localhost:5432/ipaas_platform"
+npm run db:verify-schema
+```
+
+Do not add schema migrations here. Add platform schema changes to `ipaas.infra`, then
+update this module's compatibility check only when the Provisioning Engine depends on them.
+
+## Configuration
+
+The application reads environment variables directly and does not load `.env` files.
+`.env.example` contains non-secret examples.
 
 - `LOG_LEVEL`: `debug`, `info`, `warn`, or `error`; defaults to `info`.
 - `STATUS_LOG_INTERVAL_MS`: positive heartbeat interval; defaults to `60000`.
-- `DATABASE_URL`: PostgreSQL connection string required by `npm run db:initialize`.
-- `RUNTIME_IMAGE_MAPPINGS_JSON`: JSON array of approved source/destination image mappings;
-  each mapping selects `DockerHub` or `GHCR` plus a repository and tag. It defaults to the
-  POC mappings shown in `.env.example`.
-- `DOCKER_SOCKET_PATH`: Docker Engine socket; defaults to Docker Desktop's Windows named
-  pipe on Windows and `/var/run/docker.sock` on Linux/macOS.
-- `GITHUB_ACTIONS_API_BASE_URL`, `GITHUB_ACTIONS_OWNER`,
-  `GITHUB_ACTIONS_REPOSITORY`, `GITHUB_ACTIONS_WORKFLOW`, and `GITHUB_ACTIONS_REF`:
-  identify the workflow-dispatch target.
-- `GITHUB_TOKEN`: required only when dispatching; keep it outside source control.
+- `DATABASE_URL`: connection to the shared `ipaas_platform` database.
+- `ENCRYPTION_MASTER_KEY`: passed to Orchestration Engine containers; must match that engine's key.
+- `RUNTIME_IMAGE_MAPPINGS_JSON`: approved source/target image mappings.
+- `DOCKER_SOCKET_PATH`: Docker Engine socket.
+- `GITHUB_ACTIONS_*` and `GITHUB_TOKEN`: GitHub workflow-dispatch settings.
 
-The `.env.example` file documents non-secret examples. The application deliberately does
-not load `.env` files, so local values should be exported into the process environment.
+## Run locally
 
-## Run the Provisioning Engine in Docker
-
-The multi-stage `Dockerfile` builds TypeScript with Node 24 and copies only compiled
-JavaScript, production dependencies, package metadata, and database initialization SQL
-into the final `node:24-bookworm-slim` image. The process runs as the non-root `node` user.
-
-Set a local-only PostgreSQL password, then build and start PostgreSQL and the engine:
+The current worker is lifecycle-only: it logs startup and health but does not yet claim
+`sync_entities` rows.
 
 ```powershell
-$env:POSTGRES_PASSWORD = "<local-url-safe-password>"
-docker compose build provisioning-engine
+npm run build
+npm start
+```
+
+## Run with Docker Compose
+
+First start `ipaas.infra`; it creates the external Docker network `ipaas-network`. Then:
+
+```powershell
+cd ../ipaas.infra
 docker compose up -d
-docker compose ps
+
+cd ../ipaas.provisioningengine
+$env:POSTGRES_PASSWORD = "<same password as ipaas.infra/.env>"
+$env:ENCRYPTION_MASTER_KEY = "<same key as ipaas.orchestrationengine/.env>"
+docker compose up -d --build
 docker compose logs provisioning-engine
 ```
 
-Within the Compose network, the engine receives a `DATABASE_URL` whose hostname is
-`postgres`, not `localhost`. Normal application startup does not query PostgreSQL yet.
-Validate connectivity with the existing compiled migration command inside the engine
-container:
+The service reaches PostgreSQL as `ipaas-postgres`. It mounts the Docker socket for the
+direct Docker POC path; this grants powerful host access and is not a production security model.
 
-```powershell
-docker compose exec provisioning-engine node dist/database/migrate.js
-```
+## Existing POC capabilities
 
-Stop the services gracefully with:
+- Resolve an approved Docker Hub or GHCR image from a source/target pair.
+- Create, start, inspect, and read logs from a local Docker container.
+- Dispatch `.github/workflows/provision-runtime.yml` through GitHub Actions.
+- Validate the shared platform schema with `npm run db:verify-schema`.
+- Structured JSON logging and graceful shutdown.
 
-```powershell
-docker compose stop provisioning-engine
-docker compose logs provisioning-engine
-docker compose down
-```
-
-Compose passes the existing configuration names into the container. Optional values such
-as `LOG_LEVEL`, `STATUS_LOG_INTERVAL_MS`, `RUNTIME_IMAGE_MAPPINGS_JSON`, GitHub Actions
-settings, and `GITHUB_TOKEN` can be set in the host environment before startup. Secrets
-are not copied into the image.
-
-For this local POC, Compose mounts `/var/run/docker.sock` so the containerized engine can
-reach Docker Desktop if the direct Docker provisioning path is invoked. Access to the
-Docker socket effectively grants powerful control over the host Docker Engine. This mount
-is not the intended production security model. The default non-root user is retained; if
-the host socket does not permit that user to connect, do not weaken permissions or switch
-to root without explicitly evaluating that tradeoff.
-
-## Tests and type checking
-
-```powershell
-npm test
-npm run typecheck
-```
-
-Tests use the Node.js built-in test runner, so no test framework dependency is required.
-
-## Local Docker verification
-
-With Docker Desktop running in Linux-container mode:
+Verification scripts remain available:
 
 ```powershell
 npm run docker:verify
-```
-
-This creates and starts a uniquely named `hello-world:latest` container, then prints its
-id, name, image, final state, and logs. The short-lived container exiting is expected.
-
-## GitHub Actions deployment path
-
-The shared `.github/workflows/provision-runtime.yml` workflow runs on a self-hosted Windows
-runner and provisions the requested image through local Docker Desktop. A fine-grained
-token needs repository **Actions: write** permission. A classic personal access token needs
-the `repo` scope for a private repository.
-
-Live dispatch is opt-in:
-
-```powershell
-$env:RUN_GITHUB_INTEGRATION_TESTS = "true"
-$env:GITHUB_ACTIONS_API_BASE_URL = "https://api.github.com"
-$env:GITHUB_ACTIONS_OWNER = "kunal-tezo"
-$env:GITHUB_ACTIONS_REPOSITORY = "ipaas-provisioning-engine"
-$env:GITHUB_ACTIONS_WORKFLOW = "provision-runtime.yml"
-$env:GITHUB_ACTIONS_REF = "main-node" # Must contain the workflow file.
-$env:GITHUB_TOKEN = "<token-with-actions-write-permission>"
-$env:GITHUB_INTEGRATION_TEST_IMAGE = "hello-world:latest"
 npm run github:verify
-```
-
-`GITHUB_ACTIONS_REF` is read at execution time, so the live target branch can always be
-overridden without changing test or production code. Leave
-`RUN_GITHUB_INTEGRATION_TESTS` unset or set to any value other than `true` to skip dispatch.
-
-### Public registry-path verification
-
-The opt-in registry verification resolves two approved, public test mappings through the
-existing configuration-backed resolver and dispatches the existing workflow once per
-registry:
-
-- Docker Hub: `docker.io/library/hello-world:latest`
-- GHCR: `ghcr.io/jonashackt/hello-world:latest`
-
-Use the same GitHub settings as above, then run:
-
-```powershell
-$env:RUN_GITHUB_INTEGRATION_TESTS = "true"
-$env:GITHUB_ACTIONS_API_BASE_URL = "https://api.github.com"
-$env:GITHUB_ACTIONS_OWNER = "kunal-tezo"
-$env:GITHUB_ACTIONS_REPOSITORY = "ipaas-provisioning-engine"
-$env:GITHUB_ACTIONS_WORKFLOW = "provision-runtime.yml"
-$env:GITHUB_ACTIONS_REF = "main-node" # Must contain the workflow file.
-$env:GITHUB_TOKEN = "<token-with-actions-write-permission>"
 npm run registry:verify
-```
-
-The script prints each resolver result and accepted workflow-dispatch response. GitHub's
-workflow-dispatch endpoint normally returns HTTP 204 without a run id, so verify the two
-runs and their container output in GitHub Actions. The configured Tezo images are not
-used by this public-image check and are therefore not live-validated by it.
-
-Public images can be pulled anonymously. Private Docker Hub or GHCR images require an
-explicit `docker login` on the runner using credentials held in GitHub Secrets; private
-registry authentication remains outside the current POC scope.
-
-### ONE_TIME end-to-end demo
-
-The demo entry point uses the existing application composition and calls
-`ProvisioningService.triggerDeployment()` with explicit ONE_TIME metadata. It defaults to
-the confirmed public GHCR image; set `ONE_TIME_DEMO_REGISTRY=DockerHub` for the equivalent
-public Docker Hub run.
-
-```powershell
-$env:RUN_GITHUB_INTEGRATION_TESTS = "true"
-$env:GITHUB_ACTIONS_API_BASE_URL = "https://api.github.com"
-$env:GITHUB_ACTIONS_OWNER = "kunal-tezo"
-$env:GITHUB_ACTIONS_REPOSITORY = "ipaas-provisioning-engine"
-$env:GITHUB_ACTIONS_WORKFLOW = "provision-runtime.yml"
-$env:GITHUB_ACTIONS_REF = "main-node"
-$env:GITHUB_TOKEN = "<token-with-actions-write-permission>"
-
-# Main GHCR demo
-Remove-Item Env:ONE_TIME_DEMO_REGISTRY -ErrorAction SilentlyContinue
-npm run demo:one-time
-
-# Second, registry-neutral Docker Hub example
-$env:ONE_TIME_DEMO_REGISTRY = "DockerHub"
 npm run demo:one-time
 ```
 
-Each run prints the integration metadata, resolved image, and reliable dispatch response.
-GitHub normally returns HTTP 204 without a workflow run id; inspect the resulting run in
-GitHub Actions for the runner-side Docker status and logs.
+Live GitHub scripts run only when `RUN_GITHUB_INTEGRATION_TESTS=true`.
 
-## Local PostgreSQL
+## Work still required
 
-Set matching local-only credentials in the process environment:
+The copied POC is not yet a complete platform Provisioning Engine. The next application work is to:
 
-```powershell
-$env:POSTGRES_PASSWORD = "<local-password>"
-$env:DATABASE_URL = "postgresql://provisioning_engine:<local-password>@localhost:5432/ipaas_provisioning"
-```
+1. Atomically claim supported `sync_entities` rows in `submitted` state.
+2. Join through `sync_requests` to resolve the correct batch runtime image.
+3. Provision one invocation per `sync_entities.id` and pass `SYNC_ENTITY_ID`, `DATABASE_URL`,
+   and `ENCRYPTION_MASTER_KEY` without exposing tenant credentials.
+4. Set `interval` entities to `active` once recurring invocation is established.
+5. Avoid routing `real_time` rows to the batch Orchestration Engine.
+6. Persist provisioning failures and implement safe retry/idempotency behavior.
 
-Start PostgreSQL and wait for it to become healthy:
-
-```powershell
-docker compose up -d postgres
-docker compose ps
-```
-
-Apply the ordered schema and sample-data SQL files through the Node migration command:
-
-```powershell
-npm run db:initialize
-```
-
-Query the seeded integration:
-
-```powershell
-docker compose exec postgres psql -U provisioning_engine -d ipaas_provisioning -c "SELECT c.integration_id, c.tenant_id, c.source_connector, c.destination_connector, string_agg(e.entity_name, ', ' ORDER BY e.entity_name) AS entities, c.sync_mode, c.sync_direction, c.schedule, c.provisioning_status FROM integration_configurations c JOIN integration_entities e USING (integration_id) GROUP BY c.integration_id ORDER BY c.created_at;"
-```
-
-The SQL files are idempotent. To deliberately recreate the local database from an empty
-volume:
-
-```powershell
-docker compose down --volumes
-docker compose up -d postgres
-npm run db:initialize
-```
-
-## Current scope
-
-The current implementation provides a TypeScript build, environment configuration,
-structured logging, graceful process shutdown, a minimal long-running worker, and direct
-PostgreSQL schema/sample-data initialization using `pg`. Application ports separate the
-runtime image resolver, local Docker provisioner, and GitHub Actions deployment trigger
-from their infrastructure implementations. `ProvisioningService` is a small façade that
-resolves an approved image before delegating to either existing provisioning path. The
-approved catalogue produces fully qualified references, for example:
-
-```text
-workday -> keka -> ghcr.io/tezo/workday-keka-runtime:1.0.0
-bamboohr -> keka -> docker.io/tezo/bamboohr-keka-runtime:1.0.0
-```
-
-Database polling, request claiming, integration validation, registry authentication/API
-access, workflow status polling, scheduling,
-checkpoints, retries/recovery, connector behavior, CDM transformation, and synchronization
-execution are intentionally outside this issue.
-
-`ProvisioningWorker` remains lifecycle-only: it logs startup and health information but
-does not poll PostgreSQL or invoke `ProvisioningService` automatically.
+The current Docker/GitHub request models still reflect the standalone POC metadata shape.
+They must be changed to the `SYNC_ENTITY_ID` runtime contract as part of that worker feature,
+not treated as an alternative database schema.
 
 ## Architecture
-
-Dependencies point inward toward application contracts:
 
 ```text
 index.ts -> bootstrap.ts -> infrastructure adapters
@@ -271,28 +158,8 @@ index.ts -> bootstrap.ts -> infrastructure adapters
                      application ports/models
                               ^
                               |
-                    ProvisioningService façade
+                    ProvisioningService facade
 ```
 
-`bootstrap.ts` is the only production composition root. It builds the Docker client and
-injects concrete runtime-image, Docker, and GitHub implementations behind application
-ports. Technology-independent application code does not import `pg`, `dockerode`,
-GitHub configuration, or environment variables.
-
-## Project structure
-
-```text
-src/
-|-- application/    Use-case façade, models, errors, and technology-neutral ports
-|-- config/         Central environment configuration and provider-specific parsing
-|-- database/       Database-initialization command entry point
-|-- infrastructure/ PostgreSQL, Docker, GitHub, and configured-catalogue adapters
-|-- logging/        Structured JSON logging
-|-- scripts/        Deterministic local verification entry points
-|-- workers/        Long-running background work
-|-- bootstrap.ts    Creates and injects concrete application dependencies
-`-- index.ts        Process lifecycle and signal handling
-```
-
-The SQL schema and sample data live under `database/init`; local PostgreSQL configuration
-lives in `docker-compose.yml`.
+`bootstrap.ts` is the production composition root. Application code depends on ports;
+Docker, GitHub, PostgreSQL, and runtime-image configuration are adapters behind them.
