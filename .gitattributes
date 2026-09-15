@@ -1,0 +1,18 @@
+# Normalize line endings for everyone, regardless of OS or editor settings.
+# Git stores every text file with LF endings internally; without this file,
+# an editor that saves with CRLF (VS Code's default on Windows) makes every
+# line in a file look "changed" to git even when nothing meaningful did.
+* text=auto eol=lf
+
+# Windows-only scripts genuinely need CRLF to run correctly there — keep
+# those as-is rather than forcing LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files: never touch line endings, and diff as binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

@@ -1,22 +1,18 @@
-import { loadGitHubActionsOptions } from "../config/github-actions.js";
-import { GitHubActionsDeploymentTrigger } from "../infrastructure/github/github-actions-deployment-trigger.js";
-
-if (process.env.RUN_GITHUB_INTEGRATION_TESTS?.toLowerCase() !== "true") {
-  console.log("GitHub integration verification skipped; set RUN_GITHUB_INTEGRATION_TESTS=true to enable it.");
-} else {
-  const suffix = Date.now();
-  const trigger = new GitHubActionsDeploymentTrigger(
-    loadGitHubActionsOptions(process.env),
-    fetch,
+import { loadConfig } from "../config/environment.js";
+import { composeApplication } from "../bootstrap.js";
+const config = loadConfig();
+if (!config.allowLiveVerification)
+  throw new Error(
+    "Set RUN_LIVE_VERIFICATION=true for explicit live verification.",
   );
-  const result = await trigger.trigger({
-    integrationId: `node-live-${suffix}`,
-    tenantId: "tenant-abc",
-    sourceConnector: "connectwise",
-    destinationConnector: "keka",
-    syncMode: "ONE_TIME",
-    imageReference: process.env.GITHUB_INTEGRATION_TEST_IMAGE ?? "hello-world:latest",
-  });
-
-  console.log(JSON.stringify(result, null, 2));
+if (config.runtime.kind !== "github" || !config.syncEntityId)
+  throw new Error(
+    "GitHub verification requires RUNTIME_PROVIDER=github and a real SYNC_ENTITY_ID in provisioning status.",
+  );
+const app = await composeApplication(config);
+try {
+  app.worker.start();
+  console.log(await app.worker.submit(config.syncEntityId));
+} finally {
+  await app.shutdown();
 }

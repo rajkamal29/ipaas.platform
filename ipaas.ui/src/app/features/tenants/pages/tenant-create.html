@@ -1,0 +1,50 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a [routerLink]="paths.list">Tenants</a><span aria-current="page">Create tenant</span>
+</nav>
+<header class="page-header">
+  <p class="eyebrow">Tenant configuration</p>
+  <h1>Create tenant</h1>
+  <p class="page-description">Add a tenant before configuring its sync requests.</p>
+</header>
+<form
+  class="panel configuration-form"
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  [attr.aria-busy]="facade.submission.saving()"
+>
+  @if (facade.submission.error(); as error) {
+    <app-feedback-panel [feedback]="error" />
+  }
+  @if (attempted() && form.invalid) {
+    <p class="field-error" role="alert">Check the tenant name below.</p>
+  }
+  <fieldset [disabled]="facade.submission.saving()">
+    <legend class="visually-hidden">Tenant details</legend>
+    <div class="form-field">
+      <label for="tenant-name">Tenant name</label>
+      <input
+        id="tenant-name"
+        type="text"
+        formControlName="name"
+        autocomplete="organization"
+        aria-describedby="name-hint name-errors"
+        [attr.aria-invalid]="attempted() && fieldErrors(form, 'name').length > 0"
+      />
+      <p id="name-hint" class="field-hint">
+        Names must be unique. Names are saved exactly as entered; a blank name is permitted.
+      </p>
+      <div id="name-errors">
+        @if (attempted()) {
+          @for (message of fieldErrors(form, 'name'); track message) {
+            <p class="field-error">{{ message }}</p>
+          }
+        }
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="button-primary" type="submit">
+        {{ facade.submission.saving() ? 'Saving…' : 'Create tenant' }}</button
+      ><a [routerLink]="paths.list">Cancel</a>
+    </div>
+  </fieldset>
+</form>

@@ -1,0 +1,54 @@
+<header class="page-header page-heading">
+  <div>
+    <p class="eyebrow">Configuration</p>
+    <h1>Tenants</h1>
+    <p class="page-description">Manage tenants and their sync configurations.</p>
+  </div>
+  <a class="button-link" [routerLink]="paths.create">Create tenant</a>
+</header>
+@let state = facade.list.state();
+@switch (state.status) {
+  @case ('loading') {
+    <p role="status">Loading tenants…</p>
+  }
+  @case ('error') {
+    <app-feedback-panel [feedback]="state.error" [allowRetry]="true" (retry)="facade.loadList()" />
+  }
+  @case ('ready') {
+    @if (state.data.length) {
+      <div class="panel table-container">
+        <table class="data-table">
+          <caption class="visually-hidden">
+            Tenants and their creation dates
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Tenant name</th>
+              <th scope="col">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tenant of state.data; track tenant.id) {
+              <tr>
+                <td data-label="Tenant name">
+                  <a [routerLink]="paths.detail(tenant.id)">{{ tenantLabel(tenant) }}</a>
+                </td>
+                <td data-label="Created">
+                  <time [attr.datetime]="tenant.createdAt">{{
+                    tenant.createdAt | date: 'medium'
+                  }}</time>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <section class="panel empty-state">
+        <h2>No tenants yet</h2>
+        <p>Create a tenant to start configuring sync requests.</p>
+        <a [routerLink]="paths.create">Create your first tenant</a>
+      </section>
+    }
+  }
+}

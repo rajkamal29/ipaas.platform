@@ -1,8 +1,13 @@
 {
-  "name": "@ipaas/adapter-connectwise",
+  "name": "@rajkamal29/adapter-connectwise",
   "version": "0.1.0",
   "description": "ConnectWise Manage adapter — authenticate / fetch / fetchByIds / write",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rajkamal29/ipaas.platform.git",
+    "directory": "ipaas.providers/connectwise"
+  },
   "dependencies": {
     "pino": "^10.3.1"
   },

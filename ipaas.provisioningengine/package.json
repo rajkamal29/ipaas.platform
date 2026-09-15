@@ -2,22 +2,21 @@
   "name": "ipaas-provisioning-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Node.js POC for the iPaaS Provisioning Engine control plane",
+  "description": "Shared-schema iPaaS Provisioning Engine with Clean Architecture",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
     "build": "tsc",
-    "db:verify-schema": "npm run build && node dist/database/verify-schema.js",
+    "db:verify-schema": "npm run build && node dist/scripts/verify-schema.js",
     "docker:verify": "npm run build && node dist/scripts/verify-docker.js",
-    "demo:one-time": "npm run build && node dist/scripts/demo-one-time-provisioning.js",
     "github:verify": "npm run build && node dist/scripts/verify-github-dispatch.js",
     "registry:verify": "npm run build && node dist/scripts/verify-registry-paths.js",
     "start": "node dist/index.js",
     "test": "npm run test:build && node --test dist-tests/tests/application/*.test.js dist-tests/tests/database/*.test.js dist-tests/tests/provisioning/*.test.js",
     "test:build": "tsc --project tsconfig.test.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit"
   },
   "dependencies": {
     "dockerode": "^5.0.1",
