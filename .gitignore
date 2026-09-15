@@ -8,3 +8,6 @@ npm-debug.log*
 # plaintext provider secrets should never be committed, wherever they're
 # saved. Don't rely on this alone; keep the file outside the repo.
 *.credentials.json
+
+# Local secrets file at the repo root — never meant to be committed.
+AppSecrets.txt
