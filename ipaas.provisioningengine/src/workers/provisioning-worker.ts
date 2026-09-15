@@ -1,34 +1,34 @@
-import type { Logger } from "../logging/logger.js";
-
+import type { ProvisionSyncEntityUseCase } from "../application/use-cases/provision-sync-entity.js";
+import type { ProvisioningResult } from "../application/dto/provisioning.js";
+import { ApplicationError } from "../application/errors/provisioning-errors.js";
+import { uuid } from "../domain/value-objects/uuid.js";
 export class ProvisioningWorker {
-  private statusTimer: NodeJS.Timeout | undefined;
-
-  public constructor(
-    private readonly logger: Logger,
-    private readonly statusLogIntervalMs: number,
+  private accepting = false;
+  private readonly pending = new Map<string, Promise<ProvisioningResult>>();
+  constructor(
+    private readonly provision: Pick<ProvisionSyncEntityUseCase, "execute">,
   ) {}
-
-  public start(): void {
-    if (this.statusTimer !== undefined) {
-      return;
-    }
-
-    this.logger.info("Node Provisioning Engine is running", {
-      statusLogIntervalMs: this.statusLogIntervalMs,
-    });
-
-    this.statusTimer = setInterval(() => {
-      this.logger.debug("Node Provisioning Engine is healthy");
-    }, this.statusLogIntervalMs);
+  start(): void {
+    this.accepting = true;
   }
-
-  public stop(): void {
-    if (this.statusTimer === undefined) {
-      return;
-    }
-
-    clearInterval(this.statusTimer);
-    this.statusTimer = undefined;
+  submit(syncEntityId: string): Promise<ProvisioningResult> {
+    if (!this.accepting)
+      return Promise.reject(
+        new ApplicationError("worker-stopped", "Worker is not accepting work."),
+      );
+    const id = uuid(syncEntityId);
+    const existing = this.pending.get(id);
+    if (existing) return existing;
+    const operation = this.provision.execute(id);
+    this.pending.set(id, operation);
+    void operation.then(
+      () => this.pending.delete(id),
+      () => this.pending.delete(id),
+    );
+    return operation;
+  }
+  async stop(): Promise<void> {
+    this.accepting = false;
+    await Promise.allSettled(this.pending.values());
   }
 }
-

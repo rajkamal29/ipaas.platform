@@ -1,62 +1,51 @@
+import { PROVIDERS, type Provider } from "../domain/enums/platform-values.js";
 export interface RuntimeImageMapping {
-  sourceConnector: string;
-  destinationConnector: string;
-  registry: string;
-  repository: string;
-  tag: string;
+  readonly source: Provider;
+  readonly target: Provider;
+  readonly registry: "DockerHub" | "GHCR";
+  readonly repository: string;
+  readonly tag: string;
 }
-
-const defaultRuntimeImageMappings: readonly RuntimeImageMapping[] = [
-  {
-    sourceConnector: "connectwise",
-    destinationConnector: "keka",
-    registry: "GHCR",
-    repository: "rajkamal29/ipaas-orchestration-engine",
-    tag: "dev-latest",
-  },
-];
-
 export function loadRuntimeImageMappings(
-  serializedMappings: string | undefined,
+  serialized: string | undefined,
 ): readonly RuntimeImageMapping[] {
-  if (serializedMappings === undefined || serializedMappings.trim() === "") {
-    return defaultRuntimeImageMappings;
-  }
-
-  let parsedMappings: unknown;
-
+  let parsed: unknown;
   try {
-    parsedMappings = JSON.parse(serializedMappings);
-  } catch (error: unknown) {
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`RUNTIME_IMAGE_MAPPINGS_JSON must be valid JSON: ${reason}`);
-  }
-
-  if (!Array.isArray(parsedMappings) || !parsedMappings.every(isRuntimeImageMapping)) {
+    parsed = JSON.parse(serialized ?? "");
+  } catch {
     throw new Error(
-      "RUNTIME_IMAGE_MAPPINGS_JSON must be an array whose entries define "
-        + "sourceConnector, destinationConnector, registry, repository, and tag.",
+      "RUNTIME_IMAGE_MAPPINGS_JSON must contain a valid image catalogue.",
     );
   }
-
-  return parsedMappings;
+  if (!Array.isArray(parsed) || parsed.length === 0)
+    throw new Error("At least one approved runtime image mapping is required.");
+  const seen = new Set<string>();
+  return parsed.map((entry: unknown) => {
+    if (entry === null || typeof entry !== "object")
+      throw new Error("Invalid runtime image mapping.");
+    const value = entry as Record<string, unknown>;
+    if (
+      !PROVIDERS.includes(value.source as Provider) ||
+      !PROVIDERS.includes(value.target as Provider) ||
+      (value.registry !== "DockerHub" && value.registry !== "GHCR") ||
+      typeof value.repository !== "string" ||
+      !/^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)+$/.test(
+        value.repository,
+      ) ||
+      typeof value.tag !== "string" ||
+      !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(value.tag)
+    )
+      throw new Error("Invalid runtime image mapping fields.");
+    const key = `${value.source}:${value.target}`;
+    if (seen.has(key))
+      throw new Error("Duplicate runtime image provider pair.");
+    seen.add(key);
+    return {
+      source: value.source as Provider,
+      target: value.target as Provider,
+      registry: value.registry,
+      repository: value.repository,
+      tag: value.tag,
+    };
+  });
 }
-
-function isRuntimeImageMapping(value: unknown): value is RuntimeImageMapping {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const mapping = value as Record<string, unknown>;
-
-  return isNonBlankString(mapping.sourceConnector)
-    && isNonBlankString(mapping.destinationConnector)
-    && isNonBlankString(mapping.registry)
-    && isNonBlankString(mapping.repository)
-    && isNonBlankString(mapping.tag);
-}
-
-function isNonBlankString(value: unknown): value is string {
-  return typeof value === "string" && value.trim() !== "";
-}
-
