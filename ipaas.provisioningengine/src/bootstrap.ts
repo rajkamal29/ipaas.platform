@@ -1,3 +1,4 @@
+import { PostgresSyncEntityClaimRepository } from "./infrastructure/persistence/postgres/repositories/postgres-sync-entity-claim-repository.js";
 import { loadConfig } from "./config/environment.js";
 import { Logger } from "./infrastructure/logging/logger.js";
 import { createDatabasePool } from "./infrastructure/persistence/postgres/postgres-client.js";
@@ -35,7 +36,11 @@ export async function composeApplication(config = loadConfig()) {
       logger,
     );
     await verifyPlatformSchema(pool, logger);
-    const worker = new ProvisioningWorker(provisioning);
+    const worker = new ProvisioningWorker(provisioning, {
+      claims: new PostgresSyncEntityClaimRepository(pool),
+      options: config.polling,
+      logger,
+    });
     let shutdownPromise: Promise<void> | undefined;
     return {
       logger,
@@ -43,8 +48,11 @@ export async function composeApplication(config = loadConfig()) {
       provisioning,
       shutdown(): Promise<void> {
         shutdownPromise ??= (async () => {
-          await worker.stop();
-          await pool.end();
+          try {
+            await worker.stop();
+          } finally {
+            await pool.end();
+          }
         })();
         return shutdownPromise;
       },

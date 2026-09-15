@@ -1,3 +1,4 @@
+import { loadPollingOptions, type PollingOptions } from "./polling.js";
 import {
   loadRuntimeImageMappings,
   type RuntimeImageMapping,
@@ -22,6 +23,7 @@ export interface RuntimeEnvironment {
   readonly encryptionMasterKey: string;
 }
 export interface AppConfig extends DatabaseConfig {
+  readonly polling: PollingOptions;
   readonly runtimeEnvironment: RuntimeEnvironment;
   readonly runtimeImageMappings: readonly RuntimeImageMapping[];
   readonly runtime:
@@ -72,6 +74,7 @@ function parseConfig(environment: NodeJS.ProcessEnv): AppConfig {
     throw new Error("RUNTIME_PROVIDER must be docker or github.");
   return {
     ...database,
+    polling: loadPollingOptions(environment),
     runtimeEnvironment: {
       databaseUrl: runtimeDatabaseUrl,
       encryptionMasterKey: key,

@@ -301,3 +301,27 @@ it("preserves dependency diagnostics and entity correlation in application failu
     uncertain: true,
   });
 });
+
+it("claimed unsupported types fail once without activating or requeueing", async () => {
+  for (const syncType of ["real_time", "interval"] as const) {
+    const fake = setup({
+      ...seed,
+      syncType,
+      intervalSeconds: syncType === "interval" ? 60 : null,
+    });
+    if (syncType === "interval")
+      fake.failRuntime(new UnsupportedSyncTypeError(syncType));
+    await assert.rejects(fake.useCase.execute(id), UnsupportedSyncTypeError);
+    assert.equal(fake.current()?.status, "failed");
+    assert.deepEqual(fake.transitions, [["provisioning", "failed"]]);
+    // The next explicit invocation cannot accidentally retry a failed entity.
+    const launches = fake.calls.length;
+    await assert.rejects(
+      fake.useCase.execute(id),
+      (error) =>
+        error instanceof ApplicationError &&
+        error.code === "entity-not-provisioning",
+    );
+    assert.equal(fake.calls.length, launches);
+  }
+});
