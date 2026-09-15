@@ -1,97 +1,303 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ProvisionSyncEntityUseCase } from "../../src/application/use-cases/provision-sync-entity.js";
+import {
+  ApplicationError,
+  DependencyError,
+  ProvisioningFailedError,
+  RuntimeImageNotFoundError,
+  SyncEntityNotFoundError,
+  SyncRequestNotFoundError,
+  UnsupportedSyncTypeError,
+} from "../../src/application/errors/provisioning-errors.js";
+import type { SyncEntity } from "../../src/domain/entities/sync-entity.js";
+import type { SyncRequest } from "../../src/domain/entities/sync-request.js";
+import { uuid } from "../../src/domain/value-objects/uuid.js";
 import type {
-  ContainerProvisioningResult,
-  ProvisionContainerRequest,
-} from "../../src/application/models/container-provisioning.js";
-import type {
-  DeploymentDispatchResult,
-  DeploymentRequest,
-} from "../../src/application/models/deployment.js";
-import type { ContainerProvisioner } from "../../src/application/ports/container-provisioner.js";
-import type { DeploymentTrigger } from "../../src/application/ports/deployment-trigger.js";
-import { ProvisioningService } from "../../src/application/provisioning-service.js";
+  RuntimeRequest,
+  RuntimeResult,
+} from "../../src/application/dto/provisioning.js";
+import type { SyncEntityStatus } from "../../src/domain/enums/platform-values.js";
+import type { LogContext } from "../../src/application/ports/logger.js";
+import { ProvisioningWorker } from "../../src/workers/provisioning-worker.js";
 
-describe("ProvisioningService", () => {
-  it("resolves an image before local provisioning", async () => {
-    let receivedRequest: ProvisionContainerRequest | undefined;
-    const service = createService({
-      provision: async (request) => {
-        receivedRequest = request;
-        return containerResult;
+const id = uuid("10000000-0000-4000-8000-000000000001");
+const requestId = uuid("20000000-0000-4000-8000-000000000001");
+const timestamp = "2026-09-01T00:00:00.000Z";
+const seed: SyncEntity = {
+  id,
+  syncRequestId: requestId,
+  entity: "client",
+  syncType: "one_time",
+  status: "provisioning",
+  intervalSeconds: null,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+};
+const parent: SyncRequest = {
+  id: requestId,
+  tenantId: uuid("30000000-0000-4000-8000-000000000001"),
+  source: "connectwise",
+  target: "keka",
+  createdAt: timestamp,
+};
+
+function setup(initial: SyncEntity | null = seed) {
+  let entity = initial;
+  let request: SyncRequest | null = parent;
+  let statusFailure = false;
+  let readFailureAfterLaunch = false;
+  let launched = false;
+  const calls: RuntimeRequest[] = [];
+  const errors: LogContext[] = [];
+  const transitions: [SyncEntityStatus, SyncEntityStatus][] = [];
+  const parentLookups: string[] = [];
+  const imageLookups: string[][] = [];
+  let result: RuntimeResult = { kind: "started", reference: "runtime" };
+  let runtimeFailure: Error | undefined;
+  let imageFailure = false;
+  let completeDuringLaunch = false;
+  const useCase = new ProvisionSyncEntityUseCase(
+    {
+      getById: async () => {
+        if (launched && readFailureAfterLaunch)
+          throw new DependencyError("database");
+        return entity;
       },
-      inspect: async () => containerResult,
-      getLogs: async () => "logs",
-    });
-
-    const result = await service.provisionLocally({
-      ...provisioningContext,
-      containerName: "ipaas-integration-123",
-    });
-
-    assert.equal(result, containerResult);
-    assert.deepEqual(receivedRequest, {
-      imageReference: resolvedImage,
-      containerName: "ipaas-integration-123",
-      metadata: {
-        integrationId: "integration-123",
-        tenantId: "tenant-abc",
-        syncMode: "ONE_TIME",
+      updateStatus: async (_id, expected, next) => {
+        if (statusFailure) throw new DependencyError("database");
+        transitions.push([expected, next]);
+        if (entity?.status !== expected) return false;
+        entity = { ...entity, status: next };
+        return true;
       },
-    });
+    },
+    {
+      getById: async (id) => {
+        parentLookups.push(id);
+        return request;
+      },
+    },
+    {
+      resolve: (source, target) => {
+        imageLookups.push([source, target]);
+        if (imageFailure) throw new RuntimeImageNotFoundError();
+        return "ghcr.io/test/runtime:v1";
+      },
+    },
+    {
+      provision: async (input) => {
+        calls.push(input);
+        if (completeDuringLaunch && entity)
+          entity = { ...entity, status: "completed" };
+        if (runtimeFailure) throw runtimeFailure;
+        launched = true;
+        return result;
+      },
+    },
+    {
+      info: () => undefined,
+      error: (_message, context) => {
+        errors.push(context ?? {});
+      },
+    },
+  );
+  return {
+    useCase,
+    errors,
+    calls,
+    transitions,
+    parentLookups,
+    imageLookups,
+    current: () => entity,
+    completeDuringLaunch: () => {
+      completeDuringLaunch = true;
+    },
+    setParent: (value: SyncRequest | null) => {
+      request = value;
+    },
+    setResult: (value: RuntimeResult) => {
+      result = value;
+    },
+    failRuntime: (value: Error) => {
+      runtimeFailure = value;
+    },
+    failStatus: () => {
+      statusFailure = true;
+    },
+    failPostLaunchRead: () => {
+      readFailureAfterLaunch = true;
+    },
+    failImage: () => {
+      imageFailure = true;
+    },
+  };
+}
+describe("ProvisionSyncEntityUseCase", () => {
+  it("loads the parent, resolves approved providers, and provisions using only entity identity", async () => {
+    const fake = setup();
+    const result = await fake.useCase.execute(id);
+    assert.deepEqual(fake.parentLookups, [requestId]);
+    assert.deepEqual(fake.imageLookups, [["connectwise", "keka"]]);
+    assert.deepEqual(fake.calls, [
+      {
+        syncEntityId: id,
+        imageReference: "ghcr.io/test/runtime:v1",
+        syncType: "one_time",
+        intervalSeconds: null,
+      },
+    ]);
+    assert.equal(result.status, "provisioning");
+    assert.equal(result.outcome, "started");
+    assert.deepEqual(fake.transitions, []);
   });
-
-  it("resolves an image before triggering deployment", async () => {
-    let receivedRequest: DeploymentRequest | undefined;
-    const deploymentResult: DeploymentDispatchResult = {
-      accepted: true,
-      statusCode: 204,
-    };
-    const service = createService(undefined, {
-      trigger: async (request) => {
-        receivedRequest = request;
-        return deploymentResult;
+  it("sets interval active only after recurring infrastructure is confirmed", async () => {
+    const fake = setup({ ...seed, syncType: "interval", intervalSeconds: 60 });
+    fake.setResult({ kind: "recurring-ready", reference: "schedule" });
+    assert.equal((await fake.useCase.execute(id)).status, "active");
+    assert.deepEqual(fake.transitions, [["provisioning", "active"]]);
+  });
+  it("does not mistake accepted deployment for an active schedule", async () => {
+    const fake = setup({ ...seed, syncType: "interval", intervalSeconds: 60 });
+    fake.setResult({ kind: "accepted", reference: "dispatch" });
+    assert.equal((await fake.useCase.execute(id)).status, "provisioning");
+  });
+  it("does not infer one-time completion from an exited runtime", async () => {
+    const fake = setup();
+    fake.setResult({ kind: "already-executed", reference: "runtime" });
+    assert.equal((await fake.useCase.execute(id)).status, "provisioning");
+  });
+  it("rejects real-time without resolving or launching a batch image", async () => {
+    const fake = setup({ ...seed, syncType: "real_time" });
+    await assert.rejects(fake.useCase.execute(id), UnsupportedSyncTypeError);
+    assert.equal(fake.current()?.status, "failed");
+    assert.equal(fake.calls.length, 0);
+  });
+  it("rejects missing entity and parent records", async () => {
+    await assert.rejects(
+      setup(null).useCase.execute(id),
+      SyncEntityNotFoundError,
+    );
+    const fake = setup();
+    fake.setParent(null);
+    await assert.rejects(fake.useCase.execute(id), SyncRequestNotFoundError);
+  });
+  it("handles missing runtime image and definitive runtime failures", async () => {
+    const missing = setup();
+    missing.failImage();
+    await assert.rejects(
+      missing.useCase.execute(id),
+      RuntimeImageNotFoundError,
+    );
+    const failed = setup();
+    failed.failRuntime(new DependencyError("runtime"));
+    await assert.rejects(failed.useCase.execute(id), ProvisioningFailedError);
+    assert.equal(failed.current()?.status, "failed");
+  });
+  it("preserves provisioning for uncertain dispatch and post-launch database failures", async () => {
+    const uncertain = setup();
+    uncertain.failRuntime(new DependencyError("runtime", true));
+    await assert.rejects(
+      uncertain.useCase.execute(id),
+      ProvisioningFailedError,
+    );
+    assert.equal(uncertain.current()?.status, "provisioning");
+    const readFailure = setup();
+    readFailure.failPostLaunchRead();
+    await assert.rejects(
+      readFailure.useCase.execute(id),
+      ProvisioningFailedError,
+    );
+    assert.deepEqual(readFailure.transitions, []);
+  });
+  it("reports status persistence failure without leaking driver error text", async () => {
+    const fake = setup();
+    fake.failRuntime(new DependencyError("runtime"));
+    fake.failStatus();
+    await assert.rejects(
+      fake.useCase.execute(id),
+      (error: unknown) =>
+        error instanceof ProvisioningFailedError && !error.statusRecorded,
+    );
+  });
+  it("does not claim submitted or retry failed entities automatically", async () => {
+    for (const status of ["submitted", "failed"] as const) {
+      const fake = setup({ ...seed, status });
+      await assert.rejects(fake.useCase.execute(id), ApplicationError);
+      assert.deepEqual(fake.transitions, []);
+      assert.equal(fake.calls.length, 0);
+    }
+  });
+  it("returns predictably for already active/completed entities", async () => {
+    for (const status of ["active", "completed"] as const) {
+      const fake = setup({ ...seed, status });
+      assert.equal(
+        (await fake.useCase.execute(id)).outcome,
+        "already-provisioned",
+      );
+      assert.equal(fake.calls.length, 0);
+    }
+  });
+  it("rejects malformed IDs before repository access", async () => {
+    const fake = setup();
+    await assert.rejects(fake.useCase.execute("not-a-uuid"));
+    assert.deepEqual(fake.parentLookups, []);
+  });
+});
+describe("Explicit provisioning worker", () => {
+  it("deduplicates in-flight work and drains it during idempotent stop", async () => {
+    let resolve!: (
+      value: Awaited<ReturnType<ProvisionSyncEntityUseCase["execute"]>>,
+    ) => void;
+    let calls = 0;
+    const worker = new ProvisioningWorker({
+      execute: () => {
+        calls++;
+        return new Promise((done) => {
+          resolve = done;
+        });
       },
     });
-
-    const result = await service.triggerDeployment(provisioningContext);
-
-    assert.equal(result, deploymentResult);
-    assert.deepEqual(receivedRequest, {
-      ...provisioningContext,
-      imageReference: resolvedImage,
-    });
+    worker.start();
+    const first = worker.submit(id);
+    const second = worker.submit(id);
+    assert.equal(first, second);
+    assert.equal(calls, 1);
+    const stopped = worker.stop();
+    await assert.rejects(worker.submit(id), ApplicationError);
+    resolve({ syncEntityId: id, status: "provisioning", outcome: "started" });
+    await Promise.all([first, stopped, worker.stop()]);
   });
 });
 
-const resolvedImage = "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest";
-const provisioningContext = {
-  integrationId: "integration-123",
-  tenantId: "tenant-abc",
-  sourceConnector: "connectwise",
-  destinationConnector: "keka",
-  syncMode: "ONE_TIME",
-};
-const containerResult: ContainerProvisioningResult = {
-  containerId: "container-123",
-  containerName: "ipaas-integration-123",
-  imageReference: resolvedImage,
-  status: "running",
-};
+it("preserves terminal orchestration status racing with provisioning responses", async () => {
+  const successful = setup();
+  successful.completeDuringLaunch();
+  assert.equal((await successful.useCase.execute(id)).status, "completed");
+  const failure = setup();
+  failure.completeDuringLaunch();
+  failure.failRuntime(new DependencyError("runtime"));
+  await assert.rejects(failure.useCase.execute(id), ProvisioningFailedError);
+  assert.equal(failure.current()?.status, "completed");
+});
 
-function createService(
-  containerProvisioner: ContainerProvisioner = {
-    provision: async () => containerResult,
-    inspect: async () => containerResult,
-    getLogs: async () => "logs",
-  },
-  deploymentTrigger: DeploymentTrigger = {
-    trigger: async () => ({ accepted: true, statusCode: 204 }),
-  },
-): ProvisioningService {
-  return new ProvisioningService(
-    { resolve: () => resolvedImage },
-    containerProvisioner,
-    deploymentTrigger,
+it("preserves dependency diagnostics and entity correlation in application failure logs", async () => {
+  const fake = setup();
+  fake.failRuntime(
+    new DependencyError("runtime", true, {
+      dependency: "github",
+      operation: "workflow-dispatch",
+      httpStatus: 503,
+    }),
   );
-}
+  await assert.rejects(fake.useCase.execute(id), ProvisioningFailedError);
+  assert.deepEqual(fake.errors[0], {
+    syncEntityId: id,
+    failureCode: "dependency-failed",
+    dependency: "github",
+    operation: "workflow-dispatch",
+    httpStatus: 503,
+    statusRecorded: false,
+    uncertain: true,
+  });
+});

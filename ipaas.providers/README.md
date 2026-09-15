@@ -1,15 +1,15 @@
 # ipaas.providers
 
-Provider adapters for the iPaaS platform — currently `@ipaas/adapter-connectwise` and `@ipaas/adapter-keka`, each an independently published npm package. Split out of `ipaas.orchestrationengine` on 2026-09-08 so both the batch Orchestration Engine and a future real-time (webhook/queue) engine can depend on the same adapter code without duplicating it.
+Provider adapters for the iPaaS platform — currently `@rajkamal29/adapter-connectwise` and `@rajkamal29/adapter-keka`, each an independently published npm package. Split out of `ipaas.orchestrationengine` on 2026-09-08 so both the batch Orchestration Engine and a future real-time (webhook/queue) engine can depend on the same adapter code without duplicating it.
 
 ## Layout
 
 ```
-connectwise/    @ipaas/adapter-connectwise — ConnectWiseAdapter
+connectwise/    @rajkamal29/adapter-connectwise — ConnectWiseAdapter
   index.js
   logger.js
   package.json
-keka/           @ipaas/adapter-keka — KekaAdapter
+keka/           @rajkamal29/adapter-keka — KekaAdapter
   index.js
   logger.js
   package.json

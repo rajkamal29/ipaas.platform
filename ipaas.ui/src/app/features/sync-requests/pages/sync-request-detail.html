@@ -1,0 +1,109 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a [routerLink]="paths.list">Tenants</a>
+  @if (facade.detail.state(); as state) {
+    @if (state.status === 'ready') {
+      <a [routerLink]="paths.detail(state.data.tenant.id)">{{ tenantLabel(state.data.tenant) }}</a>
+    }
+  }
+  <span aria-current="page">Sync request</span>
+</nav>
+<header class="page-header">
+  <p class="eyebrow">Sync configuration</p>
+  <h1>Sync request</h1>
+  <p class="page-description">Provider connection and configured sync entities.</p>
+</header>
+@let state = facade.detail.state();
+@switch (state.status) {
+  @case ('loading') {
+    <p role="status">Loading sync request…</p>
+  }
+  @case ('error') {
+    <app-feedback-panel [feedback]="state.error" [allowRetry]="true" (retry)="retry()" />
+  }
+  @case ('ready') {
+    @let request = state.data.request;
+    <dl class="panel metadata">
+      <div>
+        <dt>Source provider</dt>
+        <dd>{{ providers[request.source] }}</dd>
+      </div>
+      <div>
+        <dt>Target provider</dt>
+        <dd>{{ providers[request.target] }}</dd>
+      </div>
+      <div>
+        <dt>Request ID</dt>
+        <dd class="record-id">{{ request.id }}</dd>
+      </div>
+      <div>
+        <dt>Created</dt>
+        <dd>
+          <time [attr.datetime]="request.createdAt">{{ request.createdAt | date: 'medium' }}</time>
+        </dd>
+      </div>
+    </dl>
+    <section aria-labelledby="entities-heading">
+      <div class="section-heading">
+        <h2 id="entities-heading">Sync entities</h2>
+        <a class="button-link" [routerLink]="paths.createEntity(state.data.tenant.id, request.id)"
+          >Add sync entity</a
+        >
+      </div>
+      @if (state.data.entities.length) {
+        <div class="panel table-container">
+          <table class="data-table">
+            <caption class="visually-hidden">
+              Sync entities for this request
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Entity</th>
+                <th scope="col">Sync type</th>
+                <th scope="col">Interval</th>
+                <th scope="col">Status</th>
+                <th scope="col">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (entity of state.data.entities; track entity.id) {
+                <tr>
+                  <th scope="row" data-label="Entity">{{ entities[entity.entity] }}</th>
+                  <td data-label="Sync type">
+                    {{ syncTypeLabels[entity.syncType] }}
+                    @if (entity.syncType === syncTypes.realTime) {
+                      <span class="support-label" [title]="realTimeNotice">Not yet supported</span>
+                    }
+                  </td>
+                  <td data-label="Interval">
+                    {{
+                      entity.intervalSeconds === null
+                        ? 'Not applicable'
+                        : entity.intervalSeconds + ' seconds'
+                    }}
+                  </td>
+                  <td data-label="Status">
+                    <span class="status-label">{{ statuses[entity.status] }}</span>
+                  </td>
+                  <td data-label="Updated">
+                    <time [attr.datetime]="entity.updatedAt">{{
+                      entity.updatedAt | date: 'medium'
+                    }}</time>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="field-hint">
+          These records describe configuration only. Real-time sync is not yet supported by the
+          engine.
+        </p>
+      } @else {
+        <div class="panel empty-state">
+          <h3>No sync entities yet</h3>
+          <p>Add an entity to define what to sync and how often.</p>
+        </div>
+      }
+    </section>
+  }
+}

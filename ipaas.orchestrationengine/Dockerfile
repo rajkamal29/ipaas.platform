@@ -1,3 +1,9 @@
+# syntax=docker/dockerfile:1
+# The line above must be the file's very first line, before any other
+# comment — Docker only recognizes a parser directive there. It enables
+# BuildKit's --mount=type=secret, used below so the npm registry token
+# never gets baked into an image layer.
+
 # Orchestration Engine container image (batch/polling engine — one_time
 # and interval sync types only; real_time is a separate, not-yet-built
 # engine).
@@ -13,25 +19,33 @@
 # this image needs at runtime but never bakes in.
 #
 # Built and published by .github/workflows/build-orchestration-engine.yml
-# on every push to the `dev` branch.
+# (repo root — GitHub Actions only discovers workflows there, not in a
+# subfolder's own .github/workflows/) on every push to the `dev` branch.
 #
-# 2026-09-08 repo split: @ipaas/adapter-connectwise and @ipaas/adapter-keka
-# now live in the separate ipaas.providers repo and are declared as normal
-# npm dependencies (see package.json) instead of local workspace packages.
-# BUILD IS CURRENTLY BROKEN: npm ci below needs to resolve those two
-# packages from GitHub Packages' npm registry (npm.pkg.github.com), which
-# they have not been published to yet — the repo split's registry
-# connection is deliberately deferred (see docs/LLD-orchestration-engine.md
-# and the repo-split backlog task). Publish both packages and add an
-# .npmrc / NODE_AUTH_TOKEN step here (and in the CI workflow) before this
-# image will build again.
+# 2026-09-08 repo split: @rajkamal29/adapter-connectwise and @rajkamal29/adapter-keka
+# now live in the sibling ipaas.providers folder and are declared as normal
+# npm dependencies (see package.json), published to GitHub Packages'
+# npm registry (npm.pkg.github.com) by .github/workflows/publish-providers.yml
+# at the repo root. .npmrc (this folder) routes the @rajkamal29 scope there.
+#
+# GitHub Packages requires auth to install a package, not just to publish
+# one — npm ci below needs NODE_AUTH_TOKEN set to a token with
+# read:packages. That token is never baked into an image layer: it's
+# injected only for the duration of the npm ci RUN instruction via a
+# BuildKit secret mount (--mount=type=secret), supplied by the CI
+# workflow's `secrets:` input to docker/build-push-action. Building this
+# image locally (e.g. `docker build`) needs the same secret passed via
+# `docker buildx build --secret id=npm_token,env=NODE_AUTH_TOKEN` with
+# NODE_AUTH_TOKEN set in your shell — a plain `docker build` without
+# BuildKit secrets will fail to resolve @rajkamal29/* here.
 
 # ---- deps: installed in its own layer, cached unless package.json/lockfile change ----
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY package.json package-lock.json .npmrc ./
+RUN --mount=type=secret,id=npm_token \
+    NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" npm ci --omit=dev
 
 # ---- runtime: only what lib/orchestration/run.js actually needs ----
 FROM node:22-alpine AS runtime

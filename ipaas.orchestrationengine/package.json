@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "iPaaS batch/polling Orchestration Engine — one_time and interval sync types",
+  "scripts": {
+    "providers:link": "npm link @rajkamal29/adapter-connectwise @rajkamal29/adapter-keka",
+    "providers:unlink": "node scripts/unlink-providers.js"
+  },
   "dependencies": {
-    "@ipaas/adapter-connectwise": "^0.1.0",
-    "@ipaas/adapter-keka": "^0.1.0",
+    "@rajkamal29/adapter-connectwise": "^0.1.0",
+    "@rajkamal29/adapter-keka": "^0.1.0",
     "ajv": "^8.17.1",
     "dotenv": "^17.4.2",
     "jsonata": "^2.2.2",

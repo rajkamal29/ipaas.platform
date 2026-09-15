@@ -1,0 +1,90 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a [routerLink]="paths.list">Tenants</a>
+  @if (facade.tenant.state(); as state) {
+    @if (state.status === 'ready') {
+      <a [routerLink]="paths.detail(state.data.id)">{{ tenantLabel(state.data) }}</a>
+    }
+  }
+  <span aria-current="page">Create sync request</span>
+</nav>
+<header class="page-header">
+  <p class="eyebrow">Sync configuration</p>
+  <h1>Create sync request</h1>
+  <p class="page-description">Choose the source and target providers for this tenant.</p>
+</header>
+@let state = facade.tenant.state();
+@switch (state.status) {
+  @case ('loading') {
+    <p role="status">Loading tenant…</p>
+  }
+  @case ('error') {
+    <app-feedback-panel [feedback]="state.error" [allowRetry]="true" (retry)="retry()" />
+  }
+  @case ('ready') {
+    <form
+      class="panel configuration-form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      [attr.aria-busy]="facade.submission.saving()"
+    >
+      @if (facade.submission.error(); as error) {
+        <app-feedback-panel [feedback]="error" />
+      }
+      @if (attempted() && form.invalid) {
+        <p class="field-error" role="alert">Select a source and target provider.</p>
+      }
+      <fieldset [disabled]="facade.submission.saving()">
+        <legend class="visually-hidden">Providers</legend>
+        <div class="form-field">
+          <label for="source-provider">Source provider</label>
+          <select
+            id="source-provider"
+            formControlName="source"
+            aria-required="true"
+            aria-describedby="source-errors"
+            [attr.aria-invalid]="attempted() && fieldErrors(form, 'source').length > 0"
+          >
+            <option [ngValue]="null" disabled>Select a provider</option>
+            @for (provider of providers; track provider) {
+              <option [ngValue]="provider">{{ providerLabels[provider] }}</option>
+            }
+          </select>
+          <div id="source-errors">
+            @if (attempted()) {
+              @for (message of fieldErrors(form, 'source'); track message) {
+                <p class="field-error">{{ message }}</p>
+              }
+            }
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="target-provider">Target provider</label>
+          <select
+            id="target-provider"
+            formControlName="target"
+            aria-required="true"
+            aria-describedby="target-errors"
+            [attr.aria-invalid]="attempted() && fieldErrors(form, 'target').length > 0"
+          >
+            <option [ngValue]="null" disabled>Select a provider</option>
+            @for (provider of providers; track provider) {
+              <option [ngValue]="provider">{{ providerLabels[provider] }}</option>
+            }
+          </select>
+          <div id="target-errors">
+            @if (attempted()) {
+              @for (message of fieldErrors(form, 'target'); track message) {
+                <p class="field-error">{{ message }}</p>
+              }
+            }
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="button-primary" type="submit">
+            {{ facade.submission.saving() ? 'Saving…' : 'Create sync request' }}</button
+          ><a [routerLink]="paths.detail(state.data.id)">Cancel</a>
+        </div>
+      </fieldset>
+    </form>
+  }
+}

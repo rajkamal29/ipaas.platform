@@ -3,31 +3,33 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ipaas-provisioning-engine-node:local
-    container_name: ipaas-provisioning-engine-node
+    image: ipaas-provisioning-engine:local
     init: true
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      STATUS_LOG_INTERVAL_MS: ${STATUS_LOG_INTERVAL_MS:-60000}
-      DATABASE_URL: postgres://ipaas:${POSTGRES_PASSWORD}@ipaas-postgres:5432/ipaas_platform
-      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-}
-      RUNTIME_IMAGE_MAPPINGS_JSON: ${RUNTIME_IMAGE_MAPPINGS_JSON:-}
+      DATABASE_URL: ${DATABASE_URL:?Set the shared database URL reachable from this container}
+      RUNTIME_DATABASE_URL: ${RUNTIME_DATABASE_URL:?Set the shared database URL reachable from runtime containers}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?Set the platform encryption key}
+      RUNTIME_IMAGE_MAPPINGS_JSON: ${RUNTIME_IMAGE_MAPPINGS_JSON:?Set approved runtime image mappings}
+      RUNTIME_PROVIDER: ${RUNTIME_PROVIDER:-docker}
+      SYNC_ENTITY_ID: ${SYNC_ENTITY_ID:-}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
+      DOCKER_NETWORK: ipaas-network
+      RUNTIME_TIMEOUT_MS: ${RUNTIME_TIMEOUT_MS:-120000}
       GITHUB_ACTIONS_API_BASE_URL: ${GITHUB_ACTIONS_API_BASE_URL:-https://api.github.com}
-      GITHUB_ACTIONS_OWNER: ${GITHUB_ACTIONS_OWNER:-rajkamal29}
-      GITHUB_ACTIONS_REPOSITORY: ${GITHUB_ACTIONS_REPOSITORY:-ipaas.platform}
-      GITHUB_ACTIONS_WORKFLOW: ${GITHUB_ACTIONS_WORKFLOW:-provision-runtime.yml}
-      GITHUB_ACTIONS_REF: ${GITHUB_ACTIONS_REF:-dev}
+      GITHUB_ACTIONS_OWNER: ${GITHUB_ACTIONS_OWNER:-}
+      GITHUB_ACTIONS_REPOSITORY: ${GITHUB_ACTIONS_REPOSITORY:-}
+      GITHUB_ACTIONS_WORKFLOW: ${GITHUB_ACTIONS_WORKFLOW:-}
+      GITHUB_ACTIONS_REF: ${GITHUB_ACTIONS_REF:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - ipaas-network
-    restart: unless-stopped
-    stop_grace_period: 10s
+    restart: "no"
+    stop_grace_period: 150s
 
 networks:
   ipaas-network:
     external: true
     name: ipaas-network
-

@@ -1,173 +1,228 @@
-# IPAAS Provisioning Engine
+# iPaaS Provisioning Engine
 
-TypeScript control-plane foundation for starting IPAAS Orchestration Engine runtimes.
-This module consumes the shared platform database owned by `../ipaas.infra`; it does not
-own a separate database or a private copy of the platform schema.
+Issue #18 establishes Clean Architecture and the production entity runtime contract.
+**Database polling, automatic claiming, and recurring scheduling are not implemented.**
 
-For the detailed architecture, file layout, runtime flows, schema contract, configuration,
-verification steps, and implementation roadmap, see `docs/TECHNICAL_OVERVIEW.md`.
-
-## Platform database contract
-
-The authoritative schema and migrations live in `../ipaas.infra/migrations`. The shared
-database contains eight tables:
-
-- `tenants`: tenant identity.
-- `sync_requests`: a tenant's source-to-target provider pair.
-- `sync_entities`: independently provisioned entity and its sync type, cadence, and lifecycle status.
-- `credentials`: encrypted credentials per tenant and provider.
-- `sync_state`: latest cursor, run outcome, failed records, and retry records for one entity.
-- `canonical_entities`: versioned canonical JSON schemas.
-- `mapping_profiles`: tenant-specific provider/entity mappings.
-- `global_mapping_profiles`: platform mapping defaults.
-
-Provisioning is scoped to one `sync_entities.id`. The Orchestration Engine is invoked with
-`SYNC_ENTITY_ID` and loads its tenant, provider pair, credentials, mappings, and state from
-PostgreSQL. `one_time` and `interval` belong to the batch engine; `real_time` must eventually
-be routed to a separate event-driven engine.
-
-The Provisioning Engine is expected to own the provisioning portion of the lifecycle:
+## Dependency direction
 
 ```text
-submitted -> provisioning -> active       (interval)
-                          \-> completed    (one_time, written by Orchestration Engine)
-                          \-> failed
+workers / entry points -> application -> domain
+bootstrap -> config + infrastructure + application + workers
+infrastructure -> application ports + domain
+
+src/
+  domain/
+    entities/             SyncEntity, SyncRequest
+    enums/                Schema value sets
+    value-objects/        Validated UUID identity
+    errors/               Domain validation
+  application/
+    use-cases/            ProvisionSyncEntityUseCase
+    dto/                  Runtime requests and typed results
+    ports/repositories/   SyncEntityRepository, SyncRequestRepository
+    ports/runtime/        RuntimeProvisioner, RuntimeImageResolver
+    ports/logger.ts       Structured logging boundary
+    errors/               Safe application/dependency errors
+  infrastructure/
+    persistence/postgres/ Row mapping, queries, pool, schema verification, repositories
+    runtime/docker/       Dockerode boundary and deterministic runtime provisioning
+    runtime/github/       Workflow dispatch adapter
+    runtime-images/       Approved configuration-backed image resolution
+    logging/              Structured JSON output
+  config/                 All environment reads and validation
+  workers/                Explicit work submission, in-flight deduplication/draining
+  scripts/                Opt-in live verification and schema/image checks
+  bootstrap.ts            Composition root and resource ownership
+  index.ts                Explicit invocation and signal handling
 ```
 
-Run health is separate from lifecycle status and belongs in `sync_state`.
+Domain/application contain no PostgreSQL, Docker, GitHub, environment, filesystem, or
+concrete logging dependencies. Tests enforce inward imports. There is no DI framework.
 
-## Prerequisites
+## Shared schema
 
-- Node.js 24 or newer
-- npm
-- Docker Desktop
-- Shared PostgreSQL from `../ipaas.infra`
+Only `../ipaas.infra/migrations` owns the schema. This project has no migrations.
+The compatibility verifier checks the required columns in all eight public tables:
+tenants, sync_requests, sync_entities, credentials, sync_state, canonical_entities,
+mapping_profiles, global_mapping_profiles. It checks column presence, not a complete
+migration fingerprint or every database constraint.
 
-## Install and verify
+Provisioning reads:
+
+- sync_entities: id, sync_request_id, entity, sync_type, status, interval_seconds,
+  created_at, updated_at.
+- sync_requests: id, tenant_id, source, target, created_at.
+
+Providers: connectwise, keka. Entities: client, project, timesheet.
+Sync types: one_time, interval, real_time.
+Lifecycle: submitted, provisioning, active, completed, failed.
+Interval seconds are PostgreSQL integers >=60; other types require null.
+No provider inequality, tenant-name, or additional platform schema rules are introduced.
+Tenant credentials remain encrypted in credentials. Provisioning never reads them.
+Execution results and cursors in sync_state are separate from provisioning lifecycle.
+
+## Use case and lifecycle
+
+`ProvisionSyncEntityUseCase.execute(syncEntityId)`:
+
+1. Validates identity and loads the entity.
+2. Returns without dispatch for active/completed entities.
+3. Requires an explicitly claimed provisioning row. Submitted/failed rows are not
+   automatically claimed or retried.
+4. Loads its parent request, rejects real_time, and resolves an approved image from
+   source/target.
+5. Invokes the runtime port with syncEntityId and the schema schedule.
+6. Changes provisioning to active only for a confirmed recurring-ready result.
+7. Re-reads status to preserve concurrent orchestration outcomes.
+
+The future #19 worker should claim rows atomically before calling this use case.
+The repository provides conditional status updates without exposing SQL in its port.
+This issue does not implement SELECT FOR UPDATE SKIP LOCKED or an automatic claim loop.
+
+One-time launch/dispatch does not set completed. The existing Orchestration Engine owns
+completed/failed after execution. A zero container exit code is not a business-success
+signal: an unsuccessful cycle can still exit normally.
+
+Definitive provisioning failures conditionally set provisioning -> failed. Ambiguous
+dispatch outcomes, unexpected errors, and persistence failures after launch leave the
+row for reconciliation. Errors expose safe codes/status-persistence information; raw
+driver messages and response bodies are not exposed.
+
+### Interval boundary
+
+The current orchestration image executes one cycle and exits. Neither supplied adapter
+installs a recurring trigger. Therefore Docker/GitHub adapters explicitly reject interval
+provisioning rather than mark a one-off run active. The application supports and tests
+interval provisioning through a recurring-ready runtime result. A real scheduler adapter
+must implement that capability before intervals can be activated in production.
+Scheduling/reconciliation is additional work beyond this architecture foundation.
+
+## Runtime contract and idempotency
+
+Runtime environment:
+
+- SYNC_ENTITY_ID: sole orchestration identity.
+- DATABASE_URL: shared platform connection, reachable from the runtime container.
+- ENCRYPTION_MASTER_KEY: platform key; no individual tenant credentials.
+
+No legacy integration/connector metadata DTOs remain in production.
+
+Docker uses `ipaas-sync-<uuid>`, an identity label, configured network, no automatic
+removal, and no restart policy. It pulls missing approved images. Only the invocation
+that successfully creates a container owns its initial start. Docker's unique container
+name creation semantics coordinate separate processes on the same daemon; a create
+conflict does not grant start ownership. Existing created containers require operator
+reconciliation, running containers are reused, and exited containers are never restarted
+automatically. Dead or other unresolved states also require reconciliation. A creator
+crash after creation may leave a created container that requires operator intervention. Identity/image/network/environment mismatches require operator reconciliation;
+nothing is deleted automatically. Reusing a completed container is not a fresh execution
+attempt. Explicit retries after failure require an externally coordinated reset/cleanup;
+#19 must define that policy before enabling automatic retries.
+
+GitHub dispatch sends only sync_entity_id and image_reference. HTTP acceptance is not
+runtime readiness. Repeated dispatch may queue another workflow; workflow concurrency
+and creator-only start prevent duplicate starts through this adapter while the same
+container identity is retained on the same Docker host. This is not a distributed exactly-once guarantee across multiple runners/daemons.
+GitHub Actions provisioning requires the selected self-hosted runner to reach the
+intended Docker daemon. The runner must participate in or reach the expected platform
+network where required; the daemon must provide the existing ipaas-network for runtime
+containers, with connectivity to the shared database. The selector [self-hosted, Windows]
+only selects eligible runners: deployment configuration must ensure it resolves to the
+correct host. These are deployment prerequisites, not application-level idempotency
+mechanisms. Configure runner eligibility before enabling this workflow.
+External container deletion or manual starts bypass the adapter guarantee.
+
+The root workflow runs the same application/Docker adapter, so it rechecks the row and
+approved image. It never echoes platform secrets or container logs. The supplied image
+must match the locally configured provider-pair image.
+
+## Configuration
+
+Use Node 24+. All environment reads are in src/config. No .env is loaded implicitly.
+Set process environment or use `node --env-file=.env dist/index.js`.
+
+| Variable                                           | Meaning                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------- |
+| DATABASE_URL                                       | Required shared PostgreSQL connection                                  |
+| RUNTIME_DATABASE_URL                               | Runtime-reachable URL for the same DB; defaults to DATABASE_URL        |
+| ENCRYPTION_MASTER_KEY                              | Required base64 32-byte platform key                                   |
+| RUNTIME_IMAGE_MAPPINGS_JSON                        | Required nonempty catalogue: source, target, registry, repository, tag |
+| RUNTIME_PROVIDER                                   | docker (default) or github                                             |
+| SYNC_ENTITY_ID                                     | Optional explicit provisioning work item                               |
+| LOG_LEVEL                                          | debug/info/warn/error; default info                                    |
+| DOCKER_SOCKET_PATH                                 | Platform socket default                                                |
+| DOCKER_NETWORK                                     | Runtime network; default ipaas-network                                 |
+| RUNTIME_TIMEOUT_MS                                 | Docker request timeout, 1000–600000 ms; default 120000                 |
+| GITHUB_ACTIONS_API_BASE_URL                        | HTTPS API base; defaults to https://api.github.com                     |
+| GITHUB_ACTIONS_OWNER / REPOSITORY / WORKFLOW / REF | Required for github mode                                               |
+| GITHUB_TOKEN                                       | Required for github mode; never sent as workflow input                 |
+| EXPECTED_RUNTIME_IMAGE                             | Workflow-only image assertion against the approved catalogue           |
+| RUN_LIVE_VERIFICATION                              | Explicit opt-in for Docker/GitHub verification scripts                 |
+
+Image registries are DockerHub/GHCR. Provider pairs must be unique. No mutable POC image
+default is silently selected. Choose approved version tags and retain published images.
+The schema allows provider pairs that currently lack executable adapters; image catalogue
+approval is an operational deployment choice, not an invented database restriction.
+
+Workflow configuration:
+
+- Secrets PLATFORM_DATABASE_URL, PLATFORM_RUNTIME_DATABASE_URL, PLATFORM_ENCRYPTION_MASTER_KEY.
+- Repository variable RUNTIME_IMAGE_MAPPINGS_JSON.
+- A trusted self-hosted Windows runner with Docker, shared DB access, and ipaas-network.
+- Workflow ref must contain the new contract before GitHub mode is used.
+
+## Build and tests
 
 ```powershell
-cd ipaas.provisioningengine
 npm ci
 npm run typecheck
 npm test
 npm run build
-```
-
-## Shared database setup
-
-Start and migrate PostgreSQL from its owning module:
-
-```powershell
-cd ../ipaas.infra
-docker compose up -d
-npm ci
-npm run migrate:up
-```
-
-Set the same connection string in the Provisioning Engine process, then check that the
-database has all required platform tables and columns:
-
-```powershell
-cd ../ipaas.provisioningengine
-$env:DATABASE_URL = "postgres://ipaas:<password>@localhost:5432/ipaas_platform"
 npm run db:verify-schema
 ```
 
-Do not add schema migrations here. Add platform schema changes to `ipaas.infra`, then
-update this module's compatibility check only when the Provisioning Engine depends on them.
+Tests use Node's built-in runner and fakes; no PostgreSQL, Docker, GitHub, or environment
+is needed for application tests. Infrastructure tests cover row mapping, conditional SQL,
+Docker reuse/conflicts, GitHub payloads/errors, image resolution, and configuration.
+Architecture tests prohibit outward dependencies, legacy identity, and polling.
 
-## Configuration
+## Local database and invocation
 
-The application reads environment variables directly and does not load `.env` files.
-`.env.example` contains non-secret examples.
-
-- `LOG_LEVEL`: `debug`, `info`, `warn`, or `error`; defaults to `info`.
-- `STATUS_LOG_INTERVAL_MS`: positive heartbeat interval; defaults to `60000`.
-- `DATABASE_URL`: connection to the shared `ipaas_platform` database.
-- `ENCRYPTION_MASTER_KEY`: passed to Orchestration Engine containers; must match that engine's key.
-- `RUNTIME_IMAGE_MAPPINGS_JSON`: approved source/target image mappings. The default covers
-  the currently executable ConnectWise-to-Keka direction using the shared Orchestration
-  Engine image. Keka-to-ConnectWise is not approved yet because ConnectWise writes are not implemented.
-- `DOCKER_SOCKET_PATH`: Docker Engine socket.
-- `GITHUB_ACTIONS_*` and `GITHUB_TOKEN`: GitHub workflow-dispatch settings.
-
-## Run locally
-
-The current worker is lifecycle-only: it logs startup and health but does not yet claim
-`sync_entities` rows.
+Start PostgreSQL only through the existing ipaas.infra setup, using its configured
+environment and migrations. Do not start a second provisioning database.
 
 ```powershell
-npm run build
-npm start
+# From ipaas.infra, with its local configuration:
+docker compose up -d postgres
+npm ci
+npm run migrate:up
+
+# From ipaas.provisioningengine, with DATABASE_URL set:
+npm run db:verify-schema
 ```
 
-## Run with Docker Compose
+Schema verification needs only DATABASE_URL and optional LOG_LEVEL. No credentials
+are printed. Provisioning additionally needs the runtime configuration above.
 
-First start `ipaas.infra`; it creates the external Docker network `ipaas-network`. Then:
+`npm start` validates startup and submits SYNC_ENTITY_ID if supplied. Without it, the
+process verifies schema, reports that polling is absent, closes resources, and exits.
+The worker has no heartbeat or polling timer. For an explicit containerized invocation,
+use `docker compose run --rm provisioning-engine`; the Compose service does not restart.
 
-```powershell
-cd ../ipaas.infra
-docker compose up -d
+SIGINT/SIGTERM stop admission and drain pending work before closing the pool. Repeated
+shutdown calls share one promise. Startup failures also close the pool. Runtime containers
+are independent workloads and are not stopped by shutting down the provisioning process.
 
-cd ../ipaas.provisioningengine
-$env:POSTGRES_PASSWORD = "<same password as ipaas.infra/.env>"
-$env:ENCRYPTION_MASTER_KEY = "<same key as ipaas.orchestrationengine/.env>"
-docker compose up -d --build
-docker compose logs provisioning-engine
-```
+## Verification utilities and POC cleanup
 
-The service reaches PostgreSQL as `ipaas-postgres`. It mounts the Docker socket for the
-direct Docker POC path; this grants powerful host access and is not a production security model.
+- docker:verify / github:verify: opt-in invocation using a real provisioning entity.
+- registry:verify: resolve configured images without dispatch.
+- db:verify-schema: read-only compatibility check.
+- Removed random-ID one-time demo, legacy DTOs/service/ports, heartbeat-only worker,
+  and workflow delete/recreate behavior.
+- Moved schema and logging implementations into infrastructure; schema CLI into scripts.
+- Former Docker/GitHub classes retain their useful behavior behind the new runtime port.
+  Arbitrary container log retrieval is no longer part of the provisioning application port.
 
-## Existing POC capabilities
-
-- Resolve an approved Docker Hub or GHCR image from a source/target pair.
-- Create, start, inspect, and read logs from a local Docker container.
-- Dispatch the repository-root `../.github/workflows/provision-runtime.yml` through GitHub Actions.
-- Validate the shared platform schema with `npm run db:verify-schema`.
-- Structured JSON logging and graceful shutdown.
-
-Verification scripts remain available:
-
-```powershell
-npm run docker:verify
-npm run github:verify
-npm run registry:verify
-npm run demo:one-time
-```
-
-Live GitHub scripts run only when `RUN_GITHUB_INTEGRATION_TESTS=true`.
-
-## Work still required
-
-The copied POC is not yet a complete platform Provisioning Engine. The next application work is to:
-
-1. Atomically claim supported `sync_entities` rows in `submitted` state.
-2. Join through `sync_requests` to resolve the correct batch runtime image.
-3. Provision one invocation per `sync_entities.id` and pass `SYNC_ENTITY_ID`, `DATABASE_URL`,
-   and `ENCRYPTION_MASTER_KEY` without exposing tenant credentials.
-4. Set `interval` entities to `active` once recurring invocation is established.
-5. Avoid routing `real_time` rows to the batch Orchestration Engine.
-6. Persist provisioning failures and implement safe retry/idempotency behavior.
-
-The current Docker/GitHub request models and root workflow intentionally retain the
-standalone POC metadata shape (`INTEGRATION_ID`, `TENANT_ID`, connector names, and
-`SYNC_MODE`). The database-polling worker is the component that will obtain a real
-`sync_entities.id`; that feature must replace the temporary contract with `SYNC_ENTITY_ID`.
-The legacy fields are not an alternative database schema and must not become the production
-Orchestration Engine contract.
-
-## Architecture
-
-```text
-index.ts -> bootstrap.ts -> infrastructure adapters
-                              |
-                              v
-                     application ports/models
-                              ^
-                              |
-                    ProvisioningService facade
-```
-
-`bootstrap.ts` is the production composition root. Application code depends on ports;
-Docker, GitHub, PostgreSQL, and runtime-image configuration are adapters behind them.
+Do not enable automated retries, multiple runtime daemons, or interval activation before
+the corresponding claim/reconciliation/scheduler policies are implemented and verified.
