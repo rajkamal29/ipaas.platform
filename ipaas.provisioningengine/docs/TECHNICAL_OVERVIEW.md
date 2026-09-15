@@ -16,6 +16,12 @@ This document records the decisions that replaced the POC design in issue #18.
   intervals; the application port supports a future recurring-ready implementation.
 - Deterministic Docker identity is retained across retries. Existing containers are checked,
   not deleted. Distributed exactly-once behavior is not claimed.
+- GitHub Actions requires the selected self-hosted runner to reach the intended Docker
+  daemon and participate in or reach the expected platform network where required. The
+  daemon must provide the existing ipaas-network for runtime containers and shared DB access.
+  [self-hosted, Windows] is only a selector; deployment configuration must resolve it to
+  the correct host. Runner placement is a deployment prerequisite, not an application-level
+  idempotency mechanism.
 - Configuration is validated once. Platform secrets stay behind the runtime adapter boundary.
 - Explicit worker submissions are deduplicated while in flight and drained during shutdown.
 - Verification scripts cannot fabricate tenant/integration identities.

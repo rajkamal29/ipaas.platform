@@ -45,7 +45,6 @@ export class DockerContainerProvisioner implements RuntimeProvisioner {
         operation = "ensure-image";
         await this.client.ensureImage(request.imageReference);
         try {
-          mayHaveStarted = true;
           operation = "create-container";
           container = await this.client.createContainer({
             Image: request.imageReference,
@@ -77,6 +76,7 @@ export class DockerContainerProvisioner implements RuntimeProvisioner {
       if (inspection.State.Status === "created") {
         if (!createdByThisInvocation)
           throw new RuntimeReconciliationRequiredError();
+        // Only a start attempt makes this invocation capable of launching execution.
         mayHaveStarted = true;
         try {
           operation = "start-container";

@@ -123,9 +123,13 @@ GitHub dispatch sends only sync_entity_id and image_reference. HTTP acceptance i
 runtime readiness. Repeated dispatch may queue another workflow; workflow concurrency
 and creator-only start prevent duplicate starts through this adapter while the same
 container identity is retained on the same Docker host. This is not a distributed exactly-once guarantee across multiple runners/daemons.
-Production deployment must pin the workflow to the intended Docker host/daemon.
-The current generic self-hosted Windows labels do not enforce that placement when
-multiple hosts are eligible; configure runner eligibility before enabling this workflow.
+GitHub Actions provisioning requires the selected self-hosted runner to reach the
+intended Docker daemon. The runner must participate in or reach the expected platform
+network where required; the daemon must provide the existing ipaas-network for runtime
+containers, with connectivity to the shared database. The selector [self-hosted, Windows]
+only selects eligible runners: deployment configuration must ensure it resolves to the
+correct host. These are deployment prerequisites, not application-level idempotency
+mechanisms. Configure runner eligibility before enabling this workflow.
 External container deletion or manual starts bypass the adapter guarantee.
 
 The root workflow runs the same application/Docker adapter, so it rechecks the row and

@@ -23,7 +23,15 @@ const environment = {
   databaseUrl: "postgres://test.invalid/platform",
   encryptionMasterKey: "test-key",
 };
-function setup(initial = "missing") {
+function setup(
+  initial = "missing",
+  failure?:
+    | "initial-inspect"
+    | "ensure-image"
+    | "create-container"
+    | "pre-start-inspect"
+    | "post-start-inspect",
+) {
   let status = initial;
   let starts = 0;
   let creates = 0;
@@ -35,6 +43,12 @@ function setup(initial = "missing") {
   let startFailure = false;
   const container = {
     inspect: async (): Promise<DockerInspection> => {
+      if (
+        failure === "initial-inspect" ||
+        (failure === "pre-start-inspect" && status === "created") ||
+        (failure === "post-start-inspect" && starts > 0)
+      )
+        throw { statusCode: 500, message: "secret daemon payload" };
       if (status === "missing") throw { statusCode: 404 };
       return {
         Id: "container-id",
@@ -62,9 +76,11 @@ function setup(initial = "missing") {
     getContainer: () => container,
     ensureImage: async () => {
       pulls++;
+      if (failure === "ensure-image") throw { statusCode: 500 };
     },
     createContainer: async (value) => {
       creates++;
+      if (failure === "create-container") throw { statusCode: 500 };
       options = value;
       status = "created";
       if (conflict) throw { statusCode: 409 };
@@ -291,3 +307,39 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
   });
   return { promise, resolve };
 }
+
+for (const [failure, operation, creates, pulls] of [
+  ["initial-inspect", "inspect-container", 0, 0],
+  ["ensure-image", "ensure-image", 0, 1],
+  ["create-container", "create-container", 1, 1],
+  ["pre-start-inspect", "inspect-container", 1, 1],
+] as const) {
+  it("reports a certain failure before start: " + failure, async () => {
+    const fake = setup("missing", failure);
+    await assert.rejects(fake.adapter.provision(request), (error) => {
+      assert.ok(error instanceof DependencyError);
+      assert.equal(error.uncertain, false);
+      assert.deepEqual(error.diagnostics, {
+        dependency: "docker",
+        operation,
+        httpStatus: 500,
+      });
+      return true;
+    });
+    assert.deepEqual(fake.counts(), { starts: 0, creates, pulls });
+  });
+}
+it("preserves uncertainty when inspection fails after start", async () => {
+  const fake = setup("missing", "post-start-inspect");
+  await assert.rejects(fake.adapter.provision(request), (error) => {
+    assert.ok(error instanceof DependencyError);
+    assert.equal(error.uncertain, true);
+    assert.deepEqual(error.diagnostics, {
+      dependency: "docker",
+      operation: "inspect-container",
+      httpStatus: 500,
+    });
+    return true;
+  });
+  assert.deepEqual(fake.counts(), { starts: 1, creates: 1, pulls: 1 });
+});
