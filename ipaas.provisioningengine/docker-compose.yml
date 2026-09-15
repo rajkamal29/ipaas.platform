@@ -14,10 +14,10 @@ services:
       RUNTIME_IMAGE_MAPPINGS_JSON: ${RUNTIME_IMAGE_MAPPINGS_JSON:-}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       GITHUB_ACTIONS_API_BASE_URL: ${GITHUB_ACTIONS_API_BASE_URL:-https://api.github.com}
-      GITHUB_ACTIONS_OWNER: ${GITHUB_ACTIONS_OWNER:-kunal-tezo}
-      GITHUB_ACTIONS_REPOSITORY: ${GITHUB_ACTIONS_REPOSITORY:-ipaas-provisioning-engine}
+      GITHUB_ACTIONS_OWNER: ${GITHUB_ACTIONS_OWNER:-rajkamal29}
+      GITHUB_ACTIONS_REPOSITORY: ${GITHUB_ACTIONS_REPOSITORY:-ipaas.platform}
       GITHUB_ACTIONS_WORKFLOW: ${GITHUB_ACTIONS_WORKFLOW:-provision-runtime.yml}
-      GITHUB_ACTIONS_REF: ${GITHUB_ACTIONS_REF:-main-node}
+      GITHUB_ACTIONS_REF: ${GITHUB_ACTIONS_REF:-dev}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

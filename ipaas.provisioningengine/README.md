@@ -82,7 +82,9 @@ The application reads environment variables directly and does not load `.env` fi
 - `STATUS_LOG_INTERVAL_MS`: positive heartbeat interval; defaults to `60000`.
 - `DATABASE_URL`: connection to the shared `ipaas_platform` database.
 - `ENCRYPTION_MASTER_KEY`: passed to Orchestration Engine containers; must match that engine's key.
-- `RUNTIME_IMAGE_MAPPINGS_JSON`: approved source/target image mappings.
+- `RUNTIME_IMAGE_MAPPINGS_JSON`: approved source/target image mappings. The default covers
+  the currently executable ConnectWise-to-Keka direction using the shared Orchestration
+  Engine image. Keka-to-ConnectWise is not approved yet because ConnectWise writes are not implemented.
 - `DOCKER_SOCKET_PATH`: Docker Engine socket.
 - `GITHUB_ACTIONS_*` and `GITHUB_TOKEN`: GitHub workflow-dispatch settings.
 
@@ -118,7 +120,7 @@ direct Docker POC path; this grants powerful host access and is not a production
 
 - Resolve an approved Docker Hub or GHCR image from a source/target pair.
 - Create, start, inspect, and read logs from a local Docker container.
-- Dispatch `.github/workflows/provision-runtime.yml` through GitHub Actions.
+- Dispatch the repository-root `../.github/workflows/provision-runtime.yml` through GitHub Actions.
 - Validate the shared platform schema with `npm run db:verify-schema`.
 - Structured JSON logging and graceful shutdown.
 
@@ -145,9 +147,12 @@ The copied POC is not yet a complete platform Provisioning Engine. The next appl
 5. Avoid routing `real_time` rows to the batch Orchestration Engine.
 6. Persist provisioning failures and implement safe retry/idempotency behavior.
 
-The current Docker/GitHub request models still reflect the standalone POC metadata shape.
-They must be changed to the `SYNC_ENTITY_ID` runtime contract as part of that worker feature,
-not treated as an alternative database schema.
+The current Docker/GitHub request models and root workflow intentionally retain the
+standalone POC metadata shape (`INTEGRATION_ID`, `TENANT_ID`, connector names, and
+`SYNC_MODE`). The database-polling worker is the component that will obtain a real
+`sync_entities.id`; that feature must replace the temporary contract with `SYNC_ENTITY_ID`.
+The legacy fields are not an alternative database schema and must not become the production
+Orchestration Engine contract.
 
 ## Architecture
 

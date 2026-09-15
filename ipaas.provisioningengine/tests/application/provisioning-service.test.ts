@@ -64,11 +64,11 @@ describe("ProvisioningService", () => {
   });
 });
 
-const resolvedImage = "ghcr.io/tezo/workday-keka-runtime:1.0.0";
+const resolvedImage = "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest";
 const provisioningContext = {
   integrationId: "integration-123",
   tenantId: "tenant-abc",
-  sourceConnector: "workday",
+  sourceConnector: "connectwise",
   destinationConnector: "keka",
   syncMode: "ONE_TIME",
 };

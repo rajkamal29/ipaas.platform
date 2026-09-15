@@ -8,18 +8,11 @@ export interface RuntimeImageMapping {
 
 const defaultRuntimeImageMappings: readonly RuntimeImageMapping[] = [
   {
-    sourceConnector: "workday",
+    sourceConnector: "connectwise",
     destinationConnector: "keka",
     registry: "GHCR",
-    repository: "tezo/workday-keka-runtime",
-    tag: "1.0.0",
-  },
-  {
-    sourceConnector: "bamboohr",
-    destinationConnector: "keka",
-    registry: "DockerHub",
-    repository: "tezo/bamboohr-keka-runtime",
-    tag: "1.0.0",
+    repository: "rajkamal29/ipaas-orchestration-engine",
+    tag: "dev-latest",
   },
 ];
 

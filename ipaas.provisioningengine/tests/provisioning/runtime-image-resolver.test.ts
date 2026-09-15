@@ -9,18 +9,19 @@ import { ConfigurationRuntimeImageResolver } from "../../src/infrastructure/runt
 
 const mappings: readonly RuntimeImageMapping[] = [
   {
-    sourceConnector: "workday",
+    sourceConnector: "connectwise",
     destinationConnector: "keka",
     registry: "GHCR",
-    repository: "tezo/workday-keka-runtime",
-    tag: "1.0.0",
+    repository: "rajkamal29/ipaas-orchestration-engine",
+    tag: "dev-latest",
   },
+  // Explicit test-only mapping retained to cover Docker Hub URL construction.
   {
-    sourceConnector: "bamboohr",
-    destinationConnector: "keka",
+    sourceConnector: "dockerhub-test-source",
+    destinationConnector: "dockerhub-test-target",
     registry: "DockerHub",
-    repository: "tezo/bamboohr-keka-runtime",
-    tag: "1.0.0",
+    repository: "library/hello-world",
+    tag: "latest",
   },
 ];
 
@@ -29,15 +30,15 @@ describe("ConfigurationRuntimeImageResolver", () => {
 
   it("resolves a GHCR mapping to a fully qualified image", () => {
     assert.equal(
-      resolver.resolve("workday", "keka"),
-      "ghcr.io/tezo/workday-keka-runtime:1.0.0",
+      resolver.resolve("connectwise", "keka"),
+      "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest",
     );
   });
 
-  it("resolves a Docker Hub mapping to a fully qualified image", () => {
+  it("resolves an explicitly test-only Docker Hub mapping", () => {
     assert.equal(
-      resolver.resolve("bamboohr", "keka"),
-      "docker.io/tezo/bamboohr-keka-runtime:1.0.0",
+      resolver.resolve("dockerhub-test-source", "dockerhub-test-target"),
+      "docker.io/library/hello-world:latest",
     );
   });
 
@@ -47,24 +48,24 @@ describe("ConfigurationRuntimeImageResolver", () => {
     ]);
 
     assert.equal(
-      lowerCaseRegistryResolver.resolve("workday", "keka"),
-      "ghcr.io/tezo/workday-keka-runtime:1.0.0",
+      lowerCaseRegistryResolver.resolve("connectwise", "keka"),
+      "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest",
     );
   });
 
   it("matches connector names case-insensitively", () => {
     assert.equal(
-      resolver.resolve("WORKDAY", "KeKa"),
-      "ghcr.io/tezo/workday-keka-runtime:1.0.0",
+      resolver.resolve("CONNECTWISE", "KeKa"),
+      "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest",
     );
   });
 
   it("throws a domain-specific error for an unsupported pair", () => {
     assert.throws(
-      () => resolver.resolve("workday", "unsupported"),
+      () => resolver.resolve("connectwise", "unsupported"),
       (error: unknown) => {
         assert.ok(error instanceof RuntimeImageNotFoundError);
-        assert.equal(error.sourceConnector, "workday");
+        assert.equal(error.sourceConnector, "connectwise");
         assert.equal(error.destinationConnector, "unsupported");
         assert.match(error.message, /No runtime image is configured/);
         return true;
@@ -78,7 +79,7 @@ describe("ConfigurationRuntimeImageResolver", () => {
     ]);
 
     assert.throws(
-      () => unsupportedRegistryResolver.resolve("workday", "keka"),
+      () => unsupportedRegistryResolver.resolve("connectwise", "keka"),
       (error: unknown) => {
         assert.ok(error instanceof UnsupportedRuntimeImageRegistryError);
         assert.equal(error.registry, "UnsupportedRegistry");

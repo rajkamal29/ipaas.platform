@@ -45,7 +45,7 @@ function selectDemo(registry: string | undefined): DemoSelection {
     return {
       name: "DockerHub",
       mapping: {
-        sourceConnector: "bamboohr",
+        sourceConnector: "connectwise",
         destinationConnector: "keka",
         registry: "DockerHub",
         repository: "library/hello-world",
@@ -61,7 +61,7 @@ function selectDemo(registry: string | undefined): DemoSelection {
   return {
     name: "GHCR",
     mapping: {
-      sourceConnector: "workday",
+        sourceConnector: "connectwise",
       destinationConnector: "keka",
       registry: "GHCR",
       repository: "jonashackt/hello-world",

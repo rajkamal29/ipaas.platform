@@ -13,10 +13,10 @@ import {
 const deploymentRequest = {
   integrationId: "integration-123",
   tenantId: "tenant-abc",
-  sourceConnector: "workday",
+  sourceConnector: "connectwise",
   destinationConnector: "keka",
   syncMode: "ONE_TIME",
-  imageReference: "ghcr.io/tezo/workday-keka-runtime:1.0.0",
+  imageReference: "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest",
 };
 
 describe("GitHubActionsDeploymentTrigger", () => {
@@ -48,10 +48,10 @@ describe("GitHubActionsDeploymentTrigger", () => {
     assert.deepEqual(requestBody(capture.init).inputs, {
       integration_id: "integration-123",
       tenant_id: "tenant-abc",
-      source_connector: "workday",
+      source_connector: "connectwise",
       destination_connector: "keka",
       sync_mode: "ONE_TIME",
-      image_reference: "ghcr.io/tezo/workday-keka-runtime:1.0.0",
+      image_reference: "ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest",
     });
   });
 

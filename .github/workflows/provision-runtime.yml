@@ -1,16 +1,18 @@
 name: Provision connector runtime
 
+# Temporary POC contract: the database-polling worker will replace these legacy inputs
+# with sync_entities.id / SYNC_ENTITY_ID when that worker is implemented.
 run-name: Provision ${{ inputs.integration_id }} using ${{ inputs.image_reference }}
 
 on:
   workflow_dispatch:
     inputs:
       integration_id:
-        description: Integration identifier
+        description: Legacy POC integration identifier
         required: true
         type: string
       tenant_id:
-        description: Tenant identifier
+        description: Legacy POC tenant identifier
         required: true
         type: string
       source_connector:
@@ -22,7 +24,7 @@ on:
         required: true
         type: string
       sync_mode:
-        description: Sync mode
+        description: Legacy POC sync mode
         required: true
         type: string
       image_reference:

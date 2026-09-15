@@ -12,7 +12,7 @@ if (process.env.RUN_GITHUB_INTEGRATION_TESTS?.toLowerCase() !== "true") {
   const result = await trigger.trigger({
     integrationId: `node-live-${suffix}`,
     tenantId: "tenant-abc",
-    sourceConnector: "workday",
+    sourceConnector: "connectwise",
     destinationConnector: "keka",
     syncMode: "ONE_TIME",
     imageReference: process.env.GITHUB_INTEGRATION_TEST_IMAGE ?? "hello-world:latest",
