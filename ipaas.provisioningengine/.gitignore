@@ -1,0 +1,17 @@
+# Visual Studio and .NET artifacts retained from other branches
+.vs/
+bin/
+obj/
+
+# Node.js
+node_modules/
+dist/
+dist-tests/
+coverage/
+*.log
+
+# Local environment overrides
+.env
+.env.*
+!.env.example
+

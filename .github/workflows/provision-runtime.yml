@@ -1,0 +1,170 @@
+name: Provision connector runtime
+
+# Temporary POC contract: the database-polling worker will replace these legacy inputs
+# with sync_entities.id / SYNC_ENTITY_ID when that worker is implemented.
+run-name: Provision ${{ inputs.integration_id }} using ${{ inputs.image_reference }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      integration_id:
+        description: Legacy POC integration identifier
+        required: true
+        type: string
+      tenant_id:
+        description: Legacy POC tenant identifier
+        required: true
+        type: string
+      source_connector:
+        description: Source connector
+        required: true
+        type: string
+      destination_connector:
+        description: Destination connector
+        required: true
+        type: string
+      sync_mode:
+        description: Legacy POC sync mode
+        required: true
+        type: string
+      image_reference:
+        description: Approved runtime image reference
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  provision-runtime:
+    runs-on: [self-hosted, Windows]
+    env:
+      INTEGRATION_ID: ${{ inputs.integration_id }}
+      TENANT_ID: ${{ inputs.tenant_id }}
+      SOURCE_CONNECTOR: ${{ inputs.source_connector }}
+      DESTINATION_CONNECTOR: ${{ inputs.destination_connector }}
+      SYNC_MODE: ${{ inputs.sync_mode }}
+      IMAGE_REFERENCE: ${{ inputs.image_reference }}
+    steps:
+      - name: Validate deployment request
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $requiredVariables = @(
+            'INTEGRATION_ID',
+            'TENANT_ID',
+            'SOURCE_CONNECTOR',
+            'DESTINATION_CONNECTOR',
+            'SYNC_MODE',
+            'IMAGE_REFERENCE'
+          )
+
+          foreach ($variable in $requiredVariables) {
+            $value = [Environment]::GetEnvironmentVariable($variable)
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              throw "Missing required input: $variable"
+            }
+          }
+
+          $normalizedIntegrationId = $env:INTEGRATION_ID.ToLowerInvariant() -replace '[^a-z0-9_.-]', '-'
+          $normalizedIntegrationId = $normalizedIntegrationId.Trim('-', '_', '.')
+          if ([string]::IsNullOrWhiteSpace($normalizedIntegrationId)) {
+            throw 'Integration id does not contain characters valid for a Docker container name.'
+          }
+
+          $containerName = "ipaas-$normalizedIntegrationId"
+          "CONTAINER_NAME=$containerName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          Write-Output 'Provisioning request accepted'
+          Write-Output "integration_id=$env:INTEGRATION_ID"
+          Write-Output "tenant_id=$env:TENANT_ID"
+          Write-Output "source_connector=$env:SOURCE_CONNECTOR"
+          Write-Output "destination_connector=$env:DESTINATION_CONNECTOR"
+          Write-Output "sync_mode=$env:SYNC_MODE"
+          Write-Output "image_reference=$env:IMAGE_REFERENCE"
+          Write-Output "container_name=$containerName"
+
+      - name: Verify Docker availability
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          docker version
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Docker CLI or Docker Engine is not available to the self-hosted runner.'
+          }
+
+      - name: Ensure runtime image is available
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          docker image inspect $env:IMAGE_REFERENCE *> $null
+          if ($LASTEXITCODE -ne 0) {
+            docker pull $env:IMAGE_REFERENCE
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to pull runtime image '$env:IMAGE_REFERENCE'."
+            }
+          } else {
+            Write-Output "Using local image $env:IMAGE_REFERENCE"
+          }
+
+      - name: Remove previous POC container with the same name
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $existingContainerId = docker ps -aq --filter "name=^/$env:CONTAINER_NAME$"
+          if ($existingContainerId) {
+            Write-Output "Removing previous POC container $existingContainerId"
+            docker rm -f $existingContainerId
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to remove previous POC container '$env:CONTAINER_NAME'."
+            }
+          }
+
+      - name: Create and start runtime container
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $containerId = docker create `
+            --name $env:CONTAINER_NAME `
+            --env "INTEGRATION_ID=$env:INTEGRATION_ID" `
+            --env "TENANT_ID=$env:TENANT_ID" `
+            --env "SOURCE_CONNECTOR=$env:SOURCE_CONNECTOR" `
+            --env "DESTINATION_CONNECTOR=$env:DESTINATION_CONNECTOR" `
+            --env "SYNC_MODE=$env:SYNC_MODE" `
+            $env:IMAGE_REFERENCE
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($containerId)) {
+            throw "Failed to create container '$env:CONTAINER_NAME'."
+          }
+
+          $containerId = $containerId.Trim()
+          "CONTAINER_ID=$containerId" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          docker start $containerId
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to start container '$containerId'."
+          }
+
+      - name: Inspect runtime container
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Start-Sleep -Seconds 2
+
+          docker ps -a --filter "id=$env:CONTAINER_ID"
+          docker inspect $env:CONTAINER_ID --format 'id={{.Id}} name={{.Name}} image={{.Config.Image}} status={{.State.Status}}'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to inspect container '$env:CONTAINER_ID'."
+          }
+
+      - name: Show runtime container logs
+        shell: powershell
+        run: |
+          docker logs $env:CONTAINER_ID
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Logs are not currently available for container '$env:CONTAINER_ID'."
+          }

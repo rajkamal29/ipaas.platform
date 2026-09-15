@@ -1,4 +1,5 @@
 node_modules
+.vs
 .git
 .env
 .env.example
