@@ -1,4 +1,5 @@
 node_modules/
+.vs
 .env
 *.log
 npm-debug.log*
