@@ -1,0 +1,128 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a [routerLink]="paths.list">Tenants</a>
+  @if (facade.context.state(); as state) {
+    @if (state.status === 'ready') {
+      <a [routerLink]="paths.detail(state.data.tenant.id)">{{ tenantLabel(state.data.tenant) }}</a>
+      <a [routerLink]="paths.request(state.data.tenant.id, state.data.request.id)">Sync request</a>
+    }
+  }
+  <span aria-current="page">Add sync entity</span>
+</nav>
+<header class="page-header">
+  <p class="eyebrow">Sync configuration</p>
+  <h1>Add sync entity</h1>
+  <p class="page-description">
+    Choose an entity and its sync schedule. Saving creates configuration only.
+  </p>
+</header>
+@let state = facade.context.state();
+@switch (state.status) {
+  @case ('loading') {
+    <p role="status">Loading sync request…</p>
+  }
+  @case ('error') {
+    <app-feedback-panel [feedback]="state.error" [allowRetry]="true" (retry)="retry()" />
+  }
+  @case ('ready') {
+    <form
+      class="panel configuration-form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      [attr.aria-busy]="facade.submission.saving()"
+    >
+      @if (facade.submission.error(); as error) {
+        <app-feedback-panel [feedback]="error" />
+      }
+      @if (attempted() && form.invalid) {
+        <p class="field-error" role="alert">Check the entity and schedule below.</p>
+      }
+      <fieldset [disabled]="facade.submission.saving()">
+        <legend class="visually-hidden">Entity and schedule</legend>
+        <div class="form-field">
+          <label for="entity-type">Entity</label>
+          <select
+            id="entity-type"
+            formControlName="entity"
+            aria-required="true"
+            aria-describedby="entity-hint entity-errors"
+            [attr.aria-invalid]="attempted() && fieldErrors(form, 'entity').length > 0"
+          >
+            <option [ngValue]="null" disabled>Select an entity</option>
+            @for (entity of entities; track entity) {
+              <option [ngValue]="entity" [disabled]="isConfigured(entity)">
+                {{ entityLabels[entity] }}{{ isConfigured(entity) ? ' (already configured)' : '' }}
+              </option>
+            }
+          </select>
+          <p id="entity-hint" class="field-hint">
+            Each entity type can be configured once per sync request.
+          </p>
+          <div id="entity-errors">
+            @if (attempted()) {
+              @for (message of fieldErrors(form, 'entity'); track message) {
+                <p class="field-error">{{ message }}</p>
+              }
+            }
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="sync-type">Sync type</label>
+          <select
+            id="sync-type"
+            formControlName="syncType"
+            aria-required="true"
+            aria-describedby="sync-type-errors"
+            [attr.aria-invalid]="attempted() && fieldErrors(form, 'syncType').length > 0"
+          >
+            @for (type of syncTypeOptions; track type) {
+              <option [ngValue]="type">
+                {{ syncTypeLabels[type]
+                }}{{ type === syncTypes.realTime ? ' — Not yet supported' : '' }}
+              </option>
+            }
+          </select>
+          <div id="sync-type-errors">
+            @if (attempted()) {
+              @for (message of fieldErrors(form, 'syncType'); track message) {
+                <p class="field-error">{{ message }}</p>
+              }
+            }
+          </div>
+        </div>
+        @if (form.controls.syncType.value === syncTypes.interval) {
+          <div class="form-field">
+            <label for="interval-seconds">Interval seconds</label>
+            <input
+              id="interval-seconds"
+              type="number"
+              formControlName="intervalSeconds"
+              [min]="minInterval"
+              step="1"
+              aria-required="true"
+              aria-describedby="interval-hint interval-errors"
+              [attr.aria-invalid]="attempted() && fieldErrors(form, 'intervalSeconds').length > 0"
+            />
+            <p id="interval-hint" class="field-hint">
+              Enter a whole number of seconds, at least {{ minInterval }}.
+            </p>
+            <div id="interval-errors">
+              @if (attempted()) {
+                @for (message of fieldErrors(form, 'intervalSeconds'); track message) {
+                  <p class="field-error">{{ message }}</p>
+                }
+              }
+            </div>
+          </div>
+        }
+        @if (form.controls.syncType.value === syncTypes.realTime) {
+          <p class="notice notice--warning" role="status">{{ realTimeNotice }}</p>
+        }
+        <div class="form-actions">
+          <button class="button-primary" type="submit">
+            {{ facade.submission.saving() ? 'Saving…' : 'Add sync entity' }}</button
+          ><a [routerLink]="paths.request(state.data.tenant.id, state.data.request.id)">Cancel</a>
+        </div>
+      </fieldset>
+    </form>
+  }
+}

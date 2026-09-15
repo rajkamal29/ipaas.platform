@@ -1,12 +1,10 @@
 @use './styles/tokens';
+@use './styles/configuration';
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-}
-html {
-  min-width: 20rem;
 }
 body {
   margin: 0;
