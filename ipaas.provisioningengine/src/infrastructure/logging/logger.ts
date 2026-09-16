@@ -17,6 +17,7 @@ const allowedContext = new Set([
   "uncertain",
   "signal",
   "tableCount",
+  "claimedCount",
 ]);
 export class Logger implements LoggerPort {
   constructor(
