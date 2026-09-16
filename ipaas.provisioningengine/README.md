@@ -1,7 +1,7 @@
 # iPaaS Provisioning Engine
 
-Issue #18 establishes Clean Architecture and the production entity runtime contract.
-**Database polling, automatic claiming, and recurring scheduling are not implemented.**
+Issue #19 adds database polling to the #18 Clean Architecture and entity runtime contract.
+**Recurring scheduling and stale provisioning recovery remain out of scope.**
 
 ## Dependency direction
 
@@ -30,7 +30,7 @@ src/
     runtime-images/       Approved configuration-backed image resolution
     logging/              Structured JSON output
   config/                 All environment reads and validation
-  workers/                Explicit work submission, in-flight deduplication/draining
+  workers/                Polling, bounded execution, explicit submission and draining
   scripts/                Opt-in live verification and schema/image checks
   bootstrap.ts            Composition root and resource ownership
   index.ts                Explicit invocation and signal handling
@@ -68,16 +68,16 @@ Execution results and cursors in sync_state are separate from provisioning lifec
 1. Validates identity and loads the entity.
 2. Returns without dispatch for active/completed entities.
 3. Requires an explicitly claimed provisioning row. Submitted/failed rows are not
-   automatically claimed or retried.
+   claimed or retried by the use case itself.
 4. Loads its parent request, rejects real_time, and resolves an approved image from
    source/target.
 5. Invokes the runtime port with syncEntityId and the schema schedule.
 6. Changes provisioning to active only for a confirmed recurring-ready result.
 7. Re-reads status to preserve concurrent orchestration outcomes.
 
-The future #19 worker should claim rows atomically before calling this use case.
-The repository provides conditional status updates without exposing SQL in its port.
-This issue does not implement SELECT FOR UPDATE SKIP LOCKED or an automatic claim loop.
+The polling worker claims rows atomically before calling this use case. A dedicated
+SyncEntityClaimRepository port returns committed UUIDs; SQL and transaction ownership
+remain in PostgreSQL infrastructure.
 
 One-time launch/dispatch does not set completed. The existing Orchestration Engine owns
 completed/failed after execution. A zero container exit code is not a business-success
@@ -117,7 +117,7 @@ automatically. Dead or other unresolved states also require reconciliation. A cr
 crash after creation may leave a created container that requires operator intervention. Identity/image/network/environment mismatches require operator reconciliation;
 nothing is deleted automatically. Reusing a completed container is not a fresh execution
 attempt. Explicit retries after failure require an externally coordinated reset/cleanup;
-#19 must define that policy before enabling automatic retries.
+A separate reconciliation design must define that policy before enabling automatic retries.
 
 GitHub dispatch sends only sync_entity_id and image_reference. HTTP acceptance is not
 runtime readiness. Repeated dispatch may queue another workflow; workflow concurrency
@@ -184,7 +184,8 @@ npm run db:verify-schema
 Tests use Node's built-in runner and fakes; no PostgreSQL, Docker, GitHub, or environment
 is needed for application tests. Infrastructure tests cover row mapping, conditional SQL,
 Docker reuse/conflicts, GitHub payloads/errors, image resolution, and configuration.
-Architecture tests prohibit outward dependencies, legacy identity, and polling.
+Architecture tests prohibit outward dependencies and legacy identity, and confine
+claim SQL and polling timers to infrastructure/worker layers.
 
 ## Local database and invocation
 
@@ -205,8 +206,9 @@ Schema verification needs only DATABASE_URL and optional LOG_LEVEL. No credentia
 are printed. Provisioning additionally needs the runtime configuration above.
 
 `npm start` validates startup and submits SYNC_ENTITY_ID if supplied. Without it, the
-process verifies schema, reports that polling is absent, closes resources, and exits.
-The worker has no heartbeat or polling timer. For an explicit containerized invocation,
+process verifies schema and polls until SIGINT/SIGTERM. With it, only the explicit
+entity is processed; it must already be provisioning. Manual mode never starts polling.
+For a containerized invocation,
 use `docker compose run --rm provisioning-engine`; the Compose service does not restart.
 
 SIGINT/SIGTERM stop admission and drain pending work before closing the pool. Repeated
@@ -224,5 +226,58 @@ are independent workloads and are not stopped by shutting down the provisioning 
 - Former Docker/GitHub classes retain their useful behavior behind the new runtime port.
   Arbitrary container log retrieval is no longer part of the provisioning application port.
 
-Do not enable automated retries, multiple runtime daemons, or interval activation before
-the corresponding claim/reconciliation/scheduler policies are implemented and verified.
+Do not enable automatic retries, multiple runtime daemons, or interval activation before
+the corresponding reconciliation/scheduler policies are implemented and verified.
+
+## Database polling and atomic claims
+
+Without SYNC_ENTITY_ID, the worker claims a bounded batch, drains it, then waits the
+configured interval. Cycles never overlap. Empty batches produce no heartbeat logs.
+Claim failures log safe dependency metadata and wait for the next cycle.
+
+The claim repository begins a short transaction on a pooled connection. A CTE selects
+only public.sync_entities rows with status='submitted', ordered by created_at and id,
+using LIMIT $1 FOR UPDATE SKIP LOCKED. It updates them to provisioning, refreshes
+updated_at and returns ordered UUIDs. COMMIT completes before any Docker/GitHub work.
+Failures roll back and clients are always released; rollback failure discards the client.
+A lost commit acknowledgement is uncertain: any committed provisioning rows remain for
+reconciliation.
+
+Row locks prevent competing instances from claiming the same submitted row. Others skip
+locked rows; after commit, provisioning rows no longer match. Batch limits bound local
+admission and concurrency bounds local execution. This is not an exactly-once runtime
+execution guarantee.
+
+| Setting | Default | Allowed range |
+| --- | --- | --- |
+| PROVISIONING_POLL_INTERVAL_MS | 120000 (2 minutes) | 1000–300000 |
+| PROVISIONING_POLL_BATCH_SIZE | 10 | 1–100 |
+| PROVISIONING_MAX_CONCURRENCY | 5 | 1–100 |
+
+All submitted sync types are claimed. one_time hands off to orchestration, which owns
+completed/failed execution status. The use case rejects real_time; current Docker/GitHub
+adapters reject interval because they install no recurrence. Unsupported claims
+conditionally become failed with typed errors, rather than being rediscovered forever.
+One entity failure does not stop the batch. There is no automatic requeue, stale
+provisioning reclamation, recurring scheduler, or real-time execution.
+
+SIGINT/SIGTERM close admission, interrupt idle delay, wait for an active claim and drain
+every committed item, including queued items in that batch, before closing the pool.
+Shutdown is idempotent. Configure supervisor/Compose termination grace to cover the
+selected batch and runtime timeouts. Forced termination or crashes may leave provisioning
+rows requiring operator reconciliation.
+
+The predicate/order are index-friendly and locks are per row; no table-wide locks or
+runtime calls are used inside the transaction. Current migrations do not provide a
+dedicated submitted/created_at/id index. Monitor query plans as volume grows; any future
+index belongs to ipaas.infra.
+
+### Live claim integration test
+
+With the existing shared local infra environment loaded, set RUN_LIVE_VERIFICATION=true
+and run npm test. The gated test uses the actual shared schema and disposable tenant
+fixtures, proves disjoint claims while one transaction holds its locks, and checks
+ordering, limits, statuses/types and rollback. It launches no runtime containers.
+Existing submitted rows are temporarily locked out of test claims; any non-fixture
+claim is rejected before commit. Run on the local development DB with other workers
+stopped. Fixtures are removed by tenant ID afterward. No schema/database is created.
