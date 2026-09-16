@@ -1,0 +1,100 @@
+name: Deploy Provisioning Engine
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      image_digest:
+        required: true
+        type: string
+    secrets:
+      PLATFORM_RUNTIME_DATABASE_URL:
+        required: true
+      PLATFORM_ENCRYPTION_MASTER_KEY:
+        required: true
+      PROVISIONING_GITHUB_DISPATCH_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full SHA of a previously verified dev publication (rollback/redeploy)
+        required: true
+        type: string
+      image_tag:
+        description: Full GHCR dev-<short-sha> tag for that publication
+        required: true
+        type: string
+      image_digest:
+        description: Published sha256 digest for that exact release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: provisioning-engine-dev-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.ref == 'refs/heads/dev' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Windows]
+    environment: provisioning-dev
+    timeout-minutes: 240
+    steps:
+      - name: Checkout trusted deployment definition
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Isolate registry credentials
+        shell: powershell
+        run: |
+          $configPath = Join-Path $env:RUNNER_TEMP "ipaas-cd-docker-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          "DOCKER_CONFIG=$configPath" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Authenticate image pull
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Deploy and verify long-running service
+        shell: powershell
+        env:
+          DEPLOY_SHA: ${{ inputs.source_sha }}
+          DEPLOY_IMAGE_TAG: ${{ inputs.image_tag }}
+          DEPLOY_IMAGE_DIGEST: ${{ inputs.image_digest }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
+          RUNTIME_DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
+          ENCRYPTION_MASTER_KEY: ${{ secrets.PLATFORM_ENCRYPTION_MASTER_KEY }}
+          PROVISIONING_GITHUB_DISPATCH_TOKEN: ${{ secrets.PROVISIONING_GITHUB_DISPATCH_TOKEN }}
+          RUNTIME_IMAGE_MAPPINGS_JSON: ${{ vars.RUNTIME_IMAGE_MAPPINGS_JSON }}
+          GITHUB_ACTIONS_OWNER: ${{ github.repository_owner }}
+          GITHUB_ACTIONS_REPOSITORY: ${{ github.event.repository.name }}
+          LOG_LEVEL: ${{ vars.PROVISIONING_LOG_LEVEL || 'info' }}
+          PROVISIONING_POLL_INTERVAL_MS: ${{ vars.PROVISIONING_POLL_INTERVAL_MS || '120000' }}
+          PROVISIONING_POLL_BATCH_SIZE: ${{ vars.PROVISIONING_POLL_BATCH_SIZE || '10' }}
+          PROVISIONING_MAX_CONCURRENCY: ${{ vars.PROVISIONING_MAX_CONCURRENCY || '5' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $metadataPath = [IO.Path]::GetTempFileName()
+          try {
+            @{ sourceSha = $env:DEPLOY_SHA; image = $env:DEPLOY_IMAGE_TAG; digest = $env:DEPLOY_IMAGE_DIGEST } |
+              ConvertTo-Json | Set-Content -LiteralPath $metadataPath
+            & ./ipaas.provisioningengine/deploy/deploy.ps1 -MetadataPath $metadataPath -ExpectedSha $env:DEPLOY_SHA -RepositoryOwner $env:REPOSITORY_OWNER
+          } finally {
+            Remove-Item -LiteralPath $metadataPath -Force
+          }
