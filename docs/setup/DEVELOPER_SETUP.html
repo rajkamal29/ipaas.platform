@@ -452,11 +452,6 @@ code {
 <td><code>lib/logger.js</code></td>
 <td>Leave unset locally — that's what gives you readable colorized logs (<code>pino-pretty</code>). Only set to <code>production</code> inside the container</td>
 </tr>
-<tr class="odd">
-<td><code>SYNC_ENTITY_ID</code></td>
-<td><code>lib/orchestration/run.js</code></td>
-<td>Not a fixed setting — this is which entity's sync you're running. Leave blank in <code>.env</code>; set it per-run (Step 8). Scoped to one <code>sync_entities</code> row, not a whole <code>sync_requests</code> row — see <code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code> §1</td>
-</tr>
 </tbody>
 </table>
 <p>This file is gitignored too — same rule as <code>ipaas.infra/.env</code>.</p>
@@ -476,7 +471,7 @@ code {
 <p><code>\q</code> to exit psql, then back to <code>ipaas.orchestrationengine</code> for the rest of this section:</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true"></a><span class="fu">cd</span> ../ipaas.<span class="fu">orchestrationengine</span></span></code></pre></div>
 <p>Steps 7 (from here on)–9 all assume that directory.</p>
-<p>Keep the <code>sync_entity_id</code> this prints out — that's what the engine actually takes as input (Step 8), not <code>sync_request_id</code>.</p>
+<p>The entrypoint discovers this tenant and entity directly from Postgres.</p>
 <p>Then seed mock credentials pointing at the mock server (no real ConnectWise/Keka account needed):</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true"></a>node scripts/seed-mock-credentials.<span class="fu">js</span> &lt;tenant_id&gt;</span></code></pre></div>
 <p>If you want this tenant to use its <strong>own</strong> mapping instead of the global default, also run <code>node scripts/seed-mock-mapping.js &lt;tenant_id&gt;</code> — otherwise skip it and it'll inherit what you seeded in Step 6.</p>
@@ -484,12 +479,11 @@ code {
 <p>Start the mock server in its own terminal (leave it running):</p>
 <div class="sourceCode" id="cb14"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true"></a>node scripts/mock-server.<span class="fu">js</span></span></code></pre></div>
 <p>Then run the actual entrypoint — this is the real code, not a test harness:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true"></a><span class="va">$env</span>:SYNC_ENTITY_ID=<span class="st">&quot;&lt;sync_entity_id&gt;&quot;</span>; node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
-<p>You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update, then the process exits — every invocation runs exactly one cycle and exits, regardless of <code>sync_type</code> (see <code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code> §7 for why). <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true"></a>node lib/orchestration/run.<span class="fu">js</span></span></code></pre></div>
+<p>You should see structured logs for the full pipeline for every configured sync entity: fetch → inbound mapping → canonical validation → outbound mapping → write → <code>sync_state</code> update, then the process exits — every invocation runs exactly one cycle and exits, regardless of <code>sync_type</code> (see <code>ipaas.orchestrationengine/docs/LLD-orchestration-engine.md</code> §7 for why). <code>ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md</code> has the expected output in detail, including what a second run looks like (self-healing <code>failed</code>/<code>retry</code> reconciliation).</p>
 <h3 id="9-building-and-running-the-container-image">9. Building and running the container image</h3>
 <div class="sourceCode" id="cb16"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true"></a>docker build -t ipaas-orchestration-engine:local .</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true"></a>docker run --rm `</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true"></a>  -e SYNC_ENTITY_ID=&lt;sync_entity_id&gt; `</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true"></a>  -e DATABASE_URL=&lt;same value as your .<span class="fu">env</span>, but with host.<span class="fu">docker</span>.<span class="fu">internal</span> instead of localhost&gt; `</span>
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true"></a>  -e ENCRYPTION_MASTER_KEY=&lt;same as your .<span class="fu">env</span>&gt; `</span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true"></a>  ipaas-orchestration-engine:local</span></code></pre></div>
@@ -507,9 +501,9 @@ code {
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>Debug: run.js (one sync_entities row)</strong></td>
+<td><strong>Debug: run.js (all tenants/entities)</strong></td>
 <td>The real entrypoint, <code>lib/orchestration/run.js</code></td>
-<td>Prompts for a <code>sync_entity_id</code> each time you launch it — paste the one from Step 7. Reads the rest of its config from <code>.env</code> via <code>envFile</code>, same as running it from the terminal.</td>
+<td>Reads platform configuration from <code>.env</code>, discovers all tenants and sync entities from Postgres, and runs one sweep.</td>
 </tr>
 <tr class="even">
 <td><strong>Debug: test-orchestration-bootstrap.js</strong></td>
@@ -579,8 +573,6 @@ code {
 <li><strong>Running <code>npm run migrate:up</code> before Postgres is healthy</strong> — <code>docker compose ps</code> first (from <code>ipaas.infra</code>); the healthcheck takes a few seconds after <code>up -d</code>.</li>
 <li><strong>Editing <code>ipaas.infra/.env</code>'s Postgres password after the container's already initialized</strong> — Postgres only reads <code>POSTGRES_PASSWORD</code> on first init of an empty volume. If you change it later, <code>docker compose down -v &amp;&amp; docker compose up -d</code> (from <code>ipaas.infra</code>) to reinitialize (this wipes local data — fine in dev, never do this against anything real).</li>
 <li><strong>Forgetting <code>ENCRYPTION_MASTER_KEY</code></strong> in <code>ipaas.orchestrationengine/.env</code> — <code>lib/crypto.js</code> throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying <code>.env.example</code> quickly.</li>
-<li><strong>Expecting <code>SYNC_ENTITY_ID</code> to live in <code>.env</code> permanently</strong> — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.</li>
-<li><strong>Using the <code>sync_request_id</code> instead of the <code>sync_entity_id</code></strong> — easy to grab the wrong one from the SQL output in Step 7, since both look like plain UUIDs. The engine takes <code>SYNC_ENTITY_ID</code> only.</li>
 <li><strong>Letting the two <code>.env</code> files' Postgres values drift</strong> — <code>ipaas.infra/.env</code> and <code>ipaas.orchestrationengine/.env</code> both describe the same Postgres instance from two sides (the container's init vs. the app's connection string). Change one, change the other.</li>
 <li><strong>Running <code>npm install</code> in <code>ipaas.orchestrationengine</code> before setting <code>NODE_AUTH_TOKEN</code></strong> — fails resolving <code>@rajkamal29/adapter-connectwise</code>/<code>adapter-keka</code> with a 401/404 from <code>npm.pkg.github.com</code>, not an obviously auth-related error. Set the token (Part 2 intro) and restart your terminal first.</li>
 <li><strong>Not realizing <code>providers:link</code>/<code>providers:unlink</code> silently do nothing if the other one was never run</strong> — <code>providers:unlink</code> just deletes <code>node_modules/@rajkamal29/*</code> and reinstalls; if you were already on the published package, that's a harmless no-op reinstall, not a sign something's wrong.</li>

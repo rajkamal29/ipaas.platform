@@ -8,12 +8,9 @@
 # and interval sync types only; real_time is a separate, not-yet-built
 # engine).
 #
-# One container invocation is scoped to exactly one sync_entities row — the
-# ONLY tenant-scoped input is the SYNC_ENTITY_ID env var at runtime.
-# Everything else (tenant, source/target provider, credentials, mapping
-# profiles) is loaded from Postgres from that one ID. Every invocation runs
-# its one cycle once and exits — timing (when to invoke this again) is the
-# Provisioning Engine / infra layer's job, not this image's. See
+# One container invocation loads all tenants and their sync_entities rows
+# from Postgres. Tenant, source/target provider, credentials, mapping
+# profiles, and sync entity IDs all come from the database. See
 # docs/LLD-orchestration-engine.md ("Containerization") for the full design
 # and for the platform-secret env vars (DATABASE_URL, ENCRYPTION_MASTER_KEY)
 # this image needs at runtime but never bakes in.

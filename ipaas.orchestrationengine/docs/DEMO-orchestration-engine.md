@@ -34,7 +34,7 @@ A repeatable, no-real-credentials-needed demo of the Orchestration Engine runnin
 
    SELECT :'tenant_id' AS tenant_id, :'sync_request_id' AS sync_request_id, :'sync_entity_id' AS sync_entity_id;
    ```
-   Note down all three IDs — the engine itself only ever needs `sync_entity_id` (below), but `tenant_id` is needed for the credential/mapping seed scripts in steps 2–3.
+   The engine discovers both the tenant and sync entity IDs from Postgres.
 
 2. Seed fake credentials pointing at the mock server (needs the mock server already running — see step 1 below):
    ```
@@ -54,18 +54,18 @@ node scripts/mock-server.js
 ```
 Fakes 5 ConnectWise "companies" and a Keka write endpoint rigged to demonstrate specific outcomes (see script comments): 3 always succeed, 1 always fails with a data-shape rejection (HTTP 400), 1 fails once with a rate limit (HTTP 429) then succeeds.
 
-**2. Run the actual engine entrypoint** (PowerShell — note the `$env:` syntax, the Unix `VAR=value command` form won't work in this shell). Use the `sync_entity_id` you noted above, not the `sync_request_id`:
+**2. Run the actual engine entrypoint:**
 ```powershell
-$env:SYNC_ENTITY_ID="<sync_entity_id>"; node lib/orchestration/run.js
+node lib/orchestration/run.js
 ```
 
-This is the real `lib/orchestration/run.js` — the same entrypoint a container would run in production, with `SYNC_ENTITY_ID` standing in for what the (not-yet-built) Provisioning Engine will eventually pass in automatically. Everything else — tenant, source, target, credentials, mapping profiles — is loaded from Postgres using just that one ID. Every invocation runs one cycle and exits; there's no "stay alive" behavior to demonstrate anymore even if you switch `client` to `interval` — that would just mean you'd normally expect something external (a scheduler) to invoke this same command again later, not that this one run behaves differently.
+This is the real `lib/orchestration/run.js` used by the container. It loads every tenant from Postgres, loads each tenant's sync entities through `sync_requests`, and processes every returned entity using the database-provided `sync_entity_id`. Every invocation runs one cycle and exits; there's no "stay alive" behavior to demonstrate anymore even if you switch `client` to `interval` — that would just mean you'd normally expect something external (a scheduler) to invoke this same command again later, not that this one run behaves differently.
 
 **Expected output, run 1:** logs show the full pipeline — fetch, real mapping (inbound → canonical → outbound), schema validation, write, `sync_state` update. 5 records fetched; 3 written successfully; `id: 2` lands in `sync_state.failed` (data-shape rejection — HTTP 400, classified as `validation`); `id: 3` lands in `sync_state.retry` (HTTP 429, classified as `rate_limit`). The process exits cleanly once done — every invocation does now, regardless of `sync_type`.
 
 **3. Run it again, same command, mock server left untouched:**
 ```powershell
-$env:SYNC_ENTITY_ID="<sync_entity_id>"; node lib/orchestration/run.js
+node lib/orchestration/run.js
 ```
 
 **Expected output, run 2:** `id: 2` is still in `failed` (it always fails — the list is genuinely self-maintaining, re-checked every run, not just cleared blindly). `id: 3` has dropped out of `retry` entirely — it was re-fetched by ID and re-written successfully. This is the reconciliation logic actually running, not the happy path.
