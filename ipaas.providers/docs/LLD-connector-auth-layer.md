@@ -26,6 +26,7 @@ Fetches and writes Client/Company data between ConnectWise and Keka, and securel
 | `authenticate(connectorId)` | Ensure a valid token is available — for Keka, calls the token endpoint if the cached token has expired; for ConnectWise, a no-op |
 | `fetch(entity, { pageNumber, pageSize, modifiedSince })` | Pull one page of records for an entity. Returns a **normalized shape regardless of which system it's calling**: `{ records: [...], pageNumber, totalPages, hasMore }`. The adapter is responsible for translating each system's own pagination mechanism into this shape — see §7. |
 | `write(entity, record)` | Push a single target-shaped record to the system |
+| `update(entity, id, record)` | Replace a single target-shaped record at the provider's entity/id endpoint |
 
 Page-aware, not "fetch everything internally" — confirmed as the right call now that both systems report a `totalPages`/page-count, meaning the Orchestration Engine can iterate pages as separate, checkpointed steps against `sync_state` (bounded execution time, resumable if one page fails) rather than one large blocking call.
 

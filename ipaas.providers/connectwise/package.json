@@ -1,7 +1,7 @@
 {
   "name": "@rajkamal29/adapter-connectwise",
   "version": "0.1.0",
-  "description": "ConnectWise Manage adapter — authenticate / fetch / fetchByIds / write",
+  "description": "ConnectWise Manage adapter — authenticate / fetch / fetchByIds / write / update",
   "main": "index.js",
   "repository": {
     "type": "git",
