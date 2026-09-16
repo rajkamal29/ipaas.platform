@@ -8,15 +8,15 @@ Related docs: `ipaas.infra/docs/migrations/README.md` (full schema reference), `
 
 ---
 
-## 1. Scope and container model
+## 1. Scope and orchestration model
 
 **Redesigned 2026-09-08.** This is the batch/polling engine — `one_time` and `interval` sync types only. `real_time` is explicitly out of scope, handled by a separate, not-yet-built webhook/queue-driven engine (see the end of this section).
 
-One container **invocation** is scoped to exactly **one `sync_entities` row** — not a tenant, not a whole `sync_requests` row, not multiple entities at once. This changed from an earlier design that scoped a container to a whole `sync_requests` row and ran every entity under it concurrently with its own internal timers. That design was walked back because entities under the same request can have independent cadences (Client on a 5-minute interval, Timesheet as a one-time backfill, under the same ConnectWise→Keka pairing) — timing that fine-grained has to be driven per-entity, not per-request.
+One process **invocation** performs a complete database-driven sweep. `run.js` loads every row from `tenants`, loads every corresponding `sync_entities` row through its parent `sync_requests` row, and calls the existing per-entity run policy once for each result. Tenants with no sync entities are logged and skipped; they do not stop later tenants from being processed.
 
-The only input an invocation needs is `SYNC_ENTITY_ID` (an env var). Everything else — tenant, source/target provider, credentials, mapping profiles — is loaded from Postgres via one JOIN back to the entity's parent `sync_requests` row. **Every invocation runs its entity's cycle exactly once, then exits.** There is no in-process scheduling, no long-lived loop, no "stay alive for recurring entities" behavior — that used to exist and was deliberately removed.
+The entrypoint no longer accepts `SYNC_ENTITY_ID` or any other tenant-scoped identifier from the environment. The entity ID used by logging, `sync_state`, terminal status updates, and the cycle itself is `sync_entities.id` returned by Postgres. The join to `sync_requests` supplies the tenant plus source/target providers, while credentials and mapping profiles continue to be resolved through their existing tenant-aware helpers.
 
-Deciding *when* to invoke the container — once for a `one_time` entity, repeatedly on a cadence for an `interval` entity matching `sync_entities.interval_seconds` — is entirely the Provisioning Engine / infra layer's job (a separate, platform-level component, not yet built, out of scope for this document). This engine does not create containers, does not decide when a tenant syncs, and does not manage its own lifecycle beyond the one cycle it's told to run.
+The process exits after all tenants and their entities have been visited. There is still no in-process timer or long-lived loop: deciding when to start another full sweep belongs to the deployment/scheduling layer. `schedule.js` remains a per-entity policy module despite its historical name.
 
 `real_time` entities should never be routed to this engine at all — infra routing them here is a mistake, and `schedule.js` throws rather than silently tolerating it (see §7). Event-driven sync belongs to a separate engine, designed around a long-lived webhook receiver or queue consumer instead of a run-once-and-exit container — a fundamentally different execution model that doesn't fit this one. That engine's design hasn't started.
 
@@ -25,7 +25,8 @@ Deciding *when* to invoke the container — once for a `one_time` entity, repeat
 ```
 lib/orchestration/
   run.js              entrypoint — what the container actually executes
-  bootstrap.js         loads one sync_entities row + its parent sync_requests row
+  bootstrap.js         loads all tenants and per-tenant sync entities joined to
+                        their parent sync_requests rows; shared mapping/query path
   adapter-registry.js  provider name -> adapter class lookup; loads credentials
                         and injects them into the adapter constructor (see §4)
   schedule.js           run-once policy: decides sync_entities.status per sync_type
@@ -49,20 +50,23 @@ Provider adapters (`ConnectWiseAdapter`, `KekaAdapter`) are **no longer part of 
 
 ```
 run.js
-  -> loadSyncEntityRun(SYNC_ENTITY_ID)         [bootstrap.js — one JOIN, one entity]
-  -> await createAdapter(source, tenantId, log) [adapter-registry.js — loads
-  -> await createAdapter(target, tenantId, log)  credentials, injects them; async]
-  -> runEntityOnce(entityRow, ...)              [schedule.js]
-       one_time  -> runCycle() once -> sync_entities.status = completed|failed
-       interval  -> sync_entities.status = active (set before the attempt,
-                     left alone regardless of this run's outcome) -> runCycle() once
-       real_time -> throws — routing error, this engine doesn't handle it
+  -> loadAllTenants()
+  -> for each tenant
+       -> loadSyncEntityRunsForTenant(tenant.id) [bootstrap.js — JOIN through sync_requests]
+       -> no rows: log and continue
+       -> for each database row
+            -> createAdapter(source, tenantId, log) [loads tenant credentials]
+            -> createAdapter(target, tenantId, log)
+            -> runEntityOnce({ id: syncEntityId, ... }, ...) [schedule.js]
+                 one_time  -> runCycle() -> status = completed|failed
+                 interval  -> runCycle(); lifecycle status unchanged
+                 real_time -> throws — this engine does not handle it
   -> pool.end(); process.exit(0)   — unconditional, every invocation exits
 ```
 
-There is no branch on "stay alive" anymore — every invocation, regardless of `sync_type`, runs exactly one cycle and exits. Recurrence for `interval` entities comes entirely from being invoked again later by the Provisioning Engine / infra, not from anything inside this process.
+There is no branch on "stay alive". A process invocation runs one cycle for every entity returned during the sweep and then exits. A later invocation starts a fresh database read, so newly added tenants and entities are discovered automatically.
 
-`runCycle` (per entity, per invocation) does the actual work:
+`runCycle` (once per entity in the current sweep) does the actual work:
 
 ```
 loadOrCreateSyncState(entityId)
@@ -188,11 +192,11 @@ One `sync_state` row per `sync_entities` row (1:1). Two independent failure list
 
 | `sync_type` | Behavior |
 |---|---|
-| `one_time` | Runs `runCycle` once, sets `sync_entities.status` to `completed` or `failed`. Terminal — this entity is never invoked again by design. This is the **one** case where this engine still writes `sync_entities.status`, because the terminal outcome is genuinely only knowable here, after the cycle runs. |
+| `one_time` | Runs `runCycle` once for the current sweep, then sets `sync_entities.status` to `completed` or `failed`. This is the **one** case where this engine writes `sync_entities.status`, because the terminal outcome is genuinely only knowable after the cycle runs. The discovery query currently returns every configured entity; lifecycle filtering or removal of completed one-time rows must be handled outside this per-entity policy if repeated sweeps should exclude them. |
 | `interval` | Runs `runCycle` once. **Does not touch `sync_entities.status` at all** — not before, not after, regardless of outcome. The run's actual result lives in `sync_state.last_run_status`/`last_error`, which is already the correct source of truth for "how did this run go." Whether the entity is `active` is a lifecycle fact owned by the Provisioning Engine (not yet built) — until that exists, nothing flips a freshly-inserted `interval` entity from `submitted` to `active` automatically; set it by hand via SQL when testing, same as every other manual step in today's intake path (creating the tenant/`sync_requests`/`sync_entities` rows themselves). |
 | `real_time` | Not handled — `runEntityOnce` throws immediately: `"Unsupported sync_type ... real_time entities belong to a separate engine, not this one."` Being invoked with a `real_time` entity is an infra routing bug, not a case to silently tolerate. |
 
-Every invocation of `run.js` exits after exactly one call to `runEntityOnce` — `pool.end()` and `process.exit(0)` run unconditionally, with no branch on `sync_type` at that layer at all (see §3). Recurrence lives entirely outside this codebase now.
+Every invocation of `run.js` exits after the tenant/entity loops finish — `pool.end()` and `process.exit(0)` run unconditionally, with no branch on `sync_type` at that layer (see §3). Each returned entity is passed to `runEntityOnce` using its database-provided ID.
 
 ## 8. Known-unverified surface
 
@@ -212,14 +216,13 @@ What **is** verified live: ConnectWise `client` fetch (pagination via `Link` hea
 
 **Docker build is currently broken** until the registry connection deferred by the repo split is set up: `npm ci` needs to resolve the two `@rajkamal29/*` packages from GitHub Packages' npm registry (`npm.pkg.github.com`), and neither has been published there yet. Locally this repo works around it with `npm link` against the sibling `ipaas.providers` folder (not usable inside a container build, which has no access to a sibling checkout). Before this image builds again: publish both adapter packages, then add an `.npmrc` (registry + auth token) step to both this Dockerfile and `.github/workflows/build-orchestration-engine.yml`.
 
-**Runtime inputs split into two categories, not one flat list of "env vars":**
+**Runtime inputs** are platform-level only:
 
-| Category | Vars | Set by |
-|---|---|---|
-| Tenant-scoped config | `SYNC_ENTITY_ID` | Provisioning Engine, one value per invocation — everything else about the tenant/pairing/entity is loaded from Postgres using this ID (§1). Changed from `SYNC_REQUEST_ID` on 2026-09-08 when container scope moved from a whole request to a single entity. |
-| Platform secrets | `DATABASE_URL`, `ENCRYPTION_MASTER_KEY` | Whatever deploys the container (Provisioning Engine or its own deployment layer) — never baked into the image, never tenant-specific |
+| Vars | Set by |
+|---|---|
+| `DATABASE_URL`, `ENCRYPTION_MASTER_KEY` | Whatever deploys the container — never baked into the image and never tenant-specific |
 
-This split was a deliberate decision, not an oversight: passing tenant credentials or broader tenant config as container env vars was considered and rejected earlier in this project specifically because credentials must stay encrypted in Postgres, looked up internally by `(tenantId, provider)` — never present in a container's env or `docker inspect` output. `SYNC_ENTITY_ID` alone is enough for the container to look up everything it needs.
+Tenant IDs, sync entity IDs, provider pairings, and entity configuration all come from Postgres during the sweep. Tenant credentials remain encrypted in Postgres and are looked up internally by `(tenantId, provider)`; they are never exposed through container environment variables or `docker inspect` output.
 
 **Found while wiring this up**: `pg` and `dotenv` were listed under `devDependencies` in `package.json`, but both are required unconditionally at runtime (`lib/db.js` requires `pg`; `run.js`/every script calls `require('dotenv').config()`). `npm ci --omit=dev` would have silently produced a broken image. Moved both to `dependencies`; `package-lock.json` regenerated to match. `pino-pretty` correctly stays dev-only — it's only required by `lib/logger.js` when `NODE_ENV !== 'production'` (the image sets `NODE_ENV=production`, so that branch never runs). `node-pg-migrate` isn't a dependency of this repo at all anymore — it moved to `ipaas.infra`'s `package.json` along with the migrations themselves.
 
