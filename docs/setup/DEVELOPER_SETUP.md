@@ -102,7 +102,6 @@ cp .env.example .env    # from ipaas.orchestrationengine
 | `ENCRYPTION_MASTER_KEY` | Encrypts the `credentials` table (`lib/crypto.js`) | **Required**, no default. Generate one: `openssl rand -base64 32`. Changing this later makes every existing encrypted credential row undecryptable |
 | `LOG_LEVEL` | `lib/logger.js` (pino) | `info` is fine day-to-day; `debug` shows per-page/per-record detail during troubleshooting |
 | `NODE_ENV` | `lib/logger.js` | Leave unset locally — that's what gives you readable colorized logs (`pino-pretty`). Only set to `production` inside the container |
-| `SYNC_ENTITY_ID` | `lib/orchestration/run.js` | Not a fixed setting — this is which entity's sync you're running. Leave blank in `.env`; set it per-run (Step 8). Scoped to one `sync_entities` row, not a whole `sync_requests` row — see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` §1 |
 
 This file is gitignored too — same rule as `ipaas.infra/.env`.
 
@@ -143,7 +142,7 @@ cd ../ipaas.orchestrationengine
 
 Steps 7 (from here on)–9 all assume that directory.
 
-Keep the `sync_entity_id` this prints out — that's what the engine actually takes as input (Step 8), not `sync_request_id`.
+The entrypoint discovers this tenant and entity directly from Postgres.
 
 Then seed mock credentials pointing at the mock server (no real ConnectWise/Keka account needed):
 
@@ -164,17 +163,16 @@ node scripts/mock-server.js
 Then run the actual entrypoint — this is the real code, not a test harness:
 
 ```powershell
-$env:SYNC_ENTITY_ID="<sync_entity_id>"; node lib/orchestration/run.js
+node lib/orchestration/run.js
 ```
 
-You should see structured logs for the full pipeline: fetch → inbound mapping → canonical validation → outbound mapping → write → `sync_state` update, then the process exits — every invocation runs exactly one cycle and exits, regardless of `sync_type` (see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` §7 for why). `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` has the expected output in detail, including what a second run looks like (self-healing `failed`/`retry` reconciliation).
+You should see structured logs for the full pipeline for every configured sync entity: fetch → inbound mapping → canonical validation → outbound mapping → write → `sync_state` update, then the process exits — every invocation runs exactly one cycle and exits, regardless of `sync_type` (see `ipaas.orchestrationengine/docs/LLD-orchestration-engine.md` §7 for why). `ipaas.orchestrationengine/docs/DEMO-orchestration-engine.md` has the expected output in detail, including what a second run looks like (self-healing `failed`/`retry` reconciliation).
 
 ### 9. Building and running the container image
 
 ```powershell
 docker build -t ipaas-orchestration-engine:local .
 docker run --rm `
-  -e SYNC_ENTITY_ID=<sync_entity_id> `
   -e DATABASE_URL=<same value as your .env, but with host.docker.internal instead of localhost> `
   -e ENCRYPTION_MASTER_KEY=<same as your .env> `
   ipaas-orchestration-engine:local
@@ -190,7 +188,7 @@ It ships four launch configurations (Run and Debug panel, or `F5`):
 
 | Configuration | What it runs | Notes |
 |---|---|---|
-| **Debug: run.js (one sync_entities row)** | The real entrypoint, `lib/orchestration/run.js` | Prompts for a `sync_entity_id` each time you launch it — paste the one from Step 7. Reads the rest of its config from `.env` via `envFile`, same as running it from the terminal. |
+| **Debug: run.js (all tenants/entities)** | The real entrypoint, `lib/orchestration/run.js` | Reads platform configuration from `.env`, discovers all tenants and sync entities from Postgres, and runs one sweep. |
 | **Debug: test-orchestration-bootstrap.js** | The bootstrap + adapter-registry smoke test | Same `sync_entity_id` prompt. Useful for stepping through credential loading and adapter construction in isolation, without running a full cycle. |
 | **Debug: test-run-cycle.js** | One full cycle + prints `sync_state` after | Same prompt. Good for stepping through `cycle.js`'s fetch → map → validate → write loop directly. |
 | **Run: mock-server.js** | The mock ConnectWise/Keka server | No prompt — just starts it. Combine with the compound below instead of running it separately when you want breakpoints on both sides of a request. |
@@ -242,8 +240,6 @@ By this point you have the platform running locally, a test sync completed, and 
 - **Running `npm run migrate:up` before Postgres is healthy** — `docker compose ps` first (from `ipaas.infra`); the healthcheck takes a few seconds after `up -d`.
 - **Editing `ipaas.infra/.env`'s Postgres password after the container's already initialized** — Postgres only reads `POSTGRES_PASSWORD` on first init of an empty volume. If you change it later, `docker compose down -v && docker compose up -d` (from `ipaas.infra`) to reinitialize (this wipes local data — fine in dev, never do this against anything real).
 - **Forgetting `ENCRYPTION_MASTER_KEY`** in `ipaas.orchestrationengine/.env` — `lib/crypto.js` throws immediately and clearly if it's missing or not a 32-byte base64 value, but it's an easy one to skip when copying `.env.example` quickly.
-- **Expecting `SYNC_ENTITY_ID` to live in `.env` permanently** — it doesn't represent a fixed setting, it's "which entity's run am I starting right now." Set it inline per command.
-- **Using the `sync_request_id` instead of the `sync_entity_id`** — easy to grab the wrong one from the SQL output in Step 7, since both look like plain UUIDs. The engine takes `SYNC_ENTITY_ID` only.
 - **Letting the two `.env` files' Postgres values drift** — `ipaas.infra/.env` and `ipaas.orchestrationengine/.env` both describe the same Postgres instance from two sides (the container's init vs. the app's connection string). Change one, change the other.
 - **Running `npm install` in `ipaas.orchestrationengine` before setting `NODE_AUTH_TOKEN`** — fails resolving `@rajkamal29/adapter-connectwise`/`adapter-keka` with a 401/404 from `npm.pkg.github.com`, not an obviously auth-related error. Set the token (Part 2 intro) and restart your terminal first.
 - **Not realizing `providers:link`/`providers:unlink` silently do nothing if the other one was never run** — `providers:unlink` just deletes `node_modules/@rajkamal29/*` and reinstalls; if you were already on the published package, that's a harmless no-op reinstall, not a sign something's wrong.

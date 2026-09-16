@@ -2,7 +2,8 @@
  * ConnectWise Manage adapter.
  *
  * Implements the adapter contract agreed in the Orchestration Engine design
- * discussion (2026-09-01): authenticate / fetch / fetchByIds / write.
+ * discussion (2026-09-01): authenticate / fetch / fetchByIds / write /
+ * update.
  *
  * Client entity + fetch()'s pagination/auth mechanics were previously
  * verified live against the real API (see docs/LLD-connector-auth-layer.md
@@ -196,11 +197,42 @@ class ConnectWiseAdapter {
     return res.json();
   }
 
-  async write(_entity, _record) {
-    throw new Error(
-      'ConnectWise adapter: write() is not implemented — implement only if a write-back ' +
-      "direction is needed for a tenant's sync_requests row where ConnectWise is the target."
-    );
+  async _sendRecord(entity, method, record, id) {
+    const creds = await this.authenticate();
+    const endpoint = this._endpointFor(entity);
+    const itemPath = id === undefined ? '' : `/${encodeURIComponent(String(id))}`;
+    const url = `${creds.baseUrl}${creds.apiVersion}/${endpoint}${itemPath}`;
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Authorization: this._authHeader(creds),
+        clientId: creds.clientId,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(record),
+    });
+
+    if (!res.ok) {
+      await this._throwForResponse(res);
+    }
+
+    this._logger.info({ entity, recordId: id }, id === undefined ? 'record written to ConnectWise' : 'record updated in ConnectWise');
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  /** Creates one target-shaped record in the entity collection. */
+  async write(entity, record) {
+    return this._sendRecord(entity, 'POST', record);
+  }
+
+  /** Replaces one target-shaped record at the provider's entity/id endpoint. */
+  async update(entity, id, record) {
+    if (id === undefined || id === null || id === '') {
+      throw new Error('ConnectWise adapter: update() requires a record id');
+    }
+    return this._sendRecord(entity, 'PUT', record, id);
   }
 }
 

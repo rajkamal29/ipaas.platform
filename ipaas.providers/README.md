@@ -19,7 +19,7 @@ No shared root package or workspace — each folder is a complete, self-containe
 
 ## The adapter contract
 
-Both adapters implement: `authenticate()`, `fetch(entity, opts)`, `fetchByIds(entity, ids)`, `write(entity, record)`. See each `index.js`'s own doc comments for the full contract, and `docs/LLD-orchestration-engine.md` in `ipaas.orchestrationengine` for how the engine calls them.
+Both adapters implement: `authenticate()`, `fetch(entity, opts)`, `fetchByIds(entity, ids)`, `write(entity, record)`, and `update(entity, id, record)`. See each `index.js`'s own doc comments for the full contract, and `docs/LLD-orchestration-engine.md` in `ipaas.orchestrationengine` for how the engine calls them.
 
 **Storage-agnostic by design.** Neither adapter loads or persists credentials itself — the constructor takes `(tenantId, credentials, { onCredentialsRefreshed }, logger)`. The caller (the orchestration engine) loads credentials from wherever it stores them and passes them in; if an adapter refreshes a token mid-flow (Keka's OAuth flow does this), it calls `onCredentialsRefreshed(updatedCredentials)` rather than writing to a database directly. Neither package has any dependency on Postgres, encryption, or any specific storage mechanism.
 

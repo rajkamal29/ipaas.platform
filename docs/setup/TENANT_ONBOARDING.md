@@ -158,7 +158,7 @@ There's no Provisioning Engine to do this automatically yet, so you run the real
 
 ```powershell
 cd ipaas.orchestrationengine
-$env:SYNC_ENTITY_ID="<sync_entity_id>"; node lib/orchestration/run.js
+node lib/orchestration/run.js
 ```
 
 Watch the logs for the fetch → map → validate → write pipeline, and check `sync_entities.status` afterward (`completed` or `failed`, since this is `one_time`):
@@ -170,7 +170,7 @@ SELECT last_run_status, last_error, failed, retry FROM sync_state WHERE sync_ent
 
 ## What's still manual (not a gap in this doc — a gap in the platform)
 
-- **No Provisioning Engine.** Nobody automatically creates containers, sets `interval` entities to `active`, or re-invokes the engine on a schedule. Every run today is a person setting `SYNC_ENTITY_ID` by hand.
+- **No Provisioning Engine.** Nobody automatically creates containers, sets `interval` entities to `active`, or re-invokes the engine on a schedule. The entrypoint discovers all database tenants and entities, but somebody must still invoke it manually or schedule the container externally. Nothing automatically sets `interval` entities to `active`.
 - **No credential rotation flow.** To update a tenant's credentials later (a rotated key, a new secret), re-run `seed-credentials.js` — it upserts (`ON CONFLICT (tenant_id, provider) DO UPDATE`), so this doubles as the update path too. There's no expiry/rotation reminder system.
 - **No mock/real credential marker.** The `credentials` table doesn't record how a row was seeded — a tenant running on Step 3's mock fallback looks identical, in a plain query, to one with real credentials. If you use that fallback, tracking which tenants are still pending real credentials is on you until this gets built.
 - **No UI.** Every step above is SQL or a script — there's no form for a tenant or an internal ops person to fill out yet.
