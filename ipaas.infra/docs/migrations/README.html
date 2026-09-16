@@ -366,7 +366,7 @@ code {
     });
   </script>
 <h1 id="core-schema--tenant-intake-credentials-run-state--mapping">Core Schema — Tenant Intake, Credentials, Run State &amp; Mapping</h1>
-<p>Covers <code>20260901120000_create-core-schema.js</code>, <code>20260901140000_create-sync-state.js</code>, <code>20260901150000_add-interval-seconds.js</code>, <code>20260901160000_create-mapping-layer.js</code>, and <code>20260903120000_create-global-mapping-profiles.js</code>. Eight tables: <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>.</p>
+<p>Covers <code>20260901120000_create-core-schema.js</code>, <code>20260901140000_create-sync-state.js</code>, <code>20260901150000_add-interval-seconds.js</code>, <code>20260901160000_create-mapping-layer.js</code>, <code>20260903120000_create-global-mapping-profiles.js</code>, and <code>20260916120000_add-successful-sync-state.js</code>. Eight tables: <code>tenants</code>, <code>sync_requests</code>, <code>sync_entities</code>, <code>credentials</code>, <code>sync_state</code>, <code>canonical_entities</code>, <code>mapping_profiles</code>, <code>global_mapping_profiles</code>.</p>
 <p>This schema covers <strong>intake</strong> (a tenant selecting providers, entities, and a sync type), <strong>credentials</strong> (encrypted per-provider secrets), <strong>run state</strong> (per-entity cursor and failure tracking), and <strong>mapping</strong> (canonical schema + per-tenant field mappings). It does not persist canonical records — see the <code>mapping_profiles</code>/<code>canonical_entities</code> section below for why.</p>
 <h2 id="relationships">Relationships</h2>
 <pre class="hljs"><code><div>tenants (1) ──&lt; sync_requests (1) ──&lt; sync_entities (1) ── (1) sync_state
@@ -555,6 +555,11 @@ tenants (1) ──&lt; credentials
 <td>default <code>[]</code> — see below</td>
 </tr>
 <tr>
+<td><code>sync_state</code></td>
+<td>jsonb</td>
+<td>default <code>[]</code> — successful external/target ID mappings for this sync entity</td>
+</tr>
+<tr>
 <td><code>created_at</code></td>
 <td>timestamptz</td>
 <td></td>
@@ -566,6 +571,7 @@ tenants (1) ──&lt; credentials
 </tr>
 </tbody>
 </table>
+<p><strong><code>sync_state</code> successful mappings:</strong> each entry contains only <code>external_id</code> and <code>target_id</code>. A new entry is added only after a provider create/write succeeds. On later runs, an existing external ID uses its stored target ID for the provider update call and does not add another entry. Failed writes leave successful mappings unchanged. Tenant and sync-entity isolation comes from the owning <code>sync_state.sync_entity_id</code> row.</p>
 <p><strong><code>failed</code> vs. <code>retry</code> — two different failure classes, two different lifecycles:</strong></p>
 <ul>
 <li>

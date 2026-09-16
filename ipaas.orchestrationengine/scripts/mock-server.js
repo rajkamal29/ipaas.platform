@@ -6,8 +6,9 @@
  * paths, auth mechanics, and field shapes here are illustrative only. See
  * docs/LLD-connector-auth-layer.md for what's still genuinely unverified.
  *
- * Write behavior is deliberately rigged per fake company id, to exercise
- * the failed/retry reconciliation logic in lib/orchestration/cycle.js:
+ * Write and update behavior is deliberately rigged per fake company id,
+ * to exercise the failed/retry reconciliation logic in
+ * lib/orchestration/cycle.js:
  *   id 1, 4, 5 — always succeed
  *   id 2       — always fails (400) — should land in sync_state.failed
  *                and stay there every cycle
@@ -33,6 +34,7 @@ const COMPANIES = [
 // Tracks write attempts per id in memory, so id 3 can fail once then
 // succeed on the next cycle.
 const writeAttempts = {};
+const updateAttempts = {};
 
 function sendJson(res, status, body) {
   const text = JSON.stringify(body);
@@ -106,6 +108,24 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { id, status: 'created' });
     }
 
+    // --- Keka: PUT /keka/api/v1/psa/clients/:id (update) ---
+    const kekaClientMatch = url.pathname.match(/^\/keka\/api\/v1\/psa\/clients\/([^/]+)$/);
+    if (req.method === 'PUT' && kekaClientMatch) {
+      const id = decodeURIComponent(kekaClientMatch[1]);
+      await readJsonBody(req);
+
+      if (id === '2') {
+        return sendJson(res, 400, { message: `mock: record ${id} always fails (data error)` });
+      }
+      if (id === '3') {
+        updateAttempts[id] = (updateAttempts[id] || 0) + 1;
+        if (updateAttempts[id] === 1) {
+          return sendJson(res, 429, { message: `mock: record ${id} rate-limited on first update attempt` });
+        }
+      }
+      return sendJson(res, 200, { id, status: 'updated' });
+    }
+
     sendJson(res, 404, { message: `mock: no route for ${req.method} ${url.pathname}` });
   } catch (err) {
     sendJson(res, 500, { message: err.message });
@@ -114,5 +134,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Mock ConnectWise/Keka server listening on http://localhost:${PORT}`);
-  console.log('Routes: GET /cw/company/companies, POST /keka/identity/token, POST /keka/api/v1/psa/clients');
+  console.log('Routes: GET /cw/company/companies, POST /keka/identity/token, POST /keka/api/v1/psa/clients, PUT /keka/api/v1/psa/clients/:id');
 });
