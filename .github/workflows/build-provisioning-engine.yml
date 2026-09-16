@@ -1,0 +1,103 @@
+name: Build & Publish Provisioning Engine Image
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "ipaas.provisioningengine/src/**"
+      - "ipaas.provisioningengine/tests/**"
+      - "ipaas.provisioningengine/package.json"
+      - "ipaas.provisioningengine/package-lock.json"
+      - "ipaas.provisioningengine/tsconfig.json"
+      - "ipaas.provisioningengine/tsconfig.test.json"
+      - "ipaas.provisioningengine/Dockerfile"
+      - "ipaas.provisioningengine/.dockerignore"
+      - ".github/workflows/build-provisioning-engine.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "ipaas.provisioningengine/src/**"
+      - "ipaas.provisioningengine/tests/**"
+      - "ipaas.provisioningengine/package.json"
+      - "ipaas.provisioningengine/package-lock.json"
+      - "ipaas.provisioningengine/tsconfig.json"
+      - "ipaas.provisioningengine/tsconfig.test.json"
+      - "ipaas.provisioningengine/Dockerfile"
+      - "ipaas.provisioningengine/.dockerignore"
+      - ".github/workflows/build-provisioning-engine.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: provisioning-engine-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test and build application
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ipaas.provisioningengine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ipaas.provisioningengine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  image:
+    name: Build and publish image
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/dev' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Short SHA
+        id: vars
+        shell: bash
+        run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and optionally publish
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ipaas.provisioningengine
+          file: ./ipaas.provisioningengine/Dockerfile
+          push: ${{ github.ref == 'refs/heads/dev' && github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/ipaas-provisioning-engine:dev-latest
+            ghcr.io/${{ github.repository_owner }}/ipaas-provisioning-engine:dev-${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha,scope=ipaas-provisioning-engine
+          cache-to: type=gha,mode=max,scope=ipaas-provisioning-engine
