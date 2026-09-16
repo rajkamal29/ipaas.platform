@@ -4,6 +4,7 @@ import { ValidationError } from "../errors/validation-error";
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_INTERVAL_SECONDS = 2_147_483_647;
+export const MIN_PG_INTEGER = -2_147_483_648;
 
 export function requireRecord(
   value: unknown,
@@ -71,6 +72,47 @@ export function requireText(value: unknown, field: string): string {
     ]);
   }
   return value;
+}
+
+export function requirePgInteger(value: unknown, field: string): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^-?\d+$/.test(value)
+        ? Number(value)
+        : Number.NaN;
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < MIN_PG_INTEGER ||
+    parsed > MAX_INTERVAL_SECONDS
+  ) {
+    throw new ValidationError("Invalid request payload.", [
+      {
+        field,
+        code: "range",
+        message: "Expected a PostgreSQL 32-bit integer.",
+      },
+    ]);
+  }
+  return parsed;
+}
+
+export function requireBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new ValidationError("Invalid request payload.", [
+      { field, code: "type", message: "Expected a boolean." },
+    ]);
+  }
+  return value;
+}
+
+export function requireQueryBoolean(value: unknown, field: string): boolean {
+  const parsed = optionalSingleValue(value, field);
+  if (parsed === "true") return true;
+  if (parsed === "false") return false;
+  throw new ValidationError("Invalid query.", [
+    { field, code: "value", message: "Expected true or false." },
+  ]);
 }
 
 export function requireEnum<const T extends string>(

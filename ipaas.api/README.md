@@ -30,7 +30,11 @@ the Express boundary.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and set `DATABASE_URL`. `PORT` defaults to `3000`; `NODE_ENV` defaults to `development`. Invalid startup configuration fails before the server listens.
+Copy `.env.example` to `.env` and set `DATABASE_URL` and
+`ENCRYPTION_MASTER_KEY`. The encryption key must be the same base64-encoded
+32-byte key used by the orchestration engine. `PORT` defaults to `3000`;
+`NODE_ENV` defaults to `development`. Invalid startup configuration fails before
+the server listens.
 
 ## HTTP contract
 
@@ -89,9 +93,27 @@ GET, POST       /api/tenants/:tenantId/sync-requests
 GET, PUT        /api/tenants/:tenantId/sync-requests/:requestId
 GET, POST       /api/tenants/:tenantId/sync-requests/:requestId/entities
 GET, PUT        /api/tenants/:tenantId/sync-requests/:requestId/entities/:entityId
+GET, POST       /api/tenants/:tenantId/credentials
+GET             /api/tenants/:tenantId/credentials/:provider
+GET             /api/canonical-entities
+GET             /api/canonical-entities/:canonicalEntityId
+GET, POST       /api/global-mapping-profiles
+GET, PUT        /api/global-mapping-profiles/:profileId
+POST            /api/global-mapping-profiles/:profileId/activate
+GET, POST       /api/tenants/:tenantId/mapping-profiles
+GET             /api/tenants/:tenantId/mapping-profiles/effective
+GET, PUT        /api/tenants/:tenantId/mapping-profiles/:profileId
+POST            /api/tenants/:tenantId/mapping-profiles/:profileId/activate
 GET             /health
 GET             /ready
 ```
+
+Credential responses expose configuration metadata only. Plaintext secrets,
+ciphertext, IVs, and authentication tags are never part of the HTTP contract.
+Mapping profiles keep provider-specific `fieldMappings` separate from canonical
+entity JSON schemas. Effective mapping resolution checks the active tenant
+profile first, then the active global profile, and otherwise returns the explicit
+missing representation. Issue #12 adds no DELETE endpoints.
 
 PUT bodies fully replace mutable fields. Unknown and immutable fields are rejected. Sync Entity lists return all entities belonging to the requested Sync Request; server-side entity/status/sync-type filtering is not part of Issue #11. No ordering or pagination is promised.
 

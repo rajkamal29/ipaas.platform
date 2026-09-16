@@ -6,6 +6,7 @@ export interface Environment {
   readonly port: number;
   readonly databaseUrl: string;
   readonly nodeEnv: NodeEnvironment;
+  readonly encryptionMasterKey: string;
 }
 
 export function loadEnvironment(
@@ -36,11 +37,23 @@ export function loadEnvironment(
       message: "NODE_ENV must be development, test, or production.",
     });
   }
+  const encryptionMasterKey = source["ENCRYPTION_MASTER_KEY"];
+  if (
+    typeof encryptionMasterKey !== "string" ||
+    Buffer.from(encryptionMasterKey, "base64").length !== 32
+  ) {
+    details.push({
+      field: "ENCRYPTION_MASTER_KEY",
+      code: "value" as const,
+      message: "ENCRYPTION_MASTER_KEY must be a base64-encoded 32-byte key.",
+    });
+  }
   if (details.length > 0)
     throw new ValidationError("Invalid environment configuration.", details);
   return {
     port,
     databaseUrl: String(databaseUrl),
     nodeEnv: nodeEnv as NodeEnvironment,
+    encryptionMasterKey: String(encryptionMasterKey),
   };
 }

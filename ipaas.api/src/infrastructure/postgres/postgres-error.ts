@@ -10,6 +10,10 @@ const conflictConstraints: Readonly<Record<string, string>> = {
   tenants_name_key: "A tenant with this exact name already exists.",
   sync_entities_request_entity_unique:
     "This entity is already configured for the sync request.",
+  mapping_profiles_one_active_idx:
+    "An active tenant mapping profile already exists for this scope.",
+  global_mapping_profiles_one_active_idx:
+    "An active global mapping profile already exists for this scope.",
 };
 
 export function translatePostgresError(error: unknown): never {
