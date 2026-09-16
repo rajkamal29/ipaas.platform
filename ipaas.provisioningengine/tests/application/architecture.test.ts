@@ -55,14 +55,19 @@ it("enforces inward imports and prevents platform/environment primitives in doma
       );
     }
 });
-it("keeps legacy metadata, direct environment reads, and polling out of production paths", () => {
+it("keeps legacy metadata out and confines environment reads, claiming and timers to their layers", () => {
   for (const file of files(root)) {
     const source = readFileSync(file, "utf8");
     assert.doesNotMatch(
       source,
       /INTEGRATION_ID|SOURCE_CONNECTOR|DESTINATION_CONNECTOR|SYNC_MODE|integrationId|sourceConnector|destinationConnector/,
     );
-    assert.doesNotMatch(source, /setInterval\(|SKIP LOCKED/);
+    assert.doesNotMatch(source, /setInterval\(/);
+    const path = relative(root, file).replaceAll("\\", "/");
+    if (!path.startsWith("infrastructure/persistence/"))
+      assert.doesNotMatch(source, /SKIP LOCKED|FOR UPDATE/);
+    if (path.startsWith("domain/") || path.startsWith("application/"))
+      assert.doesNotMatch(source, /setTimeout|AbortController/);
     if (!relative(root, file).replaceAll("\\", "/").startsWith("config/"))
       assert.doesNotMatch(source, /process\.env/);
     if (!relative(root, file).replaceAll("\\", "/").startsWith("scripts/"))

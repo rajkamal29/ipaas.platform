@@ -38,6 +38,7 @@ export interface DependencyDiagnostics {
   readonly dependency:
     "postgres" | "docker" | "github" | "runtime-image-resolver";
   readonly operation:
+    | "claim-submitted"
     | "load-sync-entity"
     | "load-sync-request"
     | "update-status"

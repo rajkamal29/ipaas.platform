@@ -20,13 +20,7 @@ try {
   const config = loadConfig();
   application = await composeApplication(config);
   if (!stopping) {
-    application.worker.start();
-    if (config.syncEntityId)
-      await application.worker.submit(config.syncEntityId);
-    else
-      application.logger.info(
-        "No explicit entity supplied; polling is not implemented in issue #18",
-      );
+    await application.worker.run(config.syncEntityId);
   }
 } catch (error: unknown) {
   startupLogger.error(

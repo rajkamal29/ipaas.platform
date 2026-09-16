@@ -364,6 +364,7 @@ code {
           ? 'dark'
           : 'default'
     });
+  </script>
 <h1 id="lld--connector--auth-layer">LLD — Connector &amp; Auth Layer</h1>
 <p>Status: Client entity implemented and verified live (<code>connectwise/index.js</code>, <code>keka/index.js</code>, this repo). Project and Timesheet extension is planned, not yet implemented — endpoints below are best guesses pending live verification (§4a, §5a).</p>
 <h2 id="revision-history">Revision history</h2>
@@ -398,6 +399,10 @@ code {
 <tr class="odd">
 <td><code>write(entity, record)</code></td>
 <td>Push a single target-shaped record to the system</td>
+</tr>
+<tr class="even">
+<td><code>update(entity, id, record)</code></td>
+<td>Replace a single target-shaped record at the provider's entity/id endpoint</td>
 </tr>
 </tbody>
 </table>
