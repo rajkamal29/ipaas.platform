@@ -2,7 +2,8 @@
  * Keka adapter.
  *
  * Implements the adapter contract agreed in the Orchestration Engine design
- * discussion (2026-09-01): authenticate / fetch / fetchByIds / write.
+ * discussion (2026-09-01): authenticate / fetch / fetchByIds / write /
+ * update.
  *
  * Client entity + fetch()'s pagination/auth mechanics were previously
  * verified live against the real API (see docs/LLD-connector-auth-layer.md
@@ -214,22 +215,14 @@ class KekaAdapter {
     return body.data ?? body.records ?? body.items ?? [];
   }
 
-  /**
-   * Pushes one target-shaped record to Keka.
-   *
-   * UNVERIFIED — endpoint/method/body shape are a best guess (POST to the
-   * same collection URL used for GET), following Keka's own REST
-   * convention elsewhere in their API. Has not been called against the
-   * real API yet — do not trust until it's been run once and the response
-   * shape checked.
-   */
-  async write(entity, record) {
+  async _sendRecord(entity, method, record, id) {
     const creds = await this.authenticate();
     const endpoint = this._endpointFor(entity);
 
-    const url = `${creds.apiBaseUrl}${endpoint}`;
+    const itemPath = id === undefined ? '' : `/${encodeURIComponent(String(id))}`;
+    const url = `${creds.apiBaseUrl}${endpoint}${itemPath}`;
     const res = await fetch(url, {
-      method: 'POST',
+      method,
       headers: {
         Authorization: `Bearer ${creds.accessToken}`,
         'User-Agent': 'Mozilla',
@@ -243,8 +236,28 @@ class KekaAdapter {
       await this._throwForResponse(res);
     }
 
-    this._logger.info({ entity }, 'record written to Keka');
+    this._logger.info({ entity, recordId: id }, id === undefined ? 'record written to Keka' : 'record updated in Keka');
+    if (res.status === 204) return null;
     return res.json();
+  }
+
+  /**
+   * Pushes one target-shaped record to Keka's entity collection.
+   *
+   * The client create endpoint uses POST; project/timesheet paths remain
+   * unverified until those provider surfaces are exercised against a real
+   * account.
+   */
+  async write(entity, record) {
+    return this._sendRecord(entity, 'POST', record);
+  }
+
+  /** Updates one target-shaped record through Keka's documented PUT item endpoint. */
+  async update(entity, id, record) {
+    if (id === undefined || id === null || id === '') {
+      throw new Error('Keka adapter: update() requires a record id');
+    }
+    return this._sendRecord(entity, 'PUT', record, id);
   }
 }
 

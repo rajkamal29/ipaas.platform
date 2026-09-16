@@ -89,7 +89,7 @@ Mapping profiles and the canonical schema are loaded **once per cycle**, not per
 
 ## 4. Adapter contract
 
-Every provider adapter (`ConnectWiseAdapter`, `KekaAdapter`) implements the same four methods. This is what makes `adapter-registry.js` a one-line-per-provider lookup table, and what a new provider must implement to plug in.
+Every provider adapter (`ConnectWiseAdapter`, `KekaAdapter`) implements the same five methods. This is what makes `adapter-registry.js` a one-line-per-provider lookup table, and what a new provider must implement to plug in.
 
 ```js
 class SomeAdapter {
@@ -119,11 +119,11 @@ class SomeAdapter {
   // so far. Both adapters' implementations are UNVERIFIED (see §6).
   async fetchByIds(entity, ids)
 
-  // Writes one target-shaped record. Throws if the provider isn't
-  // configured/verified as a write target (e.g. ConnectWiseAdapter.write()
-  // always throws "not implemented" — no tenant has needed ConnectWise as
-  // a target yet).
+  // Creates one target-shaped record in the provider's collection.
   async write(entity, record)
+
+  // Replaces one target-shaped record at the provider's item endpoint.
+  async update(entity, id, record)
 }
 ```
 
@@ -205,8 +205,8 @@ These are explicitly flagged in code comments and must be confirmed against real
 - **`fetchByIds` (both adapters)** — a new method invented for this engine's reconciliation design; not documented in either provider's real API. ConnectWise guesses `conditions=id in (1,2,3)`; Keka guesses an `ids=` query param. Neither has been called against a real account.
 - **ConnectWise `project`/`timesheet` endpoints** (`project/projects`, `time/entries`) — guessed by convention from the verified `client` endpoint, not confirmed.
 - **Keka `project`/`timesheet` endpoints** — same caveat, plus lower confidence on `timesheet`: Keka is primarily an HR platform, so time tracking may live outside the `/psa/` namespace entirely; `/api/v1/time/entries` is flagged as an alternate candidate if `/api/v1/psa/timesheets` turns out wrong.
-- **`KekaAdapter.write()`** — endpoint, HTTP method, and body shape are all a best guess (POST to the same URL used for GET). Never called against the real API.
-- **`ConnectWiseAdapter.write()`** — not implemented at all; throws unconditionally. Only needed if a tenant's `sync_requests` row ever has ConnectWise as `target`.
+- **Keka writes and updates** — the shared POST/PUT structure is implemented, but those resource paths and payloads remain unverified against a real account. Keka's Client create/update endpoints are documented by the provider.
+- **ConnectWise writes and updates** — the authenticated POST/PUT collection/item structure is implemented but has not been live-verified against a real account; confirm payload and response shapes before using ConnectWise as a target.
 
 What **is** verified live: ConnectWise `client` fetch (pagination via `Link` header, auth via static key pair) and Keka `client` fetch + token refresh (see `docs/LLD-connector-auth-layer.md`).
 
@@ -235,7 +235,7 @@ Tags are `dev-`-prefixed deliberately, not bare `latest` — nothing publishes f
 
 ## 10. Extending the engine
 
-**Adding a provider**: implement the four-method adapter contract (§4), including correct `.type` classification in error handling, then add one line to `REGISTRY` in `adapter-registry.js`. Nothing else in the engine changes.
+**Adding a provider**: implement the five-method adapter contract (§4), including correct `.type` classification in error handling, then add one line to `REGISTRY` in `adapter-registry.js`. Nothing else in the engine changes.
 
 **Adding an entity** (e.g. finishing `project`/`timesheet`): add a `canonical_entities` schema row, seed the inbound + outbound mappings in `global_mapping_profiles` (so every tenant has a working default from the start) and/or `mapping_profiles` for any tenant that needs a customization, add the entity to each adapter's `ENTITY_ENDPOINTS` map (verifying the guessed endpoints first), and add the entity name to the relevant CHECK constraints (`sync_entities.entity`, `canonical_entities.name`, `mapping_profiles.entity`, `global_mapping_profiles.entity`). No changes to `cycle.js`, `schedule.js`, or `run.js` are needed — the pipeline is already entity-agnostic.
 
