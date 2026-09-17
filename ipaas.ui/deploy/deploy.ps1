@@ -69,7 +69,7 @@ try {
     if ($existing) {
         $null = Invoke-Docker @('stop', '--time', '15', $containerName) 'stop existing UI container'
     }
-    $null = Invoke-Docker ($compose + @('up', '-d', '--no-deps', '--no-build', '--pull', 'never', '--force-recreate', 'ui')) 'replace UI container'
+    $null = Invoke-Docker ($compose + @('up', '-d', '--no-deps', '--no-build', '--pull', 'never', '--force-recreate', '--progress', 'plain', 'ui')) 'replace UI container'
     for ($sample = 0; $sample -lt 6; $sample++) {
         Start-Sleep -Seconds 5
         $state = Invoke-Docker @('inspect', '--format', '{{.State.Status}}|{{.Image}}|{{.RestartCount}}|{{.Config.Image}}', $containerName) 'verify running service'
