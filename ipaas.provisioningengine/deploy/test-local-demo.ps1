@@ -59,12 +59,28 @@ try {
         Assert-Demo ($env:DATABASE_URL -eq $sentinel -and $env:RUNTIME_DATABASE_URL -eq $sentinel -and $env:ENCRYPTION_MASTER_KEY -eq $sentinel -and $env:PROVISIONING_GITHUB_DISPATCH_TOKEN -eq $sentinel) 'Secret mapping or scope priority failed'
         Write-Host "Passed local-demo scope: $selectedScope"
     }
+    # Regression: backslash-escaped quotes are literal in a single-quoted PowerShell string.
+    $output = @(Initialize-LocalDemoEnvironment -Mode deployment *>&1)
+    Assert-Demo ($output.Count -eq 0) 'Deployment initialization must not emit values'
+    try { $catalogue = ConvertFrom-Json -InputObject $env:RUNTIME_IMAGE_MAPPINGS_JSON -ErrorAction Stop }
+    catch { throw 'Deployment catalogue must be valid JSON without literal quote escapes' }
+    Assert-Demo (@($catalogue).Count -eq 1) 'Expected exactly one demo mapping'
+    $expectedMapping = @{source = 'connectwise'; target = 'keka'; registry = 'GHCR'; repository = 'rajkamal29/ipaas-orchestration-engine'; tag = 'dev-latest'}
+    Assert-Demo (@($catalogue[0].PSObject.Properties).Count -eq $expectedMapping.Count) 'Unexpected demo mapping fields'
+    foreach ($field in $expectedMapping.Keys) {
+        Assert-Demo ($catalogue[0].$field -ceq $expectedMapping[$field]) "Incorrect demo mapping field: $field"
+    }
+    Write-Host 'Passed deployment catalogue JSON parsing and exact mapping'
     Assert-Demo ($env:LOG_LEVEL -eq 'info' -and $env:PROVISIONING_POLL_INTERVAL_MS -eq '120000' -and $env:PROVISIONING_POLL_BATCH_SIZE -eq '10' -and $env:PROVISIONING_MAX_CONCURRENCY -eq '5') 'Unexpected demo defaults'
     # Exercise the application's actual parser and resolver, not a duplicate URL algorithm.
     Push-Location (Join-Path $PSScriptRoot '..')
     try {
         & node --input-type=module -e "import {loadRuntimeImageMappings} from './dist/config/runtime-images.js'; import {ConfigurationRuntimeImageResolver} from './dist/infrastructure/runtime-images/configuration-runtime-image-resolver.js'; const r=new ConfigurationRuntimeImageResolver(loadRuntimeImageMappings(process.env.RUNTIME_IMAGE_MAPPINGS_JSON)); if(r.resolve('connectwise','keka')!=='ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest')process.exit(1);"
         Assert-Demo ($LASTEXITCODE -eq 0) 'Demo mapping failed actual runtime resolution'
+        # Validate the full compiled configuration with synthetic child-process values only.
+        & node --input-type=module -e "process.env.DATABASE_URL='postgresql://synthetic:synthetic@localhost:5432/synthetic';process.env.RUNTIME_DATABASE_URL=process.env.DATABASE_URL;process.env.ENCRYPTION_MASTER_KEY=Buffer.alloc(32).toString('base64');process.env.RUNTIME_PROVIDER='github';process.env.GITHUB_ACTIONS_OWNER='owner';process.env.GITHUB_ACTIONS_REPOSITORY='repo';process.env.GITHUB_ACTIONS_WORKFLOW='provision-runtime.yml';process.env.GITHUB_ACTIONS_REF='dev';process.env.GITHUB_ACTIONS_API_BASE_URL='https://api.github.com';process.env.GITHUB_TOKEN='synthetic-dispatch-token';delete process.env.SYNC_ENTITY_ID;import('./dist/config/environment.js').then(m=>{m.loadConfig();console.log('CONFIG OK')}).catch(()=>{console.error('Synthetic config validation failed');process.exit(1)});"
+        Assert-Demo ($LASTEXITCODE -eq 0) 'Compiled configuration rejected helper-generated catalogue'
+
     } finally { Pop-Location }
     $workflowPath = Join-Path $PSScriptRoot '../../.github/workflows/provision-runtime.yml'
     $workflow = Get-Content -LiteralPath $workflowPath -Raw
