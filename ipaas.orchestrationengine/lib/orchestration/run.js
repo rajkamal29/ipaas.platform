@@ -19,7 +19,7 @@
  * again for an interval entity) is the Provisioning Engine / infra
  * layer's job now, not this process's. See docs/LLD-orchestration-engine.md.
  *
- * Usage: SYNC_ENTITY_ID=<uuid> node lib/orchestration/run.js
+ * Usage: node lib/orchestration/run.js
  */
 require('dotenv').config();
 
