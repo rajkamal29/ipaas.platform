@@ -1,0 +1,50 @@
+﻿name: Validate iPaaS UI
+
+on:
+  push:
+    branches: ["features/**"]
+    paths:
+      - "ipaas.ui/**"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "ipaas.ui/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ipaas.ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ipaas.ui/.nvmrc
+          cache: npm
+          cache-dependency-path: ipaas.ui/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test -- --watch=false
+
+      - name: Build production UI
+        run: npm run build:production
