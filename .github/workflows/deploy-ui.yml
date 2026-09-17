@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Windows]
+    runs-on: [self-hosted, Windows, TL621-1]
     timeout-minutes: 15
     steps:
       - name: Checkout trusted deployment definition
