@@ -1,6 +1,6 @@
 name: Deploy iPaaS UI
 
-# Manual only, by design: publish (validate-ui.yml) runs on every push to dev,
+# Manual only, by design: publish (build-ui.yml) runs on every push to dev,
 # but nothing redeploys the running local container until you dispatch this
 # workflow yourself with the values from that publish job's step summary.
 
