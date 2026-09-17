@@ -9,8 +9,11 @@ This document records the decisions that replaced the POC design in issue #18.
   payloads, and logging output remain in infrastructure.
 - ProvisionSyncEntityUseCase receives only syncEntityId. Claimed-row admission belongs to
   the caller; #19 polling claims submitted rows through an application-facing repository port.
-- Conditional lifecycle writes avoid overwriting completion/failure from orchestration.
-- One-time process exit is not interpreted as business completion.
+- Conditional lifecycle writes avoid overwriting concurrent terminal states. Existing OE
+  writes remain unchanged; exclusive PE ownership requires a separate OE change.
+- PE maps definitive one-time exit 0 to completed and non-zero to failed. Newly started
+  containers are observed with a bounded Docker wait; timeout requires reconciliation.
+  This process outcome is not a guarantee of successful business synchronization.
 - GitHub acceptance is not execution success; unknown outcomes require reconciliation.
 - Interval active means a recurring trigger exists. The current one-shot adapters reject
   intervals; the application port supports a future recurring-ready implementation.
