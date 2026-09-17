@@ -305,3 +305,31 @@ docker rm ipaas-ui-local
 
 Port 8080 is a local choice. If occupied, change only the host port in the run
 command. Rebuild the image after UI changes and recreate the container to use it.
+
+## GitHub Container Registry publishing
+
+The `Validate iPaaS UI` workflow checks feature pushes (`features/**`) and pull
+requests targeting `dev` when `ipaas.ui/**` changes. It also validates UI changes
+pushed to `dev`. Only a successful validation on a push to `dev` enables the
+`publish` job; feature pushes and pull requests never publish images.
+
+The existing Dockerfile builds the same commit validated by the preceding job.
+Images are published to `ghcr.io/rajkamal29/ipaas-ui` (the repository owner's name
+is derived automatically and normalized to lowercase).
+
+The version tag is `dev-<full-commit-sha>-<run-id>-<run-attempt>`. Each workflow run
+and rerun receives a distinct tag. No moving `latest` tag is published. The Actions
+run summary records the published tag and digest; use the digest when an immutable
+image reference is required. This is build versioning, not a package.json version
+bump or a semantic release.
+
+Authentication uses the job's automatic `GITHUB_TOKEN` with `contents: read` and
+`packages: write`. The validation job retains read-only repository access. No
+personal access token or registry password needs to be added to repository secrets.
+If the GHCR package already exists, it must grant this repository Actions write
+access. Organization policies must also permit package creation/publishing.
+
+Merge the prerequisite CI and Docker changes into `dev` before this publishing
+change. A UI change merged into `dev` then runs validation, builds the image, and
+pushes it to GHCR. Unrelated project changes and workflow-only changes do not
+trigger this UI workflow. Publication does not deploy or restart any container.
