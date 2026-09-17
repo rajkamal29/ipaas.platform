@@ -407,3 +407,38 @@ it("GitHub acceptance is not one-time completion", async () => {
   assert.deepEqual(fake.transitions, []);
   assert.ok(fake.logs.some((x) => x.message === "GitHub dispatch accepted"));
 });
+
+it("explicit worker rejects a failed runtime even when a concurrent completed status is preserved", async () => {
+  const fake = setup();
+  assert.equal(fake.current()?.status, "provisioning");
+  fake.completeDuringLaunch();
+  fake.setResult({
+    kind: "exited",
+    reference: "runtime",
+    runtimeName: `ipaas-sync-${id}`,
+    runtimeState: "exited",
+    exitCode: 1,
+  });
+  const worker = new ProvisioningWorker({
+    execute: async (syncEntityId) => {
+      const result = await fake.useCase.execute(syncEntityId);
+      assert.equal(result.status, "completed");
+      assert.equal(result.outcome, "failed");
+      return result;
+    },
+  });
+  try {
+    await assert.rejects(worker.run(id), ProvisioningFailedError);
+    assert.equal(fake.current()?.status, "completed");
+    assert.deepEqual(fake.transitions, [["provisioning", "failed"]]);
+    assert.equal(fake.calls.length, 1);
+    assert.equal(
+      fake.logs.find(
+        (entry) => entry.message === "Provisioning status transition",
+      )?.context.statusRecorded,
+      false,
+    );
+  } finally {
+    await worker.stop();
+  }
+});

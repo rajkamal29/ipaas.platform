@@ -51,7 +51,7 @@ export class ProvisioningWorker {
     this.start();
     if (syncEntityId) {
       const result = await this.submit(syncEntityId);
-      if (result.status === "failed")
+      if (result.outcome === "failed" || result.status === "failed")
         throw new ProvisioningFailedError("runtime-exited", true, false);
       return;
     }
