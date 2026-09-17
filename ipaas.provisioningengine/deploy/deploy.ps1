@@ -13,8 +13,16 @@ $composePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../docker-compos
 function Invoke-Docker {
     param([string[]]$Arguments, [string]$Operation)
     try {
-        $output = @(& docker @Arguments 2>&1)
-        if ($LASTEXITCODE -ne 0) { throw 'Docker command failed' }
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            # Windows PowerShell 5.1 surfaces normal native stderr as error records.
+            $ErrorActionPreference = 'Continue'
+            $output = @(& docker @Arguments 2>&1)
+            $exitCode = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        if ($exitCode -ne 0) { throw 'Docker command failed' }
         return ($output -join [Environment]::NewLine).Trim()
     } catch {
         # Native output may contain configuration. Do not dump it or full inspect output.
