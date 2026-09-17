@@ -1,10 +1,23 @@
 name: Deploy iPaaS UI
 
-# Manual only, by design: publish (build-ui.yml) runs on every push to dev,
-# but nothing redeploys the running local container until you dispatch this
-# workflow yourself with the values from that publish job's step summary.
+# Runs two ways:
+#   - Automatically, called by build-ui.yml's publish job on every successful
+#     push to dev - no manual step needed for the normal case.
+#   - Manually (workflow_dispatch), for redeploying/rolling back to a
+#     specific previously-published SHA/tag/digest without a new push.
 
 on:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      image_digest:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       source_sha:

@@ -62,6 +62,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      source_sha: ${{ github.sha }}
+      image_tag: ${{ steps.image.outputs.tag }}
+      image_digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,8 +111,22 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           {
-            echo "Source SHA (use as source_sha for Deploy iPaaS UI): ${SOURCE_SHA}"
-            echo "Image (use as image_tag for Deploy iPaaS UI): ${IMAGE_TAG}"
-            echo "Digest (use as image_digest for Deploy iPaaS UI): ${IMAGE_DIGEST}"
-            echo "Also tagged: ${LATEST_TAG} (convenience only - never use for deploy input)"
+            echo "Source SHA: ${SOURCE_SHA}"
+            echo "Image: ${IMAGE_TAG}"
+            echo "Digest: ${IMAGE_DIGEST}"
+            echo "Also tagged: ${LATEST_TAG} (convenience only - never used as a deploy input)"
+            echo "Deploy: automatic on push to dev (see the Deploy iPaaS UI job below). Manual redeploy/rollback still takes these three values as workflow_dispatch inputs."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy iPaaS UI
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy-ui.yml
+    with:
+      source_sha: ${{ needs.publish.outputs.source_sha }}
+      image_tag: ${{ needs.publish.outputs.image_tag }}
+      image_digest: ${{ needs.publish.outputs.image_digest }}
