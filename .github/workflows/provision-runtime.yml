@@ -1,0 +1,61 @@
+name: Provision entity runtime
+run-name: Provision sync entity ${{ inputs.sync_entity_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_entity_id:
+        description: Existing sync_entities UUID in provisioning status
+        required: true
+        type: string
+      image_reference:
+        description: Must match the provider pair in the approved image catalogue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provision-sync-entity-${{ inputs.sync_entity_id }}
+  cancel-in-progress: false
+
+jobs:
+  provision-runtime:
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ipaas.provisioningengine
+    env:
+      RUNTIME_PROVIDER: docker
+      SYNC_ENTITY_ID: ${{ inputs.sync_entity_id }}
+      EXPECTED_RUNTIME_IMAGE: ${{ inputs.image_reference }}
+      DATABASE_URL: ${{ secrets.PLATFORM_DATABASE_URL }}
+      RUNTIME_DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
+      ENCRYPTION_MASTER_KEY: ${{ secrets.PLATFORM_ENCRYPTION_MASTER_KEY }}
+      RUNTIME_IMAGE_MAPPINGS_JSON: ${{ vars.RUNTIME_IMAGE_MAPPINGS_JSON }}
+      DOCKER_NETWORK: ipaas-network
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install locked dependencies
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
+      - name: Build provisioning entry point
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Build failed." }
+      - name: Provision the validated entity through the Docker adapter
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm start
+          if ($LASTEXITCODE -ne 0) { throw "Entity provisioning failed; inspect correlated lifecycle logs." }
