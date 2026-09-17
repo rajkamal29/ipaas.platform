@@ -1,4 +1,4 @@
-name: Validate iPaaS UI
+name: Build & Publish iPaaS UI Image
 
 on:
   push:
