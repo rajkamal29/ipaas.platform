@@ -67,8 +67,9 @@ jobs:
         shell: bash
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ipaas-ui"
-          version="dev-${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "tag=${image}:${version}" >> "$GITHUB_OUTPUT"
+          short_sha="${GITHUB_SHA:0:7}"
+          echo "tag=${image}:dev-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${image}:dev-latest" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -87,7 +88,9 @@ jobs:
           context: ./ipaas.ui
           file: ./ipaas.ui/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.tag }}
+          tags: |
+            ${{ steps.image.outputs.tag }}
+            ${{ steps.image.outputs.latest_tag }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -95,7 +98,13 @@ jobs:
       - name: Record published image
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          LATEST_TAG: ${{ steps.image.outputs.latest_tag }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
-          echo "Image: ${IMAGE_TAG}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Digest: ${IMAGE_DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Source SHA (use as source_sha for Deploy iPaaS UI): ${SOURCE_SHA}"
+            echo "Image (use as image_tag for Deploy iPaaS UI): ${IMAGE_TAG}"
+            echo "Digest (use as image_digest for Deploy iPaaS UI): ${IMAGE_DIGEST}"
+            echo "Also tagged: ${LATEST_TAG} (convenience only - never use for deploy input)"
+          } >> "$GITHUB_STEP_SUMMARY"
