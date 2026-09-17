@@ -1,0 +1,34 @@
+# Deployment only: consumes CI's digest; never builds or owns shared infrastructure.
+services:
+  provisioning-engine:
+    image: ${PROVISIONING_IMAGE:?CI image digest is required}
+    container_name: ipaas-provisioning-engine
+    init: true
+    restart: unless-stopped
+    stop_grace_period: ${PROVISIONING_STOP_GRACE_SECONDS:?Computed deployment grace is required}s
+    labels:
+      io.ipaas.provisioning.source-sha: ${PROVISIONING_SOURCE_SHA:?CI source SHA is required}
+      io.ipaas.provisioning.image-tag: ${PROVISIONING_IMAGE_TAG:?CI image tag is required}
+      io.ipaas.provisioning.stop-grace-seconds: ${PROVISIONING_STOP_GRACE_SECONDS}
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Shared container-reachable database URL is required}
+      RUNTIME_DATABASE_URL: ${RUNTIME_DATABASE_URL:?Shared runtime database URL is required}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?Platform encryption key is required}
+      RUNTIME_IMAGE_MAPPINGS_JSON: ${RUNTIME_IMAGE_MAPPINGS_JSON:?Approved runtime catalogue is required}
+      RUNTIME_PROVIDER: github
+      GITHUB_ACTIONS_API_BASE_URL: https://api.github.com
+      GITHUB_ACTIONS_OWNER: ${GITHUB_ACTIONS_OWNER:?Repository owner is required}
+      GITHUB_ACTIONS_REPOSITORY: ${GITHUB_ACTIONS_REPOSITORY:?Repository name is required}
+      GITHUB_ACTIONS_WORKFLOW: provision-runtime.yml
+      GITHUB_ACTIONS_REF: dev
+      GITHUB_TOKEN: ${PROVISIONING_GITHUB_DISPATCH_TOKEN:?Service dispatch credential is required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PROVISIONING_POLL_INTERVAL_MS: ${PROVISIONING_POLL_INTERVAL_MS:-120000}
+      PROVISIONING_POLL_BATCH_SIZE: ${PROVISIONING_POLL_BATCH_SIZE:-10}
+      PROVISIONING_MAX_CONCURRENCY: ${PROVISIONING_MAX_CONCURRENCY:-5}
+    networks:
+      - ipaas-network
+networks:
+  ipaas-network:
+    external: true
+    name: ipaas-network

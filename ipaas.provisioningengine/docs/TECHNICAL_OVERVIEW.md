@@ -40,3 +40,14 @@ All submitted types are claimed once; existing use-case/adapter behavior rejects
 real_time and interval attempts. No recurrence or real-time execution is added.
 Stale provisioning recovery, automatic requeue and retry coordination remain separate.
 A recurring runtime adapter must be added before production interval schedules are enabled.
+
+Issue #55 adds a separate service CD boundary: successful dev CI passes SHA/tag/digest outputs
+to reusable CD; CD pulls that image on the Windows Docker Desktop host and gracefully replaces
+only the long-running poller. Deployment Compose uses the GitHub provider without
+SYNC_ENTITY_ID or a Docker socket mount. The existing runtime workflow remains the
+Docker executor. Shared infrastructure and application boundaries are unchanged.
+See [CD deployment](CD_DEPLOYMENT.md) for credential lifetime, GitHub Environment setup,
+release selection, drain sizing and rollback requirements.
+
+Automatic CD uses a same-commit reusable workflow after image publication, avoiding
+the workflow_run/default-branch limitation. Manual CI deployment is opt-in.

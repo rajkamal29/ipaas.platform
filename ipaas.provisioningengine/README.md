@@ -281,3 +281,18 @@ ordering, limits, statuses/types and rollback. It launches no runtime containers
 Existing submitted rows are temporarily locked out of test claims; any non-fixture
 claim is rejected before commit. Run on the local development DB with other workers
 stopped. Fixtures are removed by tenant ID afterward. No schema/database is created.
+
+## Long-running service deployment (issue #55)
+
+CI publishes the service image; the separate CD workflow deploys its exact digest on
+the Windows Docker Desktop host. The deployed poller uses the GitHub provider, while
+provision-runtime.yml remains the separate per-entity Docker executor.
+Temporary local demo mode requires no GitHub Environment, repository Secrets or
+repository Variables. Sensitive values come from runner-local Windows environment
+variables. This is temporary; restore GitHub-managed configuration after the demo.
+See [CD deployment and rollback](docs/CD_DEPLOYMENT.md) for runner setup, triggers,
+graceful replacement, manual rollback and restoration instructions.
+Local docker-compose.yml remains build-oriented; CD uses docker-compose.deploy.yml.
+
+Automatic CD uses a same-commit reusable workflow after image publication, avoiding
+the workflow_run/default-branch limitation. Manual CI deployment is opt-in.
