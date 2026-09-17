@@ -5,10 +5,14 @@ on:
     branches: ["features/**", dev]
     paths:
       - "ipaas.ui/**"
+      - ".github/workflows/build-ui.yml"
+      - ".github/workflows/deploy-ui.yml"
   pull_request:
     branches: [dev]
     paths:
       - "ipaas.ui/**"
+      - ".github/workflows/build-ui.yml"
+      - ".github/workflows/deploy-ui.yml"
 
 permissions:
   contents: read
