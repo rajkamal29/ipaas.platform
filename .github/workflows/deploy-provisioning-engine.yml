@@ -12,13 +12,6 @@ on:
       image_digest:
         required: true
         type: string
-    secrets:
-      PLATFORM_RUNTIME_DATABASE_URL:
-        required: true
-      PLATFORM_ENCRYPTION_MASTER_KEY:
-        required: true
-      PROVISIONING_GITHUB_DISPATCH_TOKEN:
-        required: true
   workflow_dispatch:
     inputs:
       source_sha:
@@ -48,7 +41,7 @@ jobs:
       github.ref == 'refs/heads/dev' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: [self-hosted, Windows]
-    environment: provisioning-dev
+    # Temporary local demo: restore provisioning-dev and explicit secrets after the demo.
     timeout-minutes: 240
     steps:
       - name: Checkout trusted deployment definition
@@ -77,19 +70,12 @@ jobs:
           DEPLOY_IMAGE_TAG: ${{ inputs.image_tag }}
           DEPLOY_IMAGE_DIGEST: ${{ inputs.image_digest }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
-          DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
-          RUNTIME_DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
-          ENCRYPTION_MASTER_KEY: ${{ secrets.PLATFORM_ENCRYPTION_MASTER_KEY }}
-          PROVISIONING_GITHUB_DISPATCH_TOKEN: ${{ secrets.PROVISIONING_GITHUB_DISPATCH_TOKEN }}
-          RUNTIME_IMAGE_MAPPINGS_JSON: ${{ vars.RUNTIME_IMAGE_MAPPINGS_JSON }}
           GITHUB_ACTIONS_OWNER: ${{ github.repository_owner }}
           GITHUB_ACTIONS_REPOSITORY: ${{ github.event.repository.name }}
-          LOG_LEVEL: ${{ vars.PROVISIONING_LOG_LEVEL || 'info' }}
-          PROVISIONING_POLL_INTERVAL_MS: ${{ vars.PROVISIONING_POLL_INTERVAL_MS || '120000' }}
-          PROVISIONING_POLL_BATCH_SIZE: ${{ vars.PROVISIONING_POLL_BATCH_SIZE || '10' }}
-          PROVISIONING_MAX_CONCURRENCY: ${{ vars.PROVISIONING_MAX_CONCURRENCY || '5' }}
         run: |
           $ErrorActionPreference = 'Stop'
+          . ./ipaas.provisioningengine/deploy/local-demo.ps1
+          Initialize-LocalDemoEnvironment
           $metadataPath = [IO.Path]::GetTempFileName()
           try {
             @{ sourceSha = $env:DEPLOY_SHA; image = $env:DEPLOY_IMAGE_TAG; digest = $env:DEPLOY_IMAGE_DIGEST } |

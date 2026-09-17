@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+& (Join-Path $PSScriptRoot 'test-local-demo.ps1')
 $sha = 'a' * 40
 $digest = 'sha256:' + ('b' * 64)
 $imageId = 'sha256:' + ('c' * 64)

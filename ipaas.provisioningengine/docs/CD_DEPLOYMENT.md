@@ -48,71 +48,121 @@ concurrency group, shared with manual rollback, and never cancels an active depl
 Manual rollback may be followed by a queued dev deployment; coordinate rollback with
 pending CI runs. External/manual cancellation can still interrupt a job.
 
-## GitHub setup
+## Temporary local demo mode
 
-1. Merge these changes into dev. Automatic reusable CD works with main remaining the
-   default branch; promotion to main is not required for that call chain.
-2. Create **provisioning-dev as a GitHub Environment**. The actual deployment job declares
-   environment: provisioning-dev. Allow trusted dev deployments and configure required
-   reviewers if desired. Review approval gates deployment before secrets are exposed.
-3. Place the three required secrets below at repository scope. The caller passes them
-   explicitly, not through secrets: inherit. Keep shared runtime settings at repository
-   scope so the separate runtime executor can use them too. Environment secrets with the
-   same names override passed values; avoid duplicate definitions unless intentional.
-4. Repository variables are available to reusable workflows in this same repository.
-   Optional deployment-specific variables may instead be set on provisioning-dev; those
-   values are read by the deployment job after the environment is selected. Keep the
-   shared RUNTIME_IMAGE_MAPPINGS_JSON at repository scope for both workflows.
-5. Grant this repository Actions read access to the GHCR package if inheritance does not
-   already provide it. CD requests contents: read and packages: read only. The image job
-   separately has packages: write. No registry PAT is normally needed.
-6. Ensure the intended Windows runner is online, its service account/user can access local
-   Docker Desktop, Linux containers are enabled, and Docker Compose v2 is installed.
-   [self-hosted, Windows] selects runners; constrain availability to the intended host.
-   Docker Desktop must remain running after the job and be started after host reboot.
-7. Start shared infrastructure through ipaas.infra. Existing ipaas-network and PostgreSQL
-   must be reachable by the service. Missing daemon access, wrong container mode, missing
-   network, or failed DB/schema preflight fails before stopping the old service.
-8. For the optional standalone manual CD/rollback workflow_dispatch entry point to be
-   available, its definition must also be registered on the default branch. This manual
-   entry point has GitHub's default-branch limitation; automatic workflow_call does not.
-   The existing per-entity provision-runtime.yml dispatch must likewise be registered.
+Both CD and the per-entity runtime executor temporarily bypass GitHub Environments,
+repository Actions Secrets and Variables.
+The reusable workflow has no secret inputs, and environment: provisioning-dev is removed.
+GHCR still uses the normal workflow GITHUB_TOKEN with packages: read; grant this repository
+package access if necessary. Exact SHA/tag/digest handoff and all replacement checks remain.
 
-### Secrets
+The single deploy/local-demo.ps1 helper loads these runner-local values, in order:
+User scope for the account running the runner, then Process scope, then Machine scope.
+It rejects missing/blank settings by name without printing values, before invoking deployment.
+In default deployment mode, it maps PLATFORM_RUNTIME_DATABASE_URL to both DATABASE_URL and RUNTIME_DATABASE_URL,
+PLATFORM_ENCRYPTION_MASTER_KEY to ENCRYPTION_MASTER_KEY, and
+PROVISIONING_GITHUB_DISPATCH_TOKEN to the service dispatch credential. Values are assigned
+only to the deployment process environment, never GITHUB_ENV, metadata files or repository files.
+The Docker child processes receive them; Docker administrators can inspect container configuration.
+Do not enable PowerShell transcription/debug tracing around secret handling.
 
-| GitHub secret | CD use |
-| --- | --- |
-| PLATFORM_RUNTIME_DATABASE_URL | Both DATABASE_URL and RUNTIME_DATABASE_URL in the service; must reach the existing shared DB from ipaas-network |
-| PLATFORM_ENCRYPTION_MASTER_KEY | Existing platform base64 32-byte key, required by current config |
-| PROVISIONING_GITHUB_DISPATCH_TOKEN | Long-lived service dispatch credential, passed as container GITHUB_TOKEN |
+Stage 1 requires PLATFORM_RUNTIME_DATABASE_URL, PLATFORM_ENCRYPTION_MASTER_KEY and
+PROVISIONING_GITHUB_DISPATCH_TOKEN; it does not require PLATFORM_DATABASE_URL.
+Stage 2 calls the same helper with -Mode runtime and requires PLATFORM_DATABASE_URL,
+PLATFORM_RUNTIME_DATABASE_URL and PLATFORM_ENCRYPTION_MASTER_KEY, without a dispatch token.
+For Stage 2, PLATFORM_DATABASE_URL maps to the Windows process DATABASE_URL, while
+PLATFORM_RUNTIME_DATABASE_URL maps to RUNTIME_DATABASE_URL for the Docker runtime container.
+The host URL may use localhost/a host-reachable address; the container URL must reach the DB
+on ipaas-network. These URLs are intentionally separate and must identify the same platform DB.
 
-The existing runtime executor also needs repository secret PLATFORM_DATABASE_URL (DB
-address reachable from the Windows host), plus PLATFORM_RUNTIME_DATABASE_URL and
-PLATFORM_ENCRYPTION_MASTER_KEY. CD does not repurpose the host-specific DB URL.
+Run these commands locally **as the Windows account that runs the self-hosted runner**;
+replace placeholders privately, never paste real values into this repository or workflow logs:
 
-Use a fine-grained PAT limited to this repository with **Actions: write** for the service
-dispatch credential. Set an expiry, monitor it, and rotate it by updating the secret and
-redeploying. Current application code reads a static token; it cannot renew short-lived
-GitHub App installation tokens. Do not pass the CD job's automatic GITHUB_TOKEN into the
-service: that token expires after the job. The automatic token is used only for Actions
-GHCR login, and login-action logs out after the job. Registry
-credentials use a job-specific DOCKER_CONFIG, not the runner's normal Docker credentials.
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "PLATFORM_DATABASE_URL", "<windows-host-reachable-db-url>", "User"
+)
+[Environment]::SetEnvironmentVariable(
+  "PLATFORM_RUNTIME_DATABASE_URL", "<docker-network-reachable-db-url>", "User"
+)
+[Environment]::SetEnvironmentVariable(
+  "PLATFORM_ENCRYPTION_MASTER_KEY", "<existing-platform-key>", "User"
+)
+[Environment]::SetEnvironmentVariable(
+  "PROVISIONING_GITHUB_DISPATCH_TOKEN", "<github-dispatch-token>", "User"
+)
+```
 
-Never commit .env files, print Compose's expanded environment, or dump full docker inspect.
+The DB URL must reach the shared PostgreSQL service from ipaas-network. The key must be the
+existing base64-encoded 32-byte platform key. The dispatch token should be a fine-grained PAT
+restricted to this repository with Actions: write; track expiry and redeploy after rotation.
+The job's short-lived GITHUB_TOKEN is only for GHCR, not the persistent service.
 
-### Variables
+Restart the runner process/service after setting values. A service running as another account
+cannot read your interactive user's User settings. Direct User-scope reads see registry updates,
+but Process-scope fallback may remain stale until restart. Prefer the actual runner account's
+User scope over broadly accessible machine settings. Never print the variables to verify them.
 
-| GitHub variable | Required/default |
-| --- | --- |
-| RUNTIME_IMAGE_MAPPINGS_JSON | Required approved provider-pair runtime image catalogue; same catalogue used by the executor |
-| PROVISIONING_LOG_LEVEL | Optional; info |
-| PROVISIONING_POLL_INTERVAL_MS | Optional; 120000, allowed 1000–300000 |
-| PROVISIONING_POLL_BATCH_SIZE | Optional; 10, allowed 1–100 |
-| PROVISIONING_MAX_CONCURRENCY | Optional; 5, allowed 1–100 |
+The helper centralizes these non-sensitive demo values:
 
-Repository owner/name are derived from the GitHub context, not separately maintained
-variables. API URL is https://api.github.com, workflow is provision-runtime.yml, and
-runtime workflow ref is dev.
+```json
+[{"source":"connectwise","target":"keka","registry":"GHCR","repository":"rajkamal29/ipaas-orchestration-engine","tag":"dev-latest"}]
+```
+
+RUNTIME_IMAGE_MAPPINGS_JSON resolves to
+**ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest**.
+LOG_LEVEL=info, PROVISIONING_POLL_INTERVAL_MS=120000, PROVISIONING_POLL_BATCH_SIZE=10,
+and PROVISIONING_MAX_CONCURRENCY=5 are fixed for the demo.
+This mutable tag is the individual runtime image only; the Provisioning Engine CD image
+remains pinned to the CI-published digest. GitHub owner/repository derive from the event;
+RUNTIME_PROVIDER=github, workflow provision-runtime.yml and ref dev remain unchanged.
+
+Before testing:
+1. Merge the reviewed workflow changes into dev; automatic workflow_call needs no main copy.
+2. Ensure the intended [self-hosted, Windows] runner account has access to local Docker Desktop,
+   running in Linux-container mode, with Compose v2 installed. Keep Docker Desktop running.
+3. Start shared infrastructure through ipaas.infra. ipaas-network and shared PostgreSQL must
+   already exist. CD will not create them. Missing prerequisites fail before stopping the old service.
+4. Configure the four runner-local variables above and restart the runner.
+5. Allow GHCR package reads for this repository, and container HTTPS access to GitHub.
+6. Trigger eligible dev CI, or manually run CI on dev with deploy=true. Do not deploy a PR.
+
+The runtime executor keeps SYNC_ENTITY_ID and EXPECTED_RUNTIME_IMAGE from dispatch inputs,
+RUNTIME_PROVIDER=docker and DOCKER_NETWORK=ipaas-network. Empty identity/image inputs fail
+before npm start. It uses the local Docker Desktop named pipe; no polling or network creation
+is added. Compose is needed by Stage 1 only. Both workflows must select the same intended host.
+
+The orchestration image manifest was anonymously accessible (HTTP 200, 2026-09-17).
+DockerClient.ensureImage inspects the local image first, then pulls anonymously on a cache miss.
+No Stage 2 registry login or packages permission is added for this public demo image. Dockerode
+pull does not read Docker CLI login configuration automatically. If the package becomes private,
+add workflow-token packages: read authentication and an authenticated CLI pre-pull against the
+same daemon (or explicit Docker API pull auth); docker/login-action alone is insufficient.
+Do not add a registry PAT. A cached dev-latest image is reused by current application behavior;
+ensure the intended demo image is available locally if that tag has changed.
+
+The runtime dispatch workflow still must be registered on the default branch, with the updated
+helper/workflow available on dev. Optional standalone manual CD likewise requires default-branch
+registration; automatic reusable CD does not. This is GitHub workflow registration, not a
+repository Secrets/Variables/Environment dependency. On a single runner, dispatched runtime jobs
+queue until CD releases the runner. Provider credentials and valid tenant/request/entity records
+must already exist in the platform database; these changes do not seed business data or prove
+ConnectWise/Keka connectivity. No live deployment or sync is performed by validation.
+
+To restore production configuration:
+1. Restore environment: provisioning-dev on the deployment job. Create that GitHub Environment
+   with trusted dev branch restrictions and any required reviewer protection.
+2. Restore the three explicit workflow_call secret declarations and matching caller secret mappings.
+   Put values in repository Actions Secrets (shared values remain available to the runtime executor).
+3. Restore deployment-step secret mappings for DATABASE_URL/RUNTIME_DATABASE_URL,
+   ENCRYPTION_MASTER_KEY and PROVISIONING_GITHUB_DISPATCH_TOKEN.
+4. Restore vars.RUNTIME_IMAGE_MAPPINGS_JSON and optional logging/polling vars expressions.
+   Configure repository Actions Variables; defaults remain info/120000/10/5.
+5. Restore runtime workflow secret mappings for the distinct host/container DB URLs and key,
+   plus vars.RUNTIME_IMAGE_MAPPINGS_JSON. Remove both helper invocations, helper and its tests.
+   Keep deployment safety tests.
+6. Redeploy and verify with GitHub-managed configuration before removing local stored copies.
+Never commit .env files, print expanded Compose config or dump full docker inspect.
 
 ## Container configuration and replacement
 
@@ -177,7 +227,7 @@ same runner can use the reviewed deploy/deploy.ps1 with a temporary JSON metadat
 containing sourceSha, image and digest, plus -ExpectedSha and -RepositoryOwner. Supply
 exactly the documented deployment environment and authenticate to GHCR without logging
 credentials. Suspend/coordinate Actions deployments before direct use: the script itself
-cannot acquire GitHub's concurrency lock. Prefer the protected manual workflow when available.
+cannot acquire GitHub's concurrency lock. Prefer the manual workflow when available; environment approval protection is disabled during this demo.
 Do not rerun the image build to recover an old digest. There is no automatic rollback.
 
 ## Validation
