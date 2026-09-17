@@ -287,8 +287,11 @@ stopped. Fixtures are removed by tenant ID afterward. No schema/database is crea
 CI publishes the service image; the separate CD workflow deploys its exact digest on
 the Windows Docker Desktop host. The deployed poller uses the GitHub provider, while
 provision-runtime.yml remains the separate per-entity Docker executor.
-See [CD deployment and rollback](docs/CD_DEPLOYMENT.md) for triggers, required secrets
-and variables, GitHub Environment setup, graceful replacement and manual rollback.
+Temporary local demo mode requires no GitHub Environment, repository Secrets or
+repository Variables. Sensitive values come from runner-local Windows environment
+variables. This is temporary; restore GitHub-managed configuration after the demo.
+See [CD deployment and rollback](docs/CD_DEPLOYMENT.md) for runner setup, triggers,
+graceful replacement, manual rollback and restoration instructions.
 Local docker-compose.yml remains build-oriented; CD uses docker-compose.deploy.yml.
 
 Automatic CD uses a same-commit reusable workflow after image publication, avoiding

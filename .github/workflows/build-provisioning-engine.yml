@@ -78,6 +78,10 @@ jobs:
         shell: pwsh
         run: ./deploy/test-deploy.ps1
 
+      - name: Test local demo configuration
+        shell: pwsh
+        run: ./deploy/test-local-demo.ps1
+
   image:
     name: Build and publish image
     needs: verify

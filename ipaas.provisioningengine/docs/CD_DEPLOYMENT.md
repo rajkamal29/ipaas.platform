@@ -233,6 +233,8 @@ Do not rerun the image build to recover an old digest. There is no automatic rol
 ## Validation
 
 - npm ci; npm run typecheck; npm test; npm run build
+- CI runs deploy/test-deploy.ps1 followed by an explicit deploy/test-local-demo.ps1 step
+  after the build, because the local-demo test exercises compiled files under dist.
 - deploy/test-deploy.ps1: fake-Docker tests for successful replacement, first deployment,
   drain sizing, pull/preflight failures, foreign containers/remote daemons, recreation
   failure, verification failure and mismatched image metadata. It never touches Docker.
@@ -241,7 +243,7 @@ Do not rerun the image build to recover an old digest. There is no automatic rol
   permissions and distinct non-canceling concurrency groups.
 
 A real Actions/GHCR deployment requires the setup above. Local static/mocked validation
-does not establish that repository secrets, runner routing or package permissions are configured.
+does not establish that runner-local Windows variables, runner routing or package permissions are configured.
 
 References: [reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows),
 [workflow_run](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run),
