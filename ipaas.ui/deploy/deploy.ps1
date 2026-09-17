@@ -50,7 +50,7 @@ $null = Invoke-Docker @('network', 'inspect', 'ipaas-network', '--format', '{{.N
 # Explicit empty env file prevents accidental local .env interpolation.
 $emptyEnv = [IO.Path]::GetTempFileName()
 try {
-    $compose = @('compose', '--project-name', $projectName, '--env-file', $emptyEnv, '-f', $composePath)
+    $compose = @('compose', '--project-name', $projectName, '--env-file', $emptyEnv, '-f', $composePath, '--progress', 'plain')
     $null = Invoke-Docker ($compose + @('config', '--quiet')) 'validate deployment Compose'
     $existing = Invoke-Docker @('ps', '-a', '--filter', "name=^/$containerName$", '--format', '{{.ID}}') 'find existing service'
     if ($existing) {
@@ -69,7 +69,7 @@ try {
     if ($existing) {
         $null = Invoke-Docker @('stop', '--time', '15', $containerName) 'stop existing UI container'
     }
-    $null = Invoke-Docker ($compose + @('up', '-d', '--no-deps', '--no-build', '--pull', 'never', '--force-recreate', '--progress', 'plain', 'ui')) 'replace UI container'
+    $null = Invoke-Docker ($compose + @('up', '-d', '--no-deps', '--no-build', '--pull', 'never', '--force-recreate', 'ui')) 'replace UI container'
     for ($sample = 0; $sample -lt 6; $sample++) {
         Start-Sleep -Seconds 5
         $state = Invoke-Docker @('inspect', '--format', '{{.State.Status}}|{{.Image}}|{{.RestartCount}}|{{.Config.Image}}', $containerName) 'verify running service'
