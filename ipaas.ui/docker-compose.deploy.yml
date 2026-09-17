@@ -1,0 +1,18 @@
+# Deployment only: consumes CI's digest; never builds or owns shared infrastructure.
+services:
+  ui:
+    image: ${UI_IMAGE:?CI image digest is required}
+    container_name: ipaas-ui
+    init: true
+    restart: unless-stopped
+    labels:
+      io.ipaas.ui.source-sha: ${UI_SOURCE_SHA:?CI source SHA is required}
+      io.ipaas.ui.image-tag: ${UI_IMAGE_TAG:?CI image tag is required}
+    ports:
+      - "8080:80"
+    networks:
+      - ipaas-network
+networks:
+  ipaas-network:
+    external: true
+    name: ipaas-network
