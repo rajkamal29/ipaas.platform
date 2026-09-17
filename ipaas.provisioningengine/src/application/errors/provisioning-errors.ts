@@ -46,6 +46,7 @@ export interface DependencyDiagnostics {
     | "ensure-image"
     | "create-container"
     | "start-container"
+    | "wait-container"
     | "reconcile-container"
     | "workflow-dispatch"
     | "resolve-image";
