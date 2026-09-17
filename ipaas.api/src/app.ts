@@ -9,6 +9,7 @@ import { healthRoutes } from "./api/routes/health.routes";
 import { syncEntityRoutes } from "./api/routes/sync-entity.routes";
 import { syncRequestRoutes } from "./api/routes/sync-request.routes";
 import { tenantRoutes } from "./api/routes/tenant.routes";
+import { swaggerRoutes } from "./api/swagger/swagger.routes";
 import type { SyncEntityUseCase } from "./application/use-cases/sync-entity.use-case";
 import type { SyncRequestUseCase } from "./application/use-cases/sync-request.use-case";
 import type { TenantUseCase } from "./application/use-cases/tenant.use-case";
@@ -27,6 +28,7 @@ export function createApp(dependencies: ApplicationDependencies): Express {
   app.disable("x-powered-by");
   app.use(requestId);
   app.use(express.json({ limit: "100kb" }));
+  app.use(swaggerRoutes());
   app.use(healthRoutes(dependencies.checkReadiness));
   app.use(
     "/api/tenants/:tenantId/sync-requests/:requestId/entities",
