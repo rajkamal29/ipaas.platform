@@ -73,7 +73,19 @@ try {
         if ($case -in @('pull', 'preflight', 'foreign', 'remote', 'metadata', 'first')) { Assert-True ($stops.Count -eq 0) "Unsafe stop in $case" }
         if ($case -eq 'success') { Assert-True ($stops[0][2] -eq '1800') 'Previous drain grace was not preserved' }
         if ($case -eq 'large') { Assert-True ($stops[0][2] -eq '12060') 'Large batch drain grace was not computed' }
+        $digestPulled = $false
         foreach ($command in $global:DeploymentTestcalls) {
+            if ($command[0] -eq 'pull') { $digestPulled = $command[1] -eq $image }
+            if ($command[0] -eq 'compose' -and $command -contains 'run') {
+                Assert-True (-not ($command -contains '--pull')) 'Compose 2.27 preflight must not use --pull'
+                Assert-True $digestPulled 'Exact digest must be pulled before preflight'
+                Assert-True ($env:PROVISIONING_IMAGE -eq $image) 'Preflight must use the published digest'
+            }
+            if ($command[0] -eq 'compose' -and $command -contains 'up') {
+                Assert-True ($env:PROVISIONING_IMAGE -eq $image) 'Deployment must use the published digest'
+                $pullIndex = [Array]::IndexOf($command, '--pull')
+                Assert-True ($pullIndex -ge 0 -and $command[$pullIndex + 1] -eq 'never') 'Compose up must retain --pull never'
+            }
             Assert-True (-not ($command -contains 'down' -or $command -contains 'prune' -or $command -contains 'build' -or $command -contains 'kill' -or $command -contains 'rm')) 'Unsafe Docker operation'
             if ($command[0] -eq 'stop') { Assert-True ($command[-1] -eq 'ipaas-provisioning-engine') 'Unrelated container stopped' }
             if ($command[0] -eq 'pull') { Assert-True ($command[1] -eq $image) 'Image pull was not digest-pinned' }
