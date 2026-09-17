@@ -54,7 +54,7 @@ async function main() {
       };
 
       await runEntityOnce(entityRow, sourceAdapter, targetAdapter, context, log);
-      log.info('run complete');
+      log.info('run complete successfuly');
     }
   }
 

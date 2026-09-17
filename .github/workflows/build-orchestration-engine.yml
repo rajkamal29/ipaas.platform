@@ -1,8 +1,8 @@
 name: Build & Publish Orchestration Engine Image
 
-# Branch model: feature -> dev -> main. A build+publish happens whenever
-# reviewed code lands on `dev` (i.e. a feature branch's PR is approved and
-# merged) - not on every feature-branch push, and not (yet) on `main`.
+# Branch model: feature -> dev -> main. Feature-branch pushes and PRs into
+# `dev` run setup, validation, and an image build without publishing.
+# Reviewed code pushed to `dev` also publishes the image to GHCR.
 # See ipaas.orchestrationengine/docs/LLD-orchestration-engine.md
 # ("Containerization") for why.
 #
@@ -26,7 +26,9 @@ on:
       - "ipaas.orchestrationengine/.npmrc"
       - ".github/workflows/build-orchestration-engine.yml"
   push:
-    branches: [dev]
+    branches:
+      - dev
+      - "features/**"
     paths:
       - "ipaas.orchestrationengine/lib/orchestration/**"
       - "ipaas.orchestrationengine/lib/mapping/**"
