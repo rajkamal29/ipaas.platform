@@ -50,6 +50,7 @@ function setup(initial: SyncEntity | null = seed) {
   let launched = false;
   const calls: RuntimeRequest[] = [];
   const errors: LogContext[] = [];
+  const logs: { message: string; context: LogContext }[] = [];
   const transitions: [SyncEntityStatus, SyncEntityStatus][] = [];
   const parentLookups: string[] = [];
   const imageLookups: string[][] = [];
@@ -96,7 +97,9 @@ function setup(initial: SyncEntity | null = seed) {
       },
     },
     {
-      info: () => undefined,
+      info: (message, context) => {
+        logs.push({ message, context: context ?? {} });
+      },
       error: (_message, context) => {
         errors.push(context ?? {});
       },
@@ -105,6 +108,7 @@ function setup(initial: SyncEntity | null = seed) {
   return {
     useCase,
     errors,
+    logs,
     calls,
     transitions,
     parentLookups,
@@ -162,10 +166,16 @@ describe("ProvisionSyncEntityUseCase", () => {
     fake.setResult({ kind: "accepted", reference: "dispatch" });
     assert.equal((await fake.useCase.execute(id)).status, "provisioning");
   });
-  it("does not infer one-time completion from an exited runtime", async () => {
+  it("completes one-time execution after a definitive zero exit", async () => {
     const fake = setup();
-    fake.setResult({ kind: "already-executed", reference: "runtime" });
-    assert.equal((await fake.useCase.execute(id)).status, "provisioning");
+    fake.setResult({
+      kind: "exited",
+      reference: "runtime",
+      runtimeName: `ipaas-sync-${id}`,
+      runtimeState: "exited",
+      exitCode: 0,
+    });
+    assert.equal((await fake.useCase.execute(id)).status, "completed");
   });
   it("rejects real-time without resolving or launching a batch image", async () => {
     const fake = setup({ ...seed, syncType: "real_time" });
@@ -270,7 +280,7 @@ describe("Explicit provisioning worker", () => {
   });
 });
 
-it("preserves terminal orchestration status racing with provisioning responses", async () => {
+it("preserves a concurrent terminal transition", async () => {
   const successful = setup();
   successful.completeDuringLaunch();
   assert.equal((await successful.useCase.execute(id)).status, "completed");
@@ -299,6 +309,7 @@ it("preserves dependency diagnostics and entity correlation in application failu
     httpStatus: 503,
     statusRecorded: false,
     uncertain: true,
+    previousStatus: "provisioning",
   });
 });
 
@@ -324,4 +335,75 @@ it("claimed unsupported types fail once without activating or requeueing", async
     );
     assert.equal(fake.calls.length, launches);
   }
+});
+
+for (const exitCode of [0, 1]) {
+  it(
+    "records definitive exit " +
+      exitCode +
+      " conditionally with safe runtime context",
+    async () => {
+      const fake = setup();
+      fake.setResult({
+        kind: "exited",
+        reference: "runtime",
+        runtimeName: `ipaas-sync-${id}`,
+        runtimeState: "exited",
+        exitCode,
+      });
+      const result = await fake.useCase.execute(id);
+      const next = exitCode === 0 ? "completed" : "failed";
+      assert.equal(result.status, next);
+      assert.equal(result.outcome, next);
+      assert.deepEqual(fake.transitions, [["provisioning", next]]);
+      const log = fake.logs.find(
+        (x) => x.message === "Runtime reconciliation completed",
+      )!;
+      assert.equal(log.context.exitCode, exitCode);
+      assert.equal(log.context.nextStatus, next);
+      assert.equal(log.context.syncEntityId, id);
+      assert.equal(log.context.uncertain, false);
+    },
+  );
+}
+it("does not overwrite a concurrent terminal status after definitive runtime exit", async () => {
+  const fake = setup();
+  fake.completeDuringLaunch();
+  fake.setResult({
+    kind: "exited",
+    reference: "runtime",
+    runtimeName: `ipaas-sync-${id}`,
+    runtimeState: "exited",
+    exitCode: 1,
+  });
+  assert.equal((await fake.useCase.execute(id)).status, "completed");
+  assert.equal(
+    fake.logs.find((x) => x.message === "Provisioning status transition")
+      ?.context.statusRecorded,
+    false,
+  );
+});
+it("logs reconciliation-required for uncertain Docker outcomes without a terminal transition", async () => {
+  const fake = setup();
+  fake.failRuntime(
+    new DependencyError("runtime", true, {
+      dependency: "docker",
+      operation: "wait-container",
+    }),
+  );
+  await assert.rejects(fake.useCase.execute(id), ProvisioningFailedError);
+  assert.equal(fake.current()?.status, "provisioning");
+  assert.deepEqual(fake.transitions, []);
+  assert.equal(
+    fake.logs.find((x) => x.message === "Runtime reconciliation required")
+      ?.context.uncertain,
+    true,
+  );
+});
+it("GitHub acceptance is not one-time completion", async () => {
+  const fake = setup();
+  fake.setResult({ kind: "accepted", reference: "dispatch" });
+  assert.equal((await fake.useCase.execute(id)).status, "provisioning");
+  assert.deepEqual(fake.transitions, []);
+  assert.ok(fake.logs.some((x) => x.message === "GitHub dispatch accepted"));
 });

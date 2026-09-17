@@ -5,6 +5,7 @@ import type { SyncEntityClaimRepository } from "../application/ports/repositorie
 import type { Logger } from "../application/ports/logger.js";
 import {
   ApplicationError,
+  ProvisioningFailedError,
   DependencyError,
   failureDiagnostics,
 } from "../application/errors/provisioning-errors.js";
@@ -49,7 +50,9 @@ export class ProvisioningWorker {
       );
     this.start();
     if (syncEntityId) {
-      await this.submit(syncEntityId);
+      const result = await this.submit(syncEntityId);
+      if (result.status === "failed")
+        throw new ProvisioningFailedError("runtime-exited", true, false);
       return;
     }
     if (!this.polling)
@@ -86,8 +89,14 @@ export class ProvisioningWorker {
   }: PollingDependencies): Promise<void> {
     logger.info("Polling worker started");
     while (this.accepting) {
+      logger.info("Provisioning poll started", {
+        batchSize: options.batchSize,
+      });
       try {
         const ids = await claims.claimSubmitted(options.batchSize);
+        logger.info("Provisioning poll completed", {
+          claimedCount: ids.length,
+        });
         if (ids.length) {
           logger.info("Provisioning batch claimed", {
             claimedCount: ids.length,
@@ -97,12 +106,7 @@ export class ProvisioningWorker {
             while (next < ids.length) {
               const id = ids[next++]!;
               try {
-                const result = await this.provision.execute(id);
-                logger.info("Claimed entity handled", {
-                  syncEntityId: id,
-                  outcome: result.outcome,
-                  status: result.status,
-                });
+                await this.provision.execute(id);
               } catch (error: unknown) {
                 logger.error("Claimed entity failed", {
                   syncEntityId: id,
@@ -127,7 +131,8 @@ export class ProvisioningWorker {
           });
         }
       } catch (error: unknown) {
-        logger.error("Claim cycle failed", {
+        logger.error("Provisioning poll completed", {
+          outcome: "claim-failed",
           ...failureDiagnostics(error),
           uncertain: error instanceof DependencyError && error.uncertain,
           failureCode:
@@ -149,12 +154,12 @@ export class ProvisioningWorker {
       this.accepting = false;
       this.stopped = true;
       this.cancellation.abort();
-      this.polling?.logger.info("Worker stopping");
+      this.polling?.logger.info("Provisioning worker stopping");
       try {
         await this.pollingLoop;
       } finally {
         await Promise.allSettled(this.pending.values());
-        this.polling?.logger.info("Worker drained");
+        this.polling?.logger.info("Provisioning worker stopped");
       }
     })();
     return this.shutdown;
