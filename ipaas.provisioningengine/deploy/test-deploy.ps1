@@ -41,6 +41,13 @@ function docker {
         }
         'stop' { return '' }
         'compose' {
+            if ($command -contains 'up' -and $global:DeploymentTestscenario -in @('native-progress', 'native-failure')) {
+                $nativeExit = if ($global:DeploymentTestscenario -eq 'native-failure') { 7 } else { 0 }
+                # A real native child reproduces PS 5.1 stderr handling; Write-Error cannot.
+                & node -e "process.stdout.write('captured status');process.stderr.write('RAW_SECRET native progress');process.exit($nativeExit)"
+                $global:LASTEXITCODE = $LASTEXITCODE
+                return
+            }
             if (($global:DeploymentTestscenario -eq 'preflight' -and $command -contains 'run') -or ($global:DeploymentTestscenario -eq 'up' -and $command -contains 'up')) {
                 $global:LASTEXITCODE = 1; return 'RAW_SECRET'
             }
@@ -54,7 +61,7 @@ try {
     foreach ($name in @('DATABASE_URL', 'RUNTIME_DATABASE_URL', 'ENCRYPTION_MASTER_KEY', 'RUNTIME_IMAGE_MAPPINGS_JSON', 'PROVISIONING_GITHUB_DISPATCH_TOKEN', 'GITHUB_ACTIONS_OWNER', 'GITHUB_ACTIONS_REPOSITORY')) {
         [Environment]::SetEnvironmentVariable($name, 'test-only')
     }
-    foreach ($case in @('success', 'first', 'large', 'pull', 'preflight', 'foreign', 'remote', 'up', 'verify', 'metadata')) {
+    foreach ($case in @('success', 'first', 'large', 'pull', 'preflight', 'foreign', 'remote', 'up', 'verify', 'metadata', 'native-progress', 'native-failure')) {
         $global:DeploymentTestscenario = $case
         $global:DeploymentTestcalls = New-Object 'System.Collections.Generic.List[object]'
         $env:PROVISIONING_POLL_BATCH_SIZE = '10'
@@ -64,10 +71,16 @@ try {
         if ($case -eq 'metadata') { $source = 'd' * 40 }
         @{sourceSha = $source; digest = $digest; image = $tag} | ConvertTo-Json | Set-Content -LiteralPath $metadataPath
         $failure = $null
-        try { & (Join-Path $PSScriptRoot 'deploy.ps1') -MetadataPath $metadataPath -ExpectedSha $sha -RepositoryOwner 'owner' }
+        $deploymentOutput = @()
+        try { $deploymentOutput = @(& (Join-Path $PSScriptRoot 'deploy.ps1') -MetadataPath $metadataPath -ExpectedSha $sha -RepositoryOwner 'owner' *>&1) }
         catch { $failure = $_.Exception.Message }
-        $success = $case -in @('success', 'first', 'large')
+        $success = $case -in @('success', 'first', 'large', 'native-progress')
         Assert-True (($null -eq $failure) -eq $success) "Unexpected outcome for $case : $failure"
+        Assert-True (-not (($deploymentOutput | Out-String).Contains('RAW_SECRET'))) 'Native output leaked from deployment'
+        Assert-True ($ErrorActionPreference -eq 'Stop') 'Error preference was not preserved'
+        if ($case -eq 'native-failure') {
+            Assert-True ($failure -eq 'Docker operation failed: replace only Provisioning Engine. Check daemon access and deployment configuration.') 'Native nonzero exit did not produce the sanitized failure'
+        }
         if ($failure) { Assert-True (-not $failure.Contains('RAW_SECRET')) 'Native diagnostic leaked' }
         $stops = @($global:DeploymentTestcalls | Where-Object { $_[0] -eq 'stop' })
         if ($case -in @('pull', 'preflight', 'foreign', 'remote', 'metadata', 'first')) { Assert-True ($stops.Count -eq 0) "Unsafe stop in $case" }
@@ -90,6 +103,8 @@ try {
             if ($command[0] -eq 'stop') { Assert-True ($command[-1] -eq 'ipaas-provisioning-engine') 'Unrelated container stopped' }
             if ($command[0] -eq 'pull') { Assert-True ($command[1] -eq $image) 'Image pull was not digest-pinned' }
         }
+        # Expected native failures have been asserted; do not fail pwsh's CI exit check.
+        $global:LASTEXITCODE = 0
         Write-Host "Passed deployment scenario: $case"
     }
 } finally {
