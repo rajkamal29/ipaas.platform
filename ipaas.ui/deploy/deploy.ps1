@@ -24,6 +24,17 @@ function Invoke-Docker {
     # that - it comes out as mashed-together fragments instead of readable
     # text. Reading the raw bytes back and normalizing \r into real line
     # breaks reconstructs the actual output faithfully.
+    #
+    # Windows PowerShell 5.1 (this runner's shell) treats ANY stderr output
+    # from a native command as a terminating error under the script-wide
+    # $ErrorActionPreference = 'Stop' above - regardless of exit code or
+    # redirection. docker/compose write normal progress output to stderr by
+    # design, so without this local override the command was being aborted
+    # on its first stderr line before it ever finished, no matter how the
+    # output was captured. $LASTEXITCODE below remains the sole, real source
+    # of truth for success/failure - this only stops PowerShell from
+    # pre-empting that with its own error-stream handling.
+    $ErrorActionPreference = 'Continue'
     $tempOut = [IO.Path]::GetTempFileName()
     try {
         & docker @Arguments *> $tempOut
