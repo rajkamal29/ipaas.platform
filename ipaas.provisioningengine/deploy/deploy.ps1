@@ -88,7 +88,7 @@ try {
     if ($expectedImageId -cnotmatch '^sha256:[a-f0-9]{64}$') { throw 'Invalid local image identity.' }
     # Validate configuration and shared schema without starting a poller or claiming work.
     $preflight = "try{const{loadConfig}=await import('./dist/config/environment.js');const c=loadConfig();if('SYNC_ENTITY_ID' in process.env||c.runtime.kind!=='github')throw Error();await import('./dist/scripts/verify-schema.js');}catch{process.stderr.write('Deployment preflight failed\n');process.exitCode=1;}"
-    $null = Invoke-Docker ($compose + @('run', '--rm', '--no-deps', '--pull', 'never', '--entrypoint', 'node', 'provisioning-engine', '--input-type=module', '-e', $preflight)) 'validate image configuration and shared schema'
+    $null = Invoke-Docker ($compose + @('run', '--rm', '--no-deps', '--entrypoint', 'node', 'provisioning-engine', '--input-type=module', '-e', $preflight)) 'validate image configuration and shared schema'
     if ($existing) {
         $null = Invoke-Docker @('stop', '--time', [string]$stopGrace, $containerName) 'drain existing Provisioning Engine'
     }
