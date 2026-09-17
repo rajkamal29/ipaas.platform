@@ -15,6 +15,19 @@ function extractField(input, path) {
   return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), input);
 }
 
+function setField(output, path, value) {
+  const parts = path.split('.');
+  let current = output;
+
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const key = parts[index];
+    current[key] ??= {};
+    current = current[key];
+  }
+
+  current[parts.at(-1)] = value;
+}
+
 function applyTransform(transform, value) {
   switch (transform.type) {
     case 'enumMap':
@@ -46,7 +59,7 @@ function applyMapping(profile, input) {
     // canonicalField (building the canonical record); outbound rules
     // write under targetField (building the target-shaped record).
     const targetKey = rule.targetField ?? rule.canonicalField;
-    output[targetKey] = value;
+    setField(output, targetKey, value);
   }
   return output;
 }

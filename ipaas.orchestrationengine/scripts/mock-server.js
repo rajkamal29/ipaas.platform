@@ -23,12 +23,32 @@ const { URL } = require('url');
 
 const PORT = Number(process.argv[2]) || 4000;
 
+function mockCompany(id, name, identifier, city, state, zip, countryCode) {
+  return {
+    id,
+    name,
+    identifier,
+    status: { id: 1, name: 'Active' },
+    type: { id: 1, name: 'Customer' },
+    phoneNumber: `+1-555-010${id}`,
+    website: `https://${identifier.toLowerCase()}.example.com`,
+    emailAddress: `contact@${identifier.toLowerCase()}.example.com`,
+    addressLine1: `${id} Main Street`,
+    addressLine2: `Suite ${id}00`,
+    city,
+    state,
+    zip,
+    country: { id: 1, name: countryCode },
+    _info: { lastUpdated: `2026-08-0${id}T00:00:00Z` },
+  };
+}
+
 const COMPANIES = [
-  { id: 1, name: 'Acme Corp', status: { id: 1, name: 'Active' }, _info: { lastUpdated: '2026-08-01T00:00:00Z' } },
-  { id: 2, name: 'Globex Inc', status: { id: 1, name: 'Active' }, _info: { lastUpdated: '2026-08-02T00:00:00Z' } },
-  { id: 3, name: 'Initech', status: { id: 1, name: 'Active' }, _info: { lastUpdated: '2026-08-03T00:00:00Z' } },
-  { id: 4, name: 'Umbrella Corp', status: { id: 1, name: 'Active' }, _info: { lastUpdated: '2026-08-04T00:00:00Z' } },
-  { id: 5, name: 'Wayne Enterprises', status: { id: 1, name: 'Active' }, _info: { lastUpdated: '2026-08-05T00:00:00Z' } },
+  mockCompany(1, 'Acme Corp', 'ACME', 'New York', 'NY', '10001', 'US'),
+  mockCompany(2, 'Globex Inc', 'GLOBEX', 'Boston', 'MA', '02108', 'US'),
+  mockCompany(3, 'Initech', 'INITECH', 'Austin', 'TX', '73301', 'US'),
+  mockCompany(4, 'Umbrella Corp', 'UMBRELLA', 'Chicago', 'IL', '60601', 'US'),
+  mockCompany(5, 'Wayne Enterprises', 'WAYNE', 'Gotham', 'NJ', '07001', 'US'),
 ];
 
 // Tracks write attempts per id in memory, so id 3 can fail once then
@@ -94,7 +114,7 @@ const server = http.createServer(async (req, res) => {
     // --- Keka: POST /keka/api/v1/psa/clients (write) ---
     if (req.method === 'POST' && url.pathname === '/keka/api/v1/psa/clients') {
       const record = await readJsonBody(req);
-      const id = String(record.id);
+      const id = String(record.code);
 
       if (id === '2') {
         return sendJson(res, 400, { message: `mock: record ${id} always fails (data error)` });
@@ -105,7 +125,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 429, { message: `mock: record ${id} rate-limited on first attempt` });
         }
       }
-      return sendJson(res, 200, { id, status: 'created' });
+      return sendJson(res, 200, { ...record, id, status: 'created' });
     }
 
     // --- Keka: PUT /keka/api/v1/psa/clients/:id (update) ---
