@@ -12,14 +12,16 @@ $composePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../docker-compos
 
 function Invoke-Docker {
     param([string[]]$Arguments, [string]$Operation)
-    try {
-        $output = @(& docker @Arguments 2>&1)
-        if ($LASTEXITCODE -ne 0) { throw 'Docker command failed' }
-        return ($output -join [Environment]::NewLine).Trim()
-    } catch {
-        # Native output may contain configuration. Do not dump it or full inspect output.
-        throw "Docker operation failed: $Operation. Check daemon access and deployment configuration."
+    # Unlike the Provisioning Engine's deploy script, this compose file and every
+    # value passed through it (image tag/digest/commit SHA) is non-secret, so
+    # Docker's real output is safe to surface directly instead of hiding it
+    # behind a generic message.
+    $output = @(& docker @Arguments 2>&1)
+    $outputText = ($output -join [Environment]::NewLine).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker operation failed: $Operation.$([Environment]::NewLine)$outputText"
     }
+    return $outputText
 }
 
 if ($ExpectedSha -cnotmatch '^[a-f0-9]{40}$') { throw 'Invalid source SHA.' }
