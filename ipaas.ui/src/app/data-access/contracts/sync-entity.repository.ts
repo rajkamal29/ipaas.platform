@@ -7,6 +7,7 @@ import type {
 import type { CrudRepository } from './crud-repository';
 
 export type CreateSyncEntity = SyncSchedule & {
+  readonly tenantId?: string;
   readonly syncRequestId: string;
   readonly entity: EntityType;
   readonly status?: SyncEntityStatus;
@@ -22,9 +23,20 @@ export interface SyncEntityFilter {
   readonly status?: SyncEntityStatus;
   readonly syncType?: SyncType;
 }
-export type SyncEntityRepository = CrudRepository<
+export interface SyncEntityRouteContext {
+  readonly tenantId: string;
+  readonly syncRequestId: string;
+}
+export interface SyncEntityRepository extends CrudRepository<
   SyncEntity,
   CreateSyncEntity,
   UpdateSyncEntity,
   SyncEntityFilter
->;
+> {
+  get(id: string, context?: SyncEntityRouteContext): Promise<SyncEntity | null>;
+  update(
+    id: string,
+    input: UpdateSyncEntity,
+    context?: SyncEntityRouteContext,
+  ): Promise<SyncEntity>;
+}

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { App } from '../../app';
 import { appConfig } from '../../app.config';
+import { provideMockRepositories } from '../../data-access/mock/provide-mock-repositories';
 import { TENANT_PATHS } from '../../core/config/navigation';
 import { FIXTURE_IDS } from '../../data-access/mock/fixtures/mock-fixtures';
 import {
@@ -10,6 +11,7 @@ import {
   SYNC_ENTITY_REPOSITORY,
 } from '../../data-access/tokens/repository.tokens';
 import type { Tenant } from '../../domain/models/tenant';
+import { RepositoryError } from '../../data-access/contracts/repository-error';
 import {
   ENTITY_TYPES,
   PROVIDERS,
@@ -25,7 +27,7 @@ describe('Tenant and sync configuration pages', () => {
   async function setup(url: string, arrange?: () => void, waitForLoad = true) {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: appConfig.providers,
+      providers: [...appConfig.providers, provideMockRepositories()],
     }).compileComponents();
     arrange?.();
     const fixture = TestBed.createComponent(App);
@@ -143,6 +145,39 @@ describe('Tenant and sync configuration pages', () => {
     expect(await TestBed.inject(TENANT_REPOSITORY).list()).toHaveLength(2);
   });
 
+  it('prevents short and whitespace-only tenant names before repository submission', async () => {
+    const page = await setup(paths.create);
+    const create = vi.spyOn(TestBed.inject(TENANT_REPOSITORY), 'create');
+    await page.input('#tenant-name', 'AB');
+    await page.submit();
+    expect(create).not.toHaveBeenCalled();
+    expect(page.main().textContent).toContain('Name must be at least 3 characters.');
+    await page.input('#tenant-name', '   ');
+    await page.submit();
+    expect(create).not.toHaveBeenCalled();
+    expect(page.main().textContent).toContain('Name is required.');
+  });
+
+  it('shows a safe backend error message and request ID in the existing feedback panel', async () => {
+    const page = await setup(paths.create, () => {
+      vi.spyOn(TestBed.inject(TENANT_REPOSITORY), 'create').mockRejectedValueOnce(
+        new RepositoryError(
+          'server',
+          'The tenant service is temporarily unavailable.',
+          [],
+          undefined,
+          'request-123',
+        ),
+      );
+    });
+    await page.input('#tenant-name', 'Acme');
+    await page.submit();
+    expect(page.main().querySelector('[role="alert"]')?.textContent).toContain(
+      'The tenant service is temporarily unavailable.',
+    );
+    expect(page.main().textContent).toContain('Request ID: request-123');
+  });
+
   it('disables the form while saving and prevents duplicate submissions', async () => {
     let resolve!: (value: Tenant) => void;
     const pending = new Promise<Tenant>((done) => {
@@ -198,6 +233,28 @@ describe('Tenant and sync configuration pages', () => {
     expect(page.main().textContent).toContain('No sync entities yet');
   });
 
+  it('shows a safe API error when request creation fails', async () => {
+    const page = await setup(paths.createRequest(ids.tenantA), () => {
+      vi.spyOn(TestBed.inject(SYNC_REQUEST_REPOSITORY), 'create').mockRejectedValueOnce(
+        new RepositoryError(
+          'server',
+          'The sync request service is temporarily unavailable.',
+          [],
+          undefined,
+          'request-sync-123',
+        ),
+      );
+    });
+    await page.select('#source-provider', 'ConnectWise');
+    await page.select('#target-provider', 'Keka');
+    await page.submit();
+    expect(page.router.url).toBe(paths.createRequest(ids.tenantA));
+    expect(page.main().querySelector('[role="alert"]')?.textContent).toContain(
+      'The sync request service is temporarily unavailable.',
+    );
+    expect(page.main().textContent).toContain('Request ID: request-sync-123');
+  });
+
   it('shows request entities only and disables entity types already configured', async () => {
     const page = await setup(paths.request(ids.tenantA, ids.requestA));
     expect(page.main().querySelectorAll('tbody tr')).toHaveLength(2);
@@ -232,6 +289,7 @@ describe('Tenant and sync configuration pages', () => {
     await page.submit();
     expect(create).toHaveBeenCalledWith({
       syncRequestId: ids.requestA,
+      tenantId: ids.tenantA,
       entity: ENTITY_TYPES.project,
       syncType: SYNC_TYPES.interval,
       intervalSeconds: 60,
@@ -264,6 +322,7 @@ describe('Tenant and sync configuration pages', () => {
     await page.submit();
     expect(create).toHaveBeenCalledWith({
       syncRequestId: ids.requestA,
+      tenantId: ids.tenantA,
       entity: ENTITY_TYPES.project,
       syncType,
       intervalSeconds: null,
@@ -291,6 +350,27 @@ describe('Tenant and sync configuration pages', () => {
     expect(
       await TestBed.inject(SYNC_ENTITY_REPOSITORY).list({ syncRequestId: ids.requestA }),
     ).toHaveLength(3);
+  });
+
+  it('shows a safe API error when entity creation fails', async () => {
+    const page = await setup(paths.createEntity(ids.tenantA, ids.requestA), () => {
+      vi.spyOn(TestBed.inject(SYNC_ENTITY_REPOSITORY), 'create').mockRejectedValueOnce(
+        new RepositoryError(
+          'server',
+          'The sync entity service is temporarily unavailable.',
+          [],
+          undefined,
+          'request-entity-123',
+        ),
+      );
+    });
+    await page.select('#entity-type', 'Project');
+    await page.submit();
+    expect(page.router.url).toBe(paths.createEntity(ids.tenantA, ids.requestA));
+    expect(page.main().querySelector('[role="alert"]')?.textContent).toContain(
+      'The sync entity service is temporarily unavailable.',
+    );
+    expect(page.main().textContent).toContain('Request ID: request-entity-123');
   });
 
   it.each([

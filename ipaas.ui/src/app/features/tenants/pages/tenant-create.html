@@ -31,7 +31,8 @@
         [attr.aria-invalid]="attempted() && fieldErrors(form, 'name').length > 0"
       />
       <p id="name-hint" class="field-hint">
-        Names must be unique. Names are saved exactly as entered; a blank name is permitted.
+        Names must contain at least 3 non-whitespace characters and must be unique. Valid names are
+        saved exactly as entered.
       </p>
       <div id="name-errors">
         @if (attempted()) {

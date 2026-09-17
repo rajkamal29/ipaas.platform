@@ -71,6 +71,7 @@
               "buildTarget": "ipaas-ui:build:production"
             },
             "development": {
+              "proxyConfig": "proxy.conf.json",
               "buildTarget": "ipaas-ui:build:development"
             }
           },

@@ -5,6 +5,7 @@ export interface UiFeedback {
   readonly message: string;
   readonly retryable: boolean;
   readonly issues: readonly ValidationIssue[];
+  readonly requestId?: string;
 }
 
 export class RouteContextError extends Error {
@@ -17,14 +18,10 @@ export function uiFeedback(error: unknown, fallback: string, conflictMessage?: s
   }
   if (error instanceof RepositoryError) {
     return {
-      message:
-        error.code === 'conflict'
-          ? (conflictMessage ?? 'A record with these values already exists.')
-          : error.code === 'not-found'
-            ? 'This record is no longer available. Return to the previous page and try again.'
-            : 'Check the submitted values and try again.',
-      retryable: false,
+      message: error.code === 'conflict' && conflictMessage ? conflictMessage : error.message,
+      retryable: error.code === 'network' || error.code === 'server',
       issues: error.issues,
+      ...(error.requestId === undefined ? {} : { requestId: error.requestId }),
     };
   }
   return { message: fallback, retryable: true, issues: [] };

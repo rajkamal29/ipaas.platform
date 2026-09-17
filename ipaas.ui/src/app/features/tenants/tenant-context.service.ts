@@ -29,7 +29,7 @@ export class TenantContextService {
     if (!isUuid(requestId))
       throw new RouteContextError('The sync request address contains an invalid ID.');
     const tenant = await this.requireTenant(tenantId);
-    const request = await this.requests.get(requestId.toLowerCase());
+    const request = await this.requests.get(requestId.toLowerCase(), tenant.id);
     if (!request) throw new RouteContextError('Sync request not found. It may have been removed.');
     if (request.tenantId !== tenant.id) {
       throw new RouteContextError(
