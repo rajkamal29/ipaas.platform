@@ -268,3 +268,40 @@ database before the service is instantiated; test setup never needs PostgreSQL.
 npm run build:production writes static files to dist/ipaas-ui/browser. Configure the
 static host to serve index.html for application routes so direct links and reloads work.
 Missing asset requests should remain 404s. No server-rendering runtime is required.
+
+## Local Docker container
+
+Start Docker Desktop with the Linux container engine. From the repository root:
+
+```powershell
+docker build -t ipaas-ui:local ./ipaas.ui
+docker run --detach --name ipaas-ui-local --publish 127.0.0.1:8080:80 ipaas-ui:local
+```
+
+Open http://localhost:8080. The Node 24.18.0 build stage runs `npm ci` and
+`npm run build:production`. Only the generated `dist/ipaas-ui/browser` files
+and Nginx configuration are copied into the Nginx runtime image.
+The production environment uses the existing mock data; no backend is required.
+
+Validate Nginx and inspect the container:
+
+```powershell
+docker exec ipaas-ui-local nginx -t
+docker logs ipaas-ui-local
+docker ps --filter name=ipaas-ui-local
+```
+
+Open `/overview` and `/tenants/new` directly and refresh each page. Both should
+render the Angular UI. In browser developer tools, check that JavaScript and CSS
+requests succeed. A request for `/missing.js` should return HTTP 404 rather than
+HTML. Unknown application routes display Angular's existing not-found page.
+
+To stop and remove this local container:
+
+```powershell
+docker stop ipaas-ui-local
+docker rm ipaas-ui-local
+```
+
+Port 8080 is a local choice. If occupied, change only the host port in the run
+command. Rebuild the image after UI changes and recreate the container to use it.
