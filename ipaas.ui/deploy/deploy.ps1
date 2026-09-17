@@ -16,12 +16,30 @@ function Invoke-Docker {
     # value passed through it (image tag/digest/commit SHA) is non-secret, so
     # Docker's real output is safe to surface directly instead of hiding it
     # behind a generic message.
-    $output = @(& docker @Arguments 2>&1)
-    $outputText = ($output -join [Environment]::NewLine).Trim()
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker operation failed: $Operation.$([Environment]::NewLine)$outputText"
+    #
+    # Captured via a temp file rather than PowerShell's `2>&1` array-casting:
+    # docker compose's progress renderer repaints its status line in place
+    # using a bare carriage return (no linefeed), even with --progress plain
+    # on some versions, and PowerShell's native-command capture mishandles
+    # that - it comes out as mashed-together fragments instead of readable
+    # text. Reading the raw bytes back and normalizing \r into real line
+    # breaks reconstructs the actual output faithfully.
+    $tempOut = [IO.Path]::GetTempFileName()
+    try {
+        & docker @Arguments *> $tempOut
+        $exitCode = $LASTEXITCODE
+        $raw = Get-Content -LiteralPath $tempOut -Raw
+        if (-not $raw) { $raw = '' }
+        $normalized = ($raw -replace "`r`n", "`n") -replace "`r", "`n"
+        $lines = $normalized -split "`n" | Where-Object { $_.Trim() -ne '' }
+        $outputText = ($lines -join [Environment]::NewLine).Trim()
+        if ($exitCode -ne 0) {
+            throw "Docker operation failed: $Operation.$([Environment]::NewLine)$outputText"
+        }
+        return $outputText
+    } finally {
+        Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
     }
-    return $outputText
 }
 
 if ($ExpectedSha -cnotmatch '^[a-f0-9]{40}$') { throw 'Invalid source SHA.' }
