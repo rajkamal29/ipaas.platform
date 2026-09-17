@@ -29,8 +29,10 @@ npm ci
 npm start
 ```
 
-Open http://localhost:4200. No database, backend API, credential file, or sibling
-project needs to be running. Use npm install when intentionally changing dependencies;
+Open http://localhost:4200. Tenant, Sync Request, and Sync Entity screens require the
+Node API and PostgreSQL to be running. The development server proxies `/api` to
+`http://localhost:3000`; the browser-facing API base path remains configurable through
+the Angular environment. Use npm install when intentionally changing dependencies;
 commit the resulting lockfile with those changes.
 
 ## Validation
@@ -61,7 +63,8 @@ duplicate handling, invalid route contexts, and asynchronous page state.
 - src/app/shared/forms: domain-to-reactive-form validation adapter.
 - src/app/shared/state: signal-based async reads and submission state.
 - src/app/domain: schema models, value sets, and runtime validation.
-- src/app/data-access: async contracts, DI tokens, and shared mock repositories.
+- src/app/data-access: async contracts, DI tokens, HTTP repositories, DTO mappers, and
+  shared mocks retained for features outside Issue #13.
 - src/environments: typed build-time configuration.
 - src/styles: global design tokens and responsive configuration styles.
 
@@ -71,8 +74,8 @@ modal: hidden links leave the tab order, Escape closes the disclosure, and succe
 navigation closes it and moves focus to the main content. Route titles and aria-current
 identify the current page.
 
-HTTP DTOs/adapters and additional feature folders will be added when their contracts
-and functionality exist. No empty scaffolding is maintained.
+HTTP DTOs and adapters are isolated from components and domain models. No empty
+scaffolding is maintained.
 Create pages use typed reactive forms with shared domain input validators.
 
 ## Routes
@@ -104,10 +107,11 @@ failed writes, and navigate to the saved record on success. Leaving a page disca
 its pending feedback/navigation, but does not cancel a repository write.
 
 The input validators reuse the same rules as full domain records without fabricating
-IDs or timestamps. Tenant names are saved verbatim, including blank/whitespace names;
-blank names display as "Unnamed tenant". Duplicate names and request/entity pairs are
-enforced by repositories. Provider selections come from the existing value sets;
-identical source/target providers remain permitted by the schema.
+IDs or timestamps. The tenant form requires at least three non-whitespace characters;
+accepted names are sent verbatim rather than silently trimmed. Duplicate names and
+request/entity pairs are enforced by the API/database. Provider selections come from
+the existing value sets; identical source/target providers remain permitted by the
+schema.
 
 Entity creation leaves status to the repository default. Interval schedules require
 whole seconds from 60 through 2147483647. Switching to one-time or real-time clears the
@@ -116,16 +120,19 @@ after the form loads still receives repository conflict feedback. Real-time rema
 selectable with a "Not yet supported" notice. This UI saves configuration only and
 does not trigger orchestration or runtime execution.
 
-## Configuration and future data access
+## Configuration and data access
 
 Production is the default build configuration. Development replaces environment.ts
-with environment.development.ts. Both currently declare mock mode. Environment files
-are public browser configuration and must never contain secrets.
+with environment.development.ts. Both configure HTTP mode and the relative `/api` base
+path. Environment files are public browser configuration and must never contain
+secrets. Production hosting must route `/api` to the Node API; local development uses
+`proxy.conf.json`.
 
-There is no HTTP provider, API URL, backend implementation, or database connection.
-The repository tokens currently bind to shared mock implementations. Later HTTP
-adapters will replace those bindings when API contracts are available. Keep transport
-concerns out of page components.
+Tenant, Sync Request, and Sync Entity repository tokens bind to HTTP implementations.
+Those adapters unwrap the API success envelope, map API DTOs to domain models, and
+translate safe error envelopes into repository errors. Other feature repositories
+remain mock-backed because their UI/API integration is outside Issue #13. Transport
+concerns remain outside page components.
 
 ## Domain and repository foundation
 
@@ -192,15 +199,13 @@ Current API conventions, distinct from database constraints:
   not provider connectivity or token validity. An unknown tenant is not-found.
   Credential configuration/rotation is deferred until a backend secret-input contract
   exists. Sync state is engine-owned and read-only through its UI repository.
-- RepositoryError exposes validation, conflict, and not-found codes, optional
-  constraint information, and field validation issues. HTTP implementations should
-  translate server failures into this boundary and extend it deliberately for
-  transport-specific failure cases.
+- RepositoryError exposes validation, conflict, not-found, network, and server codes,
+  field validation issues, and an optional safe request ID. HTTP implementations
+  translate failures into this boundary without exposing raw response objects.
 
-app.config.ts registers provideMockRepositories() once. All eight implementations
-share one MockDataService instance in that injector. A later HTTP provider function
-can bind the same tokens to HTTP repositories, with DTO adapters behind the contracts.
-Both current build configurations intentionally use synthetic mock data.
+app.config.ts registers the production repository providers once. Tenant, Sync
+Request, and Sync Entity use HTTP; the out-of-scope repositories share one
+MockDataService instance. Unit tests can override the same tokens with mock providers.
 
 ### Mock consistency and schema validation
 
