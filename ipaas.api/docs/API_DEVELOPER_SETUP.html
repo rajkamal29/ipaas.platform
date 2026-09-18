@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>API_DEVELOPER_SETUP.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+<h1 id="ipaas-api-developer-setup">iPaaS API Developer Setup</h1>
+<h2 id="overview">Overview</h2>
+<p><code>ipaas.api</code> is the TypeScript and Express API for tenant and sync configuration. It persists data in the PostgreSQL instance owned by <code>ipaas.infra</code>; the API does not own or duplicate database migrations.</p>
+<p>The API listens on port <code>3000</code>. Its operational probes are <code>/health</code> and <code>/ready</code>, and its generated OpenAPI documentation is available through Swagger UI at <code>/swagger</code>.</p>
+<p>The repository uses two distinct delivery stages:</p>
+<ul>
+<li><strong>CI</strong> validates, tests, builds, and publishes the API image to GitHub Container Registry (GHCR).</li>
+<li><strong>CD</strong> is intentionally manual. A developer supplies the exact source SHA, immutable image tag, and image digest from a successful CI publication to <code>deploy-api.yml</code>.</li>
+</ul>
+<h2 id="contents">Contents</h2>
+<ol>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#common-initial-setup">Common initial setup</a></li>
+<li><a href="#local-setup">Local setup</a></li>
+<li><a href="#cd-setup-manual-deployment">CD setup — manual deployment</a></li>
+<li><a href="#postgresql-setup">PostgreSQL setup</a></li>
+<li><a href="#configure-platform_runtime_database_url">Configure <code>PLATFORM_RUNTIME_DATABASE_URL</code></a></li>
+<li><a href="#build-publish-api-image">Build &amp; publish API image</a></li>
+<li><a href="#get-published-image-details">Get published image details</a></li>
+<li><a href="#trigger-manual-deployment">Trigger manual deployment</a></li>
+<li><a href="#verify-deployment">Verify deployment</a></li>
+<li><a href="#test-through-angular-ui">Angular UI integration test</a></li>
+<li><a href="#swagger">Swagger</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><strong>Git</strong> — clones and updates <code>rajkamal29/ipaas.platform</code>.</li>
+<li><strong>Node.js</strong> — <code>package.json</code> supports <code>^22.22.3</code>, <code>^24.15.0</code>, or <code>^26.0.0</code>. CI uses Node <code>24</code>; the Docker image uses Node <code>24.18.0</code>. Use a supported release, preferably Node 24 to match CI and the image.</li>
+<li><strong>npm 10.9.0 or newer</strong> — required by <code>package.json</code>; it is bundled with supported Node installations.</li>
+<li><strong>Docker Desktop</strong> — runs PostgreSQL and the containerized API. It must be running in <strong>Linux containers</strong> mode.</li>
+<li><strong>Docker Compose</strong> — used by <code>ipaas.infra/docker-compose.yml</code>, <code>ipaas.api/docker-compose.yml</code>, and the deployment process.</li>
+<li><strong>GitHub CLI (<code>gh</code>)</strong> — required only when manually dispatching CD from a terminal.</li>
+<li><strong>GitHub access</strong> — repository access plus permission to view Actions, dispatch <code>deploy-api.yml</code>, and pull the private GHCR image where applicable.</li>
+<li><strong>PostgreSQL infrastructure</strong> — the existing <code>ipaas.infra</code> container and migrations must be running before the API can become ready.</li>
+<li><strong>Manual-CD runner</strong> — a Windows self-hosted GitHub Actions runner with labels <code>self-hosted</code>, <code>Windows</code>, and <code>ipaasrunner</code>. The runner account must be able to use Docker Desktop and read its configured local environment variable.</li>
+</ul>
+<p>Only one teammate's <code>ipaasrunner</code>-labelled runner should be online when a manual deployment is dispatched. The workflow relies on this team convention for predictable targeting.</p>
+<h2 id="common-initial-setup">Common Initial Setup</h2>
+<h3 id="clone-or-open-the-repository">1. Clone or open the repository</h3>
+<p><strong>Run from:</strong> The parent directory where <code>ipaas.platform</code> should be created<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Git is installed and the developer has repository access.</p>
+<pre><code class="language-powershell">git clone &lt;REPOSITORY_URL&gt; ipaas.platform
+cd ipaas.platform
+</code></pre>
+<p>If the repository is already available, open its root and make sure the intended branch is checked out.</p>
+<h3 id="enter-the-api-project">2. Enter the API project</h3>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The repository is cloned and the intended branch is checked out.</p>
+<pre><code class="language-powershell">cd ipaas.api
+</code></pre>
+<h3 id="install-dependencies">3. Install dependencies</h3>
+<p>For a reproducible install from the committed lockfile:</p>
+<p><strong>Run from:</strong> <code>ipaas.api</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Node.js 24 and npm 10.9.0 or newer are installed.</p>
+<pre><code class="language-powershell">npm ci
+</code></pre>
+<p>Use <code>npm install</code> only when intentionally changing dependencies or updating <code>package-lock.json</code>; run it from <code>ipaas.api</code> in PowerShell after installing a supported Node.js/npm version. CI and the Dockerfile use <code>npm ci</code>.</p>
+<h3 id="protect-configuration-and-secrets">4. Protect configuration and secrets</h3>
+<p>The API reads <code>PORT</code>, <code>DATABASE_URL</code>, and <code>NODE_ENV</code>. <code>DATABASE_URL</code> is required; <code>PORT</code> defaults to <code>3000</code>, and <code>NODE_ENV</code> defaults to <code>development</code>.</p>
+<blockquote>
+<p><strong>Never commit <code>.env</code>, database passwords, encryption keys, tokens, or real connection strings. Never paste real secrets into documentation, issues, pull requests, or CI logs.</strong> Use placeholders in commands and examples.</p>
+</blockquote>
+<h2 id="local-setup">Local Setup</h2>
+<h3 id="local-setup-flow">Local setup flow</h3>
+<pre><code class="language-text">Developer machine
+    ↓
+npm ci (locked dependency install)
+    ↓
+configure API environment
+    ↓
+PostgreSQL running with migrations
+    ↓
+Node API or Docker API
+    ↓
+http://localhost:3000
+</code></pre>
+<h3 id="start-postgresql-first">1. Start PostgreSQL first</h3>
+<p>Follow the existing PostgreSQL runbook rather than maintaining a second copy here:</p>
+<ul>
+<li><a href="../../ipaas.infra/docs/migrations/OPERATIONS.html">Local Postgres Operations</a></li>
+<li><a href="../../ipaas.infra/docs/migrations/README.html">PostgreSQL schema documentation</a></li>
+</ul>
+<p>At minimum, from <code>ipaas.infra</code>:</p>
+<p><strong>Run from:</strong> <code>ipaas.infra</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Node.js/npm and Docker Desktop in Linux containers mode are available. Replace the placeholders in the copied <code>.env</code> before starting PostgreSQL.</p>
+<pre><code class="language-powershell">Copy-Item .env.example .env
+# Edit .env and replace every placeholder consistently.
+npm ci
+docker compose up -d
+docker compose ps
+npm run migrate:up
+</code></pre>
+<p>Confirm the <code>ipaas-postgres</code> container is healthy and the <code>ipaas-network</code> network exists before starting the API.</p>
+<h3 id="configure-the-api-environment">2. Configure the API environment</h3>
+<p><strong>Run from:</strong> <code>ipaas.api</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The API dependencies are installed and <code>.env.example</code> exists.</p>
+<pre><code class="language-powershell">Copy-Item .env.example .env
+</code></pre>
+<p>Choose the database hostname based on where the API process runs.</p>
+<p><strong>API running directly on Windows with <code>npm run dev</code>:</strong></p>
+<p><strong>Edit file:</strong> <code>ipaas.api/.env</code><br />
+<strong>Format:</strong> dotenv<br />
+<strong>Prerequisite:</strong> PostgreSQL is running and reachable through host port <code>5432</code>.</p>
+<pre><code class="language-dotenv">PORT=3000
+DATABASE_URL=postgresql://ipaas:&lt;PASSWORD&gt;@localhost:5432/ipaas_platform
+NODE_ENV=development
+</code></pre>
+<p><strong>API running inside Docker on <code>ipaas-network</code>:</strong></p>
+<p><strong>Edit file:</strong> <code>ipaas.api/.env</code><br />
+<strong>Format:</strong> dotenv<br />
+<strong>Prerequisite:</strong> PostgreSQL is running on the external Docker network <code>ipaas-network</code>.</p>
+<pre><code class="language-dotenv">PORT=3000
+DATABASE_URL=postgresql://ipaas:&lt;PASSWORD&gt;@postgres:5432/ipaas_platform
+NODE_ENV=production
+</code></pre>
+<p>Inside the API container, <code>postgres:5432</code> means the PostgreSQL Compose service on <code>ipaas-network</code>. <code>localhost:5432</code> means the API container itself and is therefore not the correct Docker-to-Docker address.</p>
+<p>For every sample connection string in this document:</p>
+<ul>
+<li>Replace <code>&lt;PASSWORD&gt;</code> with the PostgreSQL password configured by that developer in <code>ipaas.infra/.env</code>.</li>
+<li><code>postgres</code> is the Docker PostgreSQL service hostname.</li>
+<li><code>5432</code> is the PostgreSQL port.</li>
+<li><code>ipaas_platform</code> is the database name.</li>
+<li>Never commit the completed connection string or add it to documentation.</li>
+</ul>
+<h3 id="a.run-the-api-as-a-node-development-process">3A. Run the API as a Node development process</h3>
+<p><strong>Run from:</strong> <code>ipaas.api</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Dependencies and <code>ipaas.api/.env</code> are configured, and PostgreSQL is running.</p>
+<pre><code class="language-powershell">npm run dev
+</code></pre>
+<p>For a compiled local run:</p>
+<p><strong>Run from:</strong> <code>ipaas.api</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Dependencies and <code>ipaas.api/.env</code> are configured, PostgreSQL is running, and port <code>3000</code> is free.</p>
+<pre><code class="language-powershell">npm run build
+npm start
+</code></pre>
+<h3 id="b.run-the-api-in-docker">3B. Run the API in Docker</h3>
+<p>Docker Desktop must be running in Linux containers mode, and PostgreSQL must already have created <code>ipaas-network</code>.</p>
+<p><strong>Run from:</strong> <code>ipaas.api</code><br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> <code>ipaas.api/.env</code> is configured for Docker-to-Docker connectivity, PostgreSQL is running on <code>ipaas-network</code>, and port <code>3000</code> is free.</p>
+<pre><code class="language-powershell">docker compose up -d --build
+docker compose ps
+</code></pre>
+<p>The local Compose file builds <code>ipaas.api/Dockerfile</code>, starts the <code>ipaas-api</code> container, publishes host port <code>3000</code>, and attaches the container to the external <code>ipaas-network</code>.</p>
+<p>Do not run the Node process and Docker API simultaneously on port <code>3000</code>.</p>
+<h3 id="verify-the-api">4. Verify the API</h3>
+<p><strong>Run from:</strong> Any directory on the developer machine<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The API is running and host port <code>3000</code> is reachable.</p>
+<pre><code class="language-powershell">Invoke-RestMethod http://localhost:3000/health
+Invoke-RestMethod http://localhost:3000/ready
+</code></pre>
+<p>Expected responses:</p>
+<pre><code class="language-json">{ &quot;status&quot;: &quot;ok&quot; }
+</code></pre>
+<pre><code class="language-json">{ &quot;status&quot;: &quot;ready&quot; }
+</code></pre>
+<p><code>/health</code> confirms the HTTP process is responding. <code>/ready</code> executes a PostgreSQL <code>SELECT 1</code>, so it also confirms database connectivity.</p>
+<p>Open Swagger UI:</p>
+<p><strong>Open from:</strong> A browser on the developer machine<br />
+<strong>Prerequisite:</strong> The API is running and host port <code>3000</code> is reachable.</p>
+<pre><code class="language-text">http://localhost:3000/swagger
+</code></pre>
+<p>The generated OpenAPI JSON is available at:</p>
+<p><strong>Open from:</strong> A browser on the developer machine<br />
+<strong>Prerequisite:</strong> The API is running and host port <code>3000</code> is reachable.</p>
+<pre><code class="language-text">http://localhost:3000/api-docs/swagger.json
+</code></pre>
+<h2 id="cd-setup-manual-deployment">CD Setup — Manual Deployment</h2>
+<p>The current CD process is intentionally manual. A push to <code>dev</code> can publish an image, but it never deploys that image automatically.</p>
+<h3 id="cd-prerequisites">CD prerequisites</h3>
+<ul>
+<li>Docker Desktop installed and running in Linux containers mode.</li>
+<li><code>docker</code> and <code>docker compose</code> available to the self-hosted runner account.</li>
+<li>GitHub CLI installed and authenticated. The authentication verification command and its run context are provided under <a href="#trigger-manual-deployment">Trigger Manual Deployment</a>.</li>
+<li>Access to <code>rajkamal29/ipaas.platform</code> and its GitHub Actions workflows.</li>
+<li>PostgreSQL infrastructure already running.</li>
+<li>External Docker network <code>ipaas-network</code> available.</li>
+<li>Windows self-hosted runner online with labels <code>self-hosted</code>, <code>Windows</code>, and <code>ipaasrunner</code>.</li>
+<li>The runner account can access the local Docker Desktop daemon.</li>
+<li><code>PLATFORM_RUNTIME_DATABASE_URL</code> configured for the account that actually runs the runner.</li>
+</ul>
+<h2 id="postgresql-setup">PostgreSQL Setup</h2>
+<p>Start PostgreSQL and apply migrations using <a href="../../ipaas.infra/docs/migrations/OPERATIONS.html">Local Postgres Operations</a>. Confirm:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> Docker Desktop is running in Linux containers mode and the PostgreSQL infrastructure has been started.</p>
+<pre><code class="language-powershell">docker ps --filter &quot;name=ipaas-postgres&quot;
+docker network inspect ipaas-network
+</code></pre>
+<p>The deployment requires a Docker-reachable URL, for example:</p>
+<pre><code class="language-text">postgres://ipaas:&lt;PASSWORD&gt;@postgres:5432/ipaas_platform
+</code></pre>
+<p>Do not use <code>localhost</code> for the database hostname inside the deployed API container.</p>
+<p>The <code>&lt;PASSWORD&gt;</code> placeholder must be replaced locally with the password configured for PostgreSQL. <code>postgres</code> is the Docker service hostname, <code>5432</code> is its port, and <code>ipaas_platform</code> is the database name. Never commit or document the resulting real connection string.</p>
+<h2 id="configure-platform_runtime_database_url">Configure PLATFORM_RUNTIME_DATABASE_URL</h2>
+<p>The current local-demo deployment flow is:</p>
+<pre><code class="language-text">Windows runner environment
+        ↓
+PLATFORM_RUNTIME_DATABASE_URL
+        ↓
+ipaas.api/deploy/local-demo.ps1
+        ↓
+process-only DATABASE_URL
+        ↓
+ipaas-api container
+        ↓
+PostgreSQL on ipaas-network
+</code></pre>
+<p>Configure it with a placeholder replaced locally:</p>
+<p><strong>Run from:</strong> Any directory, in a terminal opened as the same Windows user account that runs the self-hosted runner<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> PostgreSQL is running on <code>ipaas-network</code>, and <code>&lt;PASSWORD&gt;</code> has been replaced locally with that developer's PostgreSQL password.</p>
+<pre><code class="language-powershell">[Environment]::SetEnvironmentVariable(
+    &quot;PLATFORM_RUNTIME_DATABASE_URL&quot;,
+    &quot;postgres://ipaas:&lt;PASSWORD&gt;@postgres:5432/ipaas_platform&quot;,
+    &quot;User&quot;
+)
+</code></pre>
+<p><code>PLATFORM_RUNTIME_DATABASE_URL</code> is local runner configuration. It is not stored in Git and is not hardcoded in either workflow. <code>local-demo.ps1</code> looks in User, Process, then Machine scope and supplies the selected value to the API container as <code>DATABASE_URL</code>.</p>
+<p>The configured scope must belong to the account running the runner. A User-scoped variable for one interactive user is not available as that User value to a runner service executing under another identity. Relaunch or restart the runner/process after changing environment configuration.</p>
+<h2 id="build-publish-api-image">Build &amp; Publish API Image</h2>
+<p>Workflow: <code>.github/workflows/build-api.yml</code>
+Workflow name: <strong>Build &amp; Publish iPaaS API Image</strong></p>
+<p>For pull requests targeting <code>dev</code>, CI:</p>
+<ol>
+<li>Installs locked dependencies.</li>
+<li>Checks formatting.</li>
+<li>Runs lint and TypeScript typecheck.</li>
+<li>Runs tests.</li>
+<li>Builds the production API.</li>
+<li>Runs deployment safety tests.</li>
+<li>Does <strong>not</strong> publish an image.</li>
+</ol>
+<p>For pushes to <code>dev</code>, CI performs the same validation and then:</p>
+<ol>
+<li>Builds the Docker image.</li>
+<li>Publishes it to GHCR.</li>
+<li>Creates an immutable <code>dev-&lt;short-sha&gt;</code> tag.</li>
+<li>Records the exact image digest.</li>
+<li>Also publishes <code>dev-latest</code> as a convenience tag.</li>
+</ol>
+<blockquote>
+<p><strong>Never use <code>dev-latest</code> as a deployment input.</strong> Manual deployment must use the immutable image tag and exact digest from one successful CI publication.</p>
+</blockquote>
+<h2 id="get-published-image-details">Get Published Image Details</h2>
+<ol>
+<li>Open <code>rajkamal29/ipaas.platform</code> on GitHub.</li>
+<li>Select <strong>Actions</strong>.</li>
+<li>Open the latest successful <strong>Build &amp; Publish iPaaS API Image</strong> run for <code>dev</code>.</li>
+<li>Open the workflow summary.</li>
+<li>Find <strong>Record published image</strong>.</li>
+<li>Copy all three values:
+<ul>
+<li><strong>Source SHA</strong> — the full source commit SHA used to build the image.</li>
+<li><strong>Image</strong> — the immutable <code>ghcr.io/.../ipaas-api:dev-&lt;short-sha&gt;</code> tag.</li>
+<li><strong>Digest</strong> — the immutable <code>sha256:...</code> content digest returned by the registry.</li>
+</ul>
+</li>
+</ol>
+<div>
+	<div style="display: flex; flex-direction: column;">
+		<label for="">Image 1:</label>
+		<img width="900" height="500" src="./images/image1.png" alt="">
+	</div>
+	<hr style="margin-block: 3rem;">
+	<div style="display: flex; flex-direction: column;">
+		<label for="">Image 2</label>
+		<img width="900" height="500" src="./images/image2.png" alt="">
+	</div>
+</div>
+<p>The three values must come from the same successful CI publication.</p>
+<h2 id="trigger-manual-deployment">Trigger Manual Deployment</h2>
+<p>Authenticate and verify GitHub CLI access:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> GitHub CLI is installed and the developer has permission to view and dispatch repository Actions workflows.</p>
+<pre><code class="language-powershell">gh auth status
+</code></pre>
+<p>PowerShell command:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> <code>gh auth status</code> succeeds, and all three input values were copied from the same successful API CI run.</p>
+<pre><code class="language-powershell">gh workflow run deploy-api.yml `
+  --repo rajkamal29/ipaas.platform `
+  --ref dev `
+  -f source_sha=&lt;SOURCE_SHA&gt; `
+  -f image_tag=&lt;IMAGE_TAG&gt; `
+  -f image_digest=&lt;IMAGE_DIGEST&gt;
+</code></pre>
+<p>Bash-compatible one-line command:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> Git Bash<br />
+<strong>Prerequisite:</strong> GitHub CLI authentication succeeds, and all three input values were copied from the same successful API CI run.</p>
+<pre><code class="language-bash">gh workflow run deploy-api.yml --repo rajkamal29/ipaas.platform --ref dev -f source_sha=&lt;SOURCE_SHA&gt; -f image_tag=&lt;IMAGE_TAG&gt; -f image_digest=&lt;IMAGE_DIGEST&gt;
+</code></pre>
+<p>Placeholder-only example shape:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> This is a template only; replace every placeholder with values from one successful API CI run before executing it.</p>
+<pre><code class="language-powershell">gh workflow run deploy-api.yml `
+  --repo rajkamal29/ipaas.platform `
+  --ref dev `
+  -f source_sha=&lt;40_CHARACTER_COMMIT_SHA&gt; `
+  -f image_tag=ghcr.io/rajkamal29/ipaas-api:dev-&lt;7_CHARACTER_SHORT_SHA&gt; `
+  -f image_digest=sha256:&lt;64_CHARACTER_DIGEST&gt;
+</code></pre>
+<p>Complete fictional example (not a real publication):</p>
+<p><strong>Run from:</strong> Do not run this fictional example<br />
+<strong>Shell:</strong> PowerShell syntax shown for illustration<br />
+<strong>Prerequisite:</strong> None; the SHA, tag, and digest below are deliberately fake and cannot deploy a published image.</p>
+<pre><code class="language-powershell">gh workflow run deploy-api.yml `
+  --repo rajkamal29/ipaas.platform `
+  --ref dev `
+  -f source_sha=0123456789abcdef0123456789abcdef01234567 `
+  -f image_tag=ghcr.io/rajkamal29/ipaas-api:dev-0123456 `
+  -f image_digest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+</code></pre>
+<h3 id="what-happens-during-cd">What happens during CD</h3>
+<pre><code class="language-text">Push or merge to dev
+        ↓
+.github/workflows/build-api.yml
+        ↓
+CI validation and GHCR publication
+        ↓
+Record published image
+        ↓
+gh workflow run deploy-api.yml
+        ↓
+self-hosted Windows runner (ipaasrunner)
+        ↓
+authenticate Docker to GHCR
+        ↓
+validate source SHA, tag, digest, Docker, network, and ownership
+        ↓
+pull exact image digest (no image build)
+        ↓
+verify OCI source revision
+        ↓
+recreate only the managed ipaas-api container
+        ↓
+connect through ipaas-network to PostgreSQL
+        ↓
+verify container identity, /health, and /ready
+</code></pre>
+<p>The deployment uses <code>ipaas.api/docker-compose.deploy.yml</code>, Compose project <code>ipaas-api-dev</code>, and container <code>ipaas-api</code>. It consumes the already-published digest, uses <code>--no-build</code>, and never deploys <code>dev-latest</code>.</p>
+<p>If a container named <code>ipaas-api</code> already exists but does not have the expected Compose project/service labels, deployment stops safely rather than taking over an unrelated manually created container. Reconcile that first deployment conflict manually. Once CD owns the container, later deployments safely recreate that managed container with the new digest.</p>
+<h2 id="verify-deployment">Verify Deployment</h2>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root on the self-hosted runner machine<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The manual <code>Deploy iPaaS API</code> workflow completed successfully and Docker Desktop is running.</p>
+<pre><code class="language-powershell">docker ps --filter &quot;name=^/ipaas-api$&quot;
+docker images
+docker network inspect ipaas-network
+Invoke-RestMethod http://localhost:3000/health
+Invoke-RestMethod http://localhost:3000/ready
+</code></pre>
+<p>Verify that:</p>
+<ul>
+<li><code>ipaas-api</code> is running.</li>
+<li>Host port <code>3000</code> maps to container port <code>3000</code>.</li>
+<li><code>ipaas-api</code> is attached to <code>ipaas-network</code>.</li>
+<li>The expected immutable image/digest is running.</li>
+<li><code>/health</code> returns <code>{ &quot;status&quot;: &quot;ok&quot; }</code>.</li>
+<li><code>/ready</code> returns <code>{ &quot;status&quot;: &quot;ready&quot; }</code> and therefore confirms PostgreSQL connectivity.</li>
+</ul>
+<p>Inspect non-secret ownership and source labels:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root on the self-hosted runner machine<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The <code>ipaas-api</code> container exists and is running.</p>
+<pre><code class="language-powershell">docker inspect `
+  --format 'project={{ index .Config.Labels &quot;com.docker.compose.project&quot; }} service={{ index .Config.Labels &quot;com.docker.compose.service&quot; }} source={{ index .Config.Labels &quot;io.ipaas.api.source-sha&quot; }} image={{.Config.Image}}' `
+  ipaas-api
+</code></pre>
+<p>Troubleshoot application startup without printing environment variables:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root on the self-hosted runner machine<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The <code>ipaas-api</code> container exists.</p>
+<pre><code class="language-powershell">docker logs ipaas-api
+</code></pre>
+<p>Do not run <code>docker inspect</code> formats that dump the complete container environment into tickets or logs.</p>
+<h2 id="test-through-angular-ui">Test Through Angular UI</h2>
+<p>The deployed request path is:</p>
+<pre><code class="language-text">Angular browser
+  ↓
+Nginx /api proxy
+  ↓
+ipaas-api:3000 on ipaas-network
+  ↓
+ipaas-postgres:5432 on ipaas-network
+</code></pre>
+<p>The Angular frontend continues to use the relative <code>/api</code> base URL. The browser does not need to know the Docker hostname <code>ipaas-api</code>; Nginx resolves that name inside <code>ipaas-network</code>.</p>
+<ol>
+<li><p>Confirm <code>ipaas-ui</code> and <code>ipaas-api</code> are running.</p>
+</li>
+<li><p>Open the existing UI, normally <code>http://localhost:8080</code> for the deployed UI container.</p>
+</li>
+<li><p>Open the existing Tenant flow and list or create a tenant.</p>
+</li>
+<li><p>Open that tenant and perform an existing Sync Request operation.</p>
+</li>
+<li><p>Perform an existing Sync Entity operation where appropriate.</p>
+</li>
+<li><p>Refresh the browser and confirm the saved data is still present.</p>
+</li>
+<li><p>Optionally restart only the API container and refresh again to demonstrate that persistence is in PostgreSQL rather than frontend state:</p>
+<p><strong>Run from:</strong> <code>ipaas.platform</code> repository root on the machine running Docker<br />
+<strong>Shell:</strong> PowerShell<br />
+<strong>Prerequisite:</strong> The UI, API, and PostgreSQL containers are running, and the developer has completed a persistence check through the UI.</p>
+<pre><code class="language-powershell">docker restart ipaas-api
+</code></pre>
+</li>
+</ol>
+<p>Use browser developer tools to confirm the UI calls relative URLs such as <code>/api/tenants</code>, rather than connecting directly to PostgreSQL or hardcoding the Docker hostname.</p>
+<h2 id="swagger">Swagger</h2>
+<p>Swagger UI is exposed directly by the API at:</p>
+<p><strong>Open from:</strong> A browser on the developer machine<br />
+<strong>Prerequisite:</strong> The API is running and host port <code>3000</code> is reachable.</p>
+<pre><code class="language-text">http://localhost:3000/swagger
+</code></pre>
+<p>It displays the OpenAPI document generated from the current route annotations and reusable schemas. The raw document is available at <code>http://localhost:3000/api-docs/swagger.json</code>.</p>
+<p>The current UI Nginx configuration proxies <code>/api/</code>; it does not expose <code>/swagger</code> through port <code>8080</code>.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Port <code>3000</code> is already in use</td>
+<td>Another API process or container is running</td>
+<td>Stop the old process/container, or choose one run mode. The deployed API contract expects host port <code>3000</code>.</td>
+</tr>
+<tr>
+<td><code>/health</code> fails</td>
+<td>API process/container is not running</td>
+<td>With Docker Desktop running, use PowerShell from any directory to run <code>docker ps</code>, then <code>docker logs ipaas-api</code>.</td>
+</tr>
+<tr>
+<td><code>/ready</code> returns <code>503</code></td>
+<td>PostgreSQL is unavailable or <code>DATABASE_URL</code> is wrong</td>
+<td>Confirm <code>ipaas-postgres</code>, credentials, migrations, hostname, and shared network.</td>
+</tr>
+<tr>
+<td>API container uses <code>localhost:5432</code></td>
+<td><code>localhost</code> resolves to the API container itself</td>
+<td>Use <code>postgres:5432</code> for Docker-to-Docker connectivity.</td>
+</tr>
+<tr>
+<td>Docker commands fail</td>
+<td>Docker Desktop is stopped or inaccessible to the runner account</td>
+<td>Start Docker Desktop, then use PowerShell from any directory as the runner account to run <code>docker version</code>.</td>
+</tr>
+<tr>
+<td>Docker reports Windows containers</td>
+<td>Wrong Docker Desktop mode</td>
+<td>Switch Docker Desktop to Linux containers.</td>
+</tr>
+<tr>
+<td>Network lookup fails</td>
+<td>Containers are not attached to <code>ipaas-network</code></td>
+<td>Start infra first, then use PowerShell from any directory with Docker Desktop running to run <code>docker network inspect ipaas-network</code>.</td>
+</tr>
+<tr>
+<td><code>docker compose</code> is unavailable only when <code>DOCKER_CONFIG</code> is isolated</td>
+<td>Compose is installed only in the user's Docker CLI plugin directory</td>
+<td>Install/provide the Compose plugin in a trusted location available to the isolated Docker configuration.</td>
+</tr>
+<tr>
+<td>Existing container ownership is not recognized</td>
+<td>A manually/local-Compose-created <code>ipaas-api</code> occupies the CD container name</td>
+<td>Stop and preserve/rename that container, then rerun CD. Do not let CD overwrite an unrecognized container.</td>
+</tr>
+<tr>
+<td>Manual workflow waits for a runner</td>
+<td>No matching runner is online</td>
+<td>Start the Windows runner carrying the <code>ipaasrunner</code> label; keep only the intended teammate's matching runner online.</td>
+</tr>
+<tr>
+<td>GHCR pull fails</td>
+<td>GitHub permissions/authentication problem</td>
+<td>Confirm workflow package permissions and repository access; do not print tokens.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reference-paths">Reference paths</h2>
+<ul>
+<li>API README: <code>ipaas.api/README.md</code></li>
+<li>API Dockerfile: <code>ipaas.api/Dockerfile</code></li>
+<li>Local API Compose: <code>ipaas.api/docker-compose.yml</code></li>
+<li>Deployment Compose: <code>ipaas.api/docker-compose.deploy.yml</code></li>
+<li>Deployment script: <code>ipaas.api/deploy/deploy.ps1</code></li>
+<li>Runner-local configuration loader: <code>ipaas.api/deploy/local-demo.ps1</code></li>
+<li>CI workflow: <code>.github/workflows/build-api.yml</code></li>
+<li>Manual CD workflow: <code>.github/workflows/deploy-api.yml</code></li>
+<li>PostgreSQL operations: <code>ipaas.infra/docs/migrations/OPERATIONS.html</code></li>
+<li>PostgreSQL schema: <code>ipaas.infra/docs/migrations/README.html</code></li>
+</ul>
+</body>
+</html>
