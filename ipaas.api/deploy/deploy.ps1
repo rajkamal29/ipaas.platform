@@ -13,21 +13,33 @@ $composePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../docker-compos
 
 function Invoke-Docker {
     param([string[]]$Arguments, [string]$Operation)
+
+    $tempOut = [IO.Path]::GetTempFileName()
+    $previousErrorActionPreference = $ErrorActionPreference
     try {
-        $previousErrorActionPreference = $ErrorActionPreference
         try {
-            # Windows PowerShell 5.1 treats ordinary native stderr as error records.
+            # Windows PowerShell 5.1 treats ordinary native stderr as error records
+            # and can corrupt native output captured through 2>&1. Capture the raw
+            # streams in a file and use the native exit code as the source of truth.
             $ErrorActionPreference = 'Continue'
-            $output = @(& docker @Arguments 2>&1)
+            & docker @Arguments *> $tempOut
             $exitCode = $LASTEXITCODE
         } finally {
             $ErrorActionPreference = $previousErrorActionPreference
         }
+
         if ($exitCode -ne 0) { throw 'Docker command failed' }
-        return ($output -join [Environment]::NewLine).Trim()
+
+        $raw = Get-Content -LiteralPath $tempOut -Raw -ErrorAction SilentlyContinue
+        if (-not $raw) { return '' }
+
+        $normalized = ($raw -replace "`r`n", "`n") -replace "`r", "`n"
+        return (($normalized -split "`n" | Where-Object { $_.Trim() -ne '' }) -join [Environment]::NewLine).Trim()
     } catch {
         # Docker output may contain expanded runtime configuration. Never surface it.
         throw "Docker operation failed: $Operation. Check daemon access and deployment configuration."
+    } finally {
+        Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
     }
 }
 

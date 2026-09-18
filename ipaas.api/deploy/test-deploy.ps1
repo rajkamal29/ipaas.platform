@@ -52,6 +52,10 @@ function docker {
         }
         'stop' { return '' }
         'compose' {
+            if ($global:ApiDeploymentScenario -eq 'native-stderr' -and $command -contains 'config') {
+                Write-Error 'RAW_SECRET benign native stderr'
+                return ''
+            }
             if ($global:ApiDeploymentScenario -eq 'up' -and $command -contains 'up') {
                 $global:LASTEXITCODE = 1
                 return 'RAW_SECRET compose detail'
@@ -67,7 +71,7 @@ try {
     $env:DATABASE_URL = 'postgresql://RAW_SECRET@ipaas-postgres:5432/ipaas_platform'
     $env:NODE_ENV = 'production'
     $env:PORT = '3000'
-    foreach ($case in @('success', 'first', 'metadata', 'foreign', 'remote', 'pull', 'revision', 'up', 'verify', 'network', 'endpoint')) {
+    foreach ($case in @('success', 'first', 'native-stderr', 'metadata', 'foreign', 'remote', 'pull', 'revision', 'up', 'verify', 'network', 'endpoint')) {
         $global:ApiDeploymentScenario = $case
         $global:ApiDeploymentCalls = New-Object 'System.Collections.Generic.List[object]'
         $source = $sha
@@ -77,7 +81,7 @@ try {
         $deploymentOutput = @()
         try { $deploymentOutput = @(& (Join-Path $PSScriptRoot 'deploy.ps1') -MetadataPath $metadataPath -ExpectedSha $sha -RepositoryOwner 'owner' *>&1) }
         catch { $failure = $_.Exception.Message }
-        $success = $case -in @('success', 'first')
+        $success = $case -in @('success', 'first', 'native-stderr')
         Assert-True (($null -eq $failure) -eq $success) "Unexpected outcome for $case : $failure"
         Assert-True (-not (($deploymentOutput | Out-String).Contains('RAW_SECRET'))) 'Deployment output leaked a secret'
         if ($failure) { Assert-True (-not $failure.Contains('RAW_SECRET')) 'Deployment failure leaked a secret' }
