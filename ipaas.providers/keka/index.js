@@ -46,7 +46,7 @@ class KekaAdapter {
    *   this tenant+provider, already loaded by the caller:
    *   {apiBaseUrl, identityUrl, tokenEndpoint, clientId, clientSecret,
    *   apiKey, grantType, scope, accessToken?, tokenExpiresAt?}. Required.
-   * @param {object} [options] - { onCredentialsRefreshed(creds), successLogger } —
+   * @param {object} [options] - { onCredentialsRefreshed(creds) } —
    *   called (awaited) whenever this adapter refreshes the OAuth token,
    *   with the full updated credential payload, so the caller can persist
    *   it. Optional, but a refreshed token will simply not be saved
@@ -55,18 +55,12 @@ class KekaAdapter {
    * @param logger - defaults to a base child logger; the orchestration
    *   engine should pass a run-scoped child logger instead.
    */
-  constructor(
-    tenantId,
-    credentials,
-    { onCredentialsRefreshed, successLogger = defaultLogger } = {},
-    logger = defaultLogger.child({ component: 'keka-adapter' })
-  ) {
+  constructor(tenantId, credentials, { onCredentialsRefreshed } = {}, logger = defaultLogger.child({ component: 'keka-adapter' })) {
     if (!tenantId) throw new Error('KekaAdapter requires a tenantId');
     if (!credentials) throw new Error('KekaAdapter requires credentials to be provided by the caller');
     this._tenantId = tenantId;
     this._creds = credentials;
     this._onCredentialsRefreshed = onCredentialsRefreshed;
-    this._successLogger = successLogger;
     this._logger = logger.child({ tenantId, provider: 'keka' });
   }
 
@@ -242,7 +236,7 @@ class KekaAdapter {
       await this._throwForResponse(res);
     }
 
-    this._successLogger.info(`${entity}: ${record.name} ${id === undefined ? 'created' : 'updated'} in Keka`);
+    this._logger.info({ name: record.name, recordId: id }, id === undefined ? 'written to ConnectWise' : 'updated in ConnectWise');
     if (res.status === 204) return null;
     return res.json();
   }

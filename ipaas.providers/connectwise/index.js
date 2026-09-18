@@ -47,18 +47,12 @@ class ConnectWiseAdapter {
    *   engine should pass a run-scoped child logger instead so log lines
    *   carry that run's syncRunId.
    */
-  constructor(
-    tenantId,
-    credentials,
-    { onCredentialsRefreshed, successLogger = defaultLogger } = {},
-    logger = defaultLogger.child({ component: 'connectwise-adapter' })
-  ) {
+  constructor(tenantId, credentials, { onCredentialsRefreshed } = {}, logger = defaultLogger.child({ component: 'connectwise-adapter' })) {
     if (!tenantId) throw new Error('ConnectWiseAdapter requires a tenantId');
     if (!credentials) throw new Error('ConnectWiseAdapter requires credentials to be provided by the caller');
     this._tenantId = tenantId;
     this._creds = credentials; // static key pair — provided once, nothing to refresh
     this._onCredentialsRefreshed = onCredentialsRefreshed; // unused by this adapter, kept for contract uniformity
-    this._successLogger = successLogger;
     this._logger = logger.child({ tenantId, provider: 'connectwise' });
   }
 
@@ -225,7 +219,7 @@ class ConnectWiseAdapter {
       await this._throwForResponse(res);
     }
 
-    this._successLogger.info(`${entity}: ${record.name} ${id === undefined ? 'created' : 'updated'}  in ConnectWise`);
+    this._logger.info({ name: record.name, recordId: id }, id === undefined ? 'written to ConnectWise' : 'updated in ConnectWise');
     if (res.status === 204) return null;
     return res.json();
   }
