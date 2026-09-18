@@ -71,6 +71,7 @@ jobs:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           $ErrorActionPreference = 'Stop'
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
           . ./ipaas.api/deploy/local-demo.ps1
           Initialize-ApiDeploymentEnvironment
           $metadataPath = [IO.Path]::GetTempFileName()
