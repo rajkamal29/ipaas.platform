@@ -236,7 +236,10 @@ class KekaAdapter {
       await this._throwForResponse(res);
     }
 
-    this._logger.info({ name: record.name, recordId: id }, id === undefined ? 'written to ConnectWise' : 'updated in ConnectWise');
+    this._logger.debug(
+      { recordName: record.name, entity, recordId: id },
+      id === undefined ? 'record created in Keka' : 'record updated in Keka'
+    );
     if (res.status === 204) return null;
     return res.json();
   }
