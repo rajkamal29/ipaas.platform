@@ -71,10 +71,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      source_sha: ${{ steps.image.outputs.source_sha }}
-      image_tag: ${{ steps.image.outputs.image_tag }}
-      image_digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -114,15 +110,20 @@ jobs:
           cache-from: type=gha,scope=ipaas-api
           cache-to: type=gha,mode=max,scope=ipaas-api
 
-  deploy:
-    name: Deploy iPaaS API
-    needs: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-    permissions:
-      contents: read
-      packages: read
-    uses: ./.github/workflows/deploy-api.yml
-    with:
-      source_sha: ${{ needs.publish.outputs.source_sha }}
-      image_tag: ${{ needs.publish.outputs.image_tag }}
-      image_digest: ${{ needs.publish.outputs.image_digest }}
+      - name: Record published image
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
+          LATEST_TAG: ${{ steps.image.outputs.latest_tag }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE_SHA: ${{ steps.image.outputs.source_sha }}
+        run: |
+          {
+            echo "Source SHA: ${SOURCE_SHA}"
+            echo "Image: ${IMAGE_TAG}"
+            echo "Digest: ${IMAGE_DIGEST}"
+            echo "Also tagged: ${LATEST_TAG} (convenience only - never used as a deploy input)"
+            echo "Deploy: manual only. Run the 'Deploy iPaaS API' workflow with these three values as its workflow_dispatch inputs when you're ready to deploy - nothing redeploys automatically on push."
+            echo ""
+            echo "Dispatch command:"
+            echo "gh workflow run deploy-api.yml --ref dev -f source_sha=${SOURCE_SHA} -f image_tag=${IMAGE_TAG} -f image_digest=${IMAGE_DIGEST}"
+          } >> "$GITHUB_STEP_SUMMARY"

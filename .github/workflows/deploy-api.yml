@@ -1,17 +1,19 @@
 name: Deploy iPaaS API
 
+# Manual only, by design: build-api.yml's publish job runs on every push to
+# dev, but nothing redeploys until this workflow is dispatched deliberately.
+#
+# Targeting: every teammate registers their own self-hosted runner under the
+# SAME custom label - "ipaasrunner" - and, by team convention, keeps only
+# their own runner online/listening at a time (a one-time setup, enforced
+# socially, not technically). Whoever currently has their runner online is
+# the one this deploys to when they dispatch it, without hardcoding or
+# selecting any specific person's machine in this file. If more than one
+# runner with this label is online at once, GitHub picks whichever is idle -
+# that's the one thing this convention has to hold for targeting to stay
+# predictable.
+
 on:
-  workflow_call:
-    inputs:
-      source_sha:
-        required: true
-        type: string
-      image_tag:
-        required: true
-        type: string
-      image_digest:
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       source_sha:
@@ -37,10 +39,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: >-
-      github.ref == 'refs/heads/dev' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: [self-hosted, Windows]
+    runs-on: [self-hosted, Windows, ipaasrunner]
     timeout-minutes: 15
     steps:
       - name: Checkout trusted deployment definition
