@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+# Standalone development image for the dependency-free HTTP mock server.
+# It intentionally excludes the orchestration engine and provider packages.
+FROM node:22-alpine
+
+WORKDIR /app
+
+# mock-server.js uses only Node.js built-ins, so no npm install is required.
+COPY scripts/mock-server.js ./mock-server.js
+
+# Documents the container port; publish it with `-p 4000:4000` for host access.
+EXPOSE 4000
+
+# The copied script is readable by the non-root user supplied by the base image.
+USER node
+
+# The server binds to 0.0.0.0 in container mode so other containers can reach it.
+CMD ["node", "mock-server.js", "4000"]
