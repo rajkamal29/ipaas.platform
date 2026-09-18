@@ -2,9 +2,12 @@ name: Deploy iPaaS UI
 
 # Runs two ways:
 #   - Automatically, called by build-ui.yml's publish job on every successful
-#     push to dev - no manual step needed for the normal case.
+#     push to dev - no manual step needed for the normal case. Deploys to the
+#     runner_label default (TL621-1) since nothing is present to choose one.
 #   - Manually (workflow_dispatch), for redeploying/rolling back to a
-#     specific previously-published SHA/tag/digest without a new push.
+#     specific previously-published SHA/tag/digest without a new push, or for
+#     targeting a different runner_label (e.g. a teammate's own machine)
+#     instead of the default.
 
 on:
   workflow_call:
@@ -18,6 +21,11 @@ on:
       image_digest:
         required: true
         type: string
+      runner_label:
+        description: Custom label of the self-hosted runner to deploy onto
+        required: false
+        type: string
+        default: TL621-1
   workflow_dispatch:
     inputs:
       source_sha:
@@ -32,6 +40,11 @@ on:
         description: Published sha256 digest for that exact release
         required: true
         type: string
+      runner_label:
+        description: Custom label of the self-hosted runner to deploy onto (defaults to TL621-1)
+        required: false
+        type: string
+        default: TL621-1
 
 permissions:
   contents: read
@@ -43,7 +56,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Windows, TL621-1]
+    runs-on: [self-hosted, Windows, "${{ inputs.runner_label }}"]
     timeout-minutes: 15
     steps:
       - name: Checkout trusted deployment definition
