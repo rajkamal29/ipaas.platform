@@ -36,6 +36,7 @@ export async function composeApplication(config = loadConfig()) {
       logger,
     );
     await verifyPlatformSchema(pool, logger);
+    logProvisioningStartup(logger, config);
     const worker = new ProvisioningWorker(provisioning, {
       claims: new PostgresSyncEntityClaimRepository(pool),
       options: config.polling,
@@ -63,4 +64,16 @@ export async function composeApplication(config = loadConfig()) {
       "Provisioning Engine startup failed. Check configuration, connectivity, and shared schema.",
     );
   }
+}
+
+export function logProvisioningStartup(
+  logger: Pick<Logger, "info">,
+  config: ReturnType<typeof loadConfig>,
+): void {
+  logger.info("Provisioning Engine started", {
+    runtimeProvider: config.runtime.kind,
+    pollIntervalMs: config.polling.intervalMs,
+    batchSize: config.polling.batchSize,
+    maxConcurrency: config.polling.maxConcurrency,
+  });
 }

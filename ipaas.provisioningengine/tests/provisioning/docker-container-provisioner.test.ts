@@ -1,3 +1,5 @@
+import { ProvisionSyncEntityUseCase } from "../../src/application/use-cases/provision-sync-entity.js";
+import type { SyncEntity } from "../../src/domain/entities/sync-entity.js";
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { DockerContainerProvisioner } from "../../src/infrastructure/runtime/docker/docker-container-provisioner.js";
@@ -30,9 +32,12 @@ function setup(
     | "ensure-image"
     | "create-container"
     | "pre-start-inspect"
-    | "post-start-inspect",
+    | "post-start-inspect"
+    | "wait"
+    | "post-wait-inspect",
 ) {
   let status = initial;
+  let waited = false;
   let starts = 0;
   let creates = 0;
   let pulls = 0;
@@ -45,6 +50,7 @@ function setup(
     inspect: async (): Promise<DockerInspection> => {
       if (
         failure === "initial-inspect" ||
+        (failure === "post-wait-inspect" && waited) ||
         (failure === "pre-start-inspect" && status === "created") ||
         (failure === "post-start-inspect" && starts > 0)
       )
@@ -64,6 +70,11 @@ function setup(
         HostConfig: { NetworkMode: "ipaas-network" },
         State: { Status: status, ExitCode: exitCode },
       };
+    },
+    wait: async () => {
+      waited = true;
+      if (failure === "wait") throw new Error("secret timeout");
+      status = "exited";
     },
     start: async () => {
       starts++;
@@ -111,7 +122,7 @@ function setup(
 }
 it("creates a deterministic runtime with platform configuration and no tenant credentials", async () => {
   const fake = setup();
-  assert.equal((await fake.adapter.provision(request)).kind, "started");
+  assert.equal((await fake.adapter.provision(request)).kind, "exited");
   assert.equal(fake.options()?.name, `ipaas-sync-${id}`);
   assert.deepEqual(fake.options()?.Env, [
     `SYNC_ENTITY_ID=${id}`,
@@ -150,7 +161,9 @@ it("rejects an identity collision instead of deleting another workload", async (
 it("reports unsuccessful exits without restarting", async () => {
   const fake = setup("exited");
   fake.failExit();
-  await assert.rejects(fake.adapter.provision(request), DependencyError);
+  const result = await fake.adapter.provision(request);
+  assert.equal(result.kind, "exited");
+  if (result.kind === "exited") assert.equal(result.exitCode, 1);
 });
 it("does not pretend that one-shot Docker creates an interval schedule", async () => {
   const fake = setup();
@@ -244,6 +257,7 @@ for (const staleCreatedSnapshot of [false, true]) {
             if (lostCreation) await exited.promise;
             return snapshot;
           },
+          async wait() {},
           async start() {
             starts++;
             status = "exited";
@@ -290,7 +304,7 @@ for (const staleCreatedSnapshot of [false, true]) {
       );
       for (const result of results) {
         if (result.status === "fulfilled")
-          assert.equal(result.value.kind, "already-executed");
+          assert.equal(result.value.kind, "exited");
         else
           assert.ok(
             result.reason instanceof RuntimeReconciliationRequiredError,
@@ -343,3 +357,76 @@ it("preserves uncertainty when inspection fails after start", async () => {
   });
   assert.deepEqual(fake.counts(), { starts: 1, creates: 1, pulls: 1 });
 });
+
+for (const failure of ["wait", "post-wait-inspect"] as const) {
+  it("keeps execution uncertain after " + failure, async () => {
+    const fake = setup("missing", failure);
+    await assert.rejects(
+      fake.adapter.provision(request),
+      (error) =>
+        error instanceof DependencyError &&
+        error.uncertain &&
+        !error.message.includes("secret"),
+    );
+    assert.equal(fake.counts().starts, 1);
+  });
+}
+it("reports an existing running container without starting or waiting on it", async () => {
+  const fake = setup("running", "wait");
+  assert.equal((await fake.adapter.provision(request)).kind, "started");
+  assert.deepEqual(fake.counts(), { starts: 0, creates: 0, pulls: 0 });
+});
+it("observes a newly started nonzero exit", async () => {
+  const fake = setup();
+  fake.failExit();
+  const result = await fake.adapter.provision(request);
+  assert.equal(result.kind, "exited");
+  if (result.kind === "exited") assert.equal(result.exitCode, 1);
+});
+
+for (const [state, exitCode, expected] of [
+  ["exited", 0, "completed"],
+  ["exited", 1, "failed"],
+  ["running", 0, "provisioning"],
+] as const) {
+  it(`reconciles existing ${state}/${exitCode} through application lifecycle to ${expected}`, async () => {
+    const fake = setup(state);
+    if (exitCode) fake.failExit();
+    let entity: SyncEntity = {
+      id,
+      syncRequestId: id,
+      entity: "client",
+      syncType: "one_time",
+      status: "provisioning",
+      intervalSeconds: null,
+      createdAt: "2026-09-01",
+      updatedAt: "2026-09-01",
+    };
+    const useCase = new ProvisionSyncEntityUseCase(
+      {
+        getById: async () => entity,
+        updateStatus: async (_id, before, after) => {
+          assert.equal(before, "provisioning");
+          if (entity.status !== before) return false;
+          entity = { ...entity, status: after };
+          return true;
+        },
+      },
+      {
+        getById: async () => ({
+          id,
+          tenantId: id,
+          source: "connectwise",
+          target: "keka",
+          createdAt: "2026-09-01",
+        }),
+      },
+      { resolve: () => request.imageReference },
+      fake.adapter,
+      { info: () => undefined, error: () => undefined },
+    );
+    assert.equal((await useCase.execute(id)).status, expected);
+    assert.equal(entity.status, expected);
+    assert.deepEqual(fake.counts(), { starts: 0, creates: 0, pulls: 0 });
+  });
+}

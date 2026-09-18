@@ -88,27 +88,70 @@ export class ProvisionSyncEntityUseCase {
       }
       const result = await this.runtime.provision(request);
       runtimeReturned = true;
+      let nextStatus: "active" | "completed" | "failed" | undefined;
+      let outcome: ProvisioningResult["outcome"] = result.kind;
       if (result.kind === "recurring-ready") {
         if (entity.syncType !== TYPE.interval)
           throw new DependencyError("runtime", true);
-        await this.entities.updateStatus(
+        nextStatus = STATUS.active;
+      } else if (result.kind === "exited") {
+        if (entity.syncType !== TYPE.oneTime)
+          throw new DependencyError("runtime", true);
+        nextStatus = result.exitCode === 0 ? STATUS.completed : STATUS.failed;
+        outcome = nextStatus;
+      }
+      let statusRecorded = false;
+      if (nextStatus) {
+        statusRecorded = await this.entities.updateStatus(
           id,
           STATUS.provisioning,
-          STATUS.active,
+          nextStatus,
+        );
+        this.logger.info("Provisioning status transition", {
+          syncEntityId: id,
+          previousStatus: STATUS.provisioning,
+          nextStatus,
+          statusRecorded,
+        });
+      }
+      if (result.kind === "exited") {
+        this.logger.info("Runtime reconciliation completed", {
+          syncEntityId: id,
+          runtimeName: result.runtimeName,
+          runtimeState: result.runtimeState,
+          exitCode: result.exitCode,
+          runtimeOutcome: outcome,
+          previousStatus: STATUS.provisioning,
+          nextStatus: nextStatus!,
+          statusRecorded,
+          uncertain: false,
+        });
+      } else {
+        this.logger.info(
+          result.kind === "accepted"
+            ? "GitHub dispatch accepted"
+            : "Runtime provisioning observed",
+          {
+            syncEntityId: id,
+            runtimeOutcome: result.kind,
+            ...(result.kind === "started"
+              ? { runtimeName: `ipaas-sync-${id}`, runtimeState: "running" }
+              : {}),
+          },
         );
       }
-      // Never overwrite terminal status written by the execution engine during dispatch.
+      // Re-read after the conditional update; never overwrite a concurrent terminal transition.
       const current = await this.entities.getById(id);
       if (!current) throw new SyncEntityNotFoundError();
       this.logger.info("Provisioning request handled", {
         syncEntityId: id,
-        outcome: result.kind,
+        outcome,
         status: current.status,
       });
       return {
         syncEntityId: id,
         status: current.status,
-        outcome: result.kind,
+        outcome,
         runtimeReference: result.reference,
       };
     } catch (error: unknown) {
@@ -134,12 +177,21 @@ export class ProvisionSyncEntityUseCase {
       }
       const failureCode =
         error instanceof ApplicationError ? error.code : "unexpected-failure";
+      if (uncertain)
+        this.logger.info("Runtime reconciliation required", {
+          syncEntityId: id,
+          outcome: "reconciliation-required",
+          uncertain: true,
+          failureCode,
+        });
       this.logger.error("Provisioning failed", {
         syncEntityId: id,
         failureCode,
         ...failureDiagnostics(error),
         statusRecorded,
         uncertain,
+        previousStatus: STATUS.provisioning,
+        ...(statusRecorded ? { nextStatus: STATUS.failed } : {}),
       });
       if (
         error instanceof ApplicationError &&

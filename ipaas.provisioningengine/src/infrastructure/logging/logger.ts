@@ -18,6 +18,16 @@ const allowedContext = new Set([
   "signal",
   "tableCount",
   "claimedCount",
+  "runtimeProvider",
+  "pollIntervalMs",
+  "batchSize",
+  "maxConcurrency",
+  "runtimeName",
+  "runtimeState",
+  "exitCode",
+  "runtimeOutcome",
+  "previousStatus",
+  "nextStatus",
 ]);
 export class Logger implements LoggerPort {
   constructor(

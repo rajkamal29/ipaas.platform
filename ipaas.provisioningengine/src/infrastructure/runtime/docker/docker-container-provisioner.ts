@@ -87,16 +87,27 @@ export class DockerContainerProvisioner implements RuntimeProvisioner {
         operation = "inspect-container";
         inspection = await container.inspect();
       }
+      if (inspection.State.Status === "running" && createdByThisInvocation) {
+        operation = "wait-container";
+        // Docker client's existing request timeout bounds this observation, not runtime execution.
+        await container.wait();
+        operation = "inspect-container";
+        inspection = await container.inspect();
+      }
       if (inspection.State.Status === "running")
         return { kind: "started", reference: inspection.Id };
-      if (inspection.State.Status === "exited") {
-        // A zero process exit code does not prove a successful business cycle.
-        if (inspection.State.ExitCode !== 0)
-          throw new DependencyError("runtime", false, {
-            dependency: "docker",
-            operation: "reconcile-container",
-          });
-        return { kind: "already-executed", reference: inspection.Id };
+      if (
+        inspection.State.Status === "exited" &&
+        Number.isInteger(inspection.State.ExitCode) &&
+        inspection.State.ExitCode >= 0
+      ) {
+        return {
+          kind: "exited",
+          reference: inspection.Id,
+          runtimeName: name,
+          runtimeState: "exited",
+          exitCode: inspection.State.ExitCode,
+        };
       }
       throw new RuntimeReconciliationRequiredError();
     } catch (error: unknown) {
