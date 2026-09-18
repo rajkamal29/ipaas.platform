@@ -45,7 +45,11 @@ jobs:
       - name: Checkout trusted deployment definition
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.workflow_sha }}
+          # github.sha, not github.workflow_sha: with no workflow_call caller
+          # in play here, github.sha already resolves to the exact commit this
+          # workflow_dispatch was run against - that's what the deploy scripts
+          # below need to be checked out from.
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Isolate registry credentials
