@@ -106,10 +106,6 @@ class ConnectWiseAdapter {
     else if (res.status === 404) err.type = 'not_found';
     else if (res.status === 400) err.type = 'validation'; // rejected payload — data issue, not transient
     else err.type = 'unknown';
-    this._logger[err.type === 'auth' ? 'error' : 'warn'](
-      { status: res.status, errType: err.type },
-      'ConnectWise request failed'
-    );
     throw err;
   }
 
