@@ -1,31 +1,19 @@
 name: Deploy iPaaS UI
 
-# Runs two ways:
-#   - Automatically, called by build-ui.yml's publish job on every successful
-#     push to dev - no manual step needed for the normal case. Deploys to the
-#     runner_label default (TL621-1) since nothing is present to choose one.
-#   - Manually (workflow_dispatch), for redeploying/rolling back to a
-#     specific previously-published SHA/tag/digest without a new push, or for
-#     targeting a different runner_label (e.g. a teammate's own machine)
-#     instead of the default.
+# Manual only, by design: build-ui.yml's publish job runs on every push to
+# dev, but nothing redeploys until this workflow is dispatched deliberately.
+#
+# Targeting: every teammate registers their own self-hosted runner under the
+# SAME custom label - "ipaasrunner" - and, by team convention, keeps only
+# their own runner online/listening at a time (a one-time setup, enforced
+# socially, not technically). Whoever currently has their runner online is
+# the one this deploys to when they dispatch it, without hardcoding or
+# selecting any specific person's machine in this file. If more than one
+# runner with this label is online at once, GitHub picks whichever is idle -
+# that's the one thing this convention has to hold for targeting to stay
+# predictable.
 
 on:
-  workflow_call:
-    inputs:
-      source_sha:
-        required: true
-        type: string
-      image_tag:
-        required: true
-        type: string
-      image_digest:
-        required: true
-        type: string
-      runner_label:
-        description: Custom label of the self-hosted runner to deploy onto
-        required: false
-        type: string
-        default: TL621-1
   workflow_dispatch:
     inputs:
       source_sha:
@@ -40,11 +28,6 @@ on:
         description: Published sha256 digest for that exact release
         required: true
         type: string
-      runner_label:
-        description: Custom label of the self-hosted runner to deploy onto (defaults to TL621-1)
-        required: false
-        type: string
-        default: TL621-1
 
 permissions:
   contents: read
@@ -56,7 +39,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Windows, "${{ inputs.runner_label }}"]
+    runs-on: [self-hosted, Windows, ipaasrunner]
     timeout-minutes: 15
     steps:
       - name: Checkout trusted deployment definition
