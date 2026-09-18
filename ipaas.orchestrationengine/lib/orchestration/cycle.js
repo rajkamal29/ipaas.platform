@@ -70,7 +70,7 @@ function mergeRecords(deltaRecords, reconcileRecords) {
  * @param logger
  */
 async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger = defaultLogger) {
-  const log = logger.child({ syncEntityId: entityRow.id, entity: entityRow.entity });
+  const log = logger;
   const state = await loadOrCreateSyncState(entityRow.id);
   const cycleStartedAt = new Date();
   const modifiedSince = state.cursor?.modifiedSince ?? null;
@@ -81,7 +81,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
   const outboundProfile = await loadActiveMappingProfile(context.tenantId, context.targetProvider, entityRow.entity, 'outbound');
   const canonicalSchemaRow = await loadCanonicalSchema(entityRow.entity);
 
-  log.info(
+  log.debug(
     { modifiedSince, inboundMappingSource: inboundProfile.source, outboundMappingSource: outboundProfile.source },
     'cycle started'
   );
@@ -95,7 +95,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
     : [];
 
   const merged = mergeRecords(deltaRecords, reconcileRecords);
-  log.info(
+  log.debug(
     { deltaCount: deltaRecords.length, reconcileCount: reconcileRecords.length, mergedCount: merged.length },
     'fetched'
   );
@@ -104,6 +104,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
   const newFailedThisCycle = [];
   const newRetryThisCycle = [];
   const syncedThisCycle = [];
+  let updatedThisCycle = 0;
   let authError = null;
 
   for (const raw of merged) {
@@ -127,6 +128,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
 
       if (existingSync) {
         await targetAdapter.update(entityRow.entity, existingSync.target_id, mapped);
+        updatedThisCycle += 1;
       } else {
         const writeResult = await targetAdapter.write(entityRow.entity, mapped);
         const targetId = extractTargetId(writeResult);
@@ -203,8 +205,16 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
   });
 
   log.info(
-    { processed: merged.length, failed: updatedFailed.length, retry: updatedRetry.length, success: !authError },
-    'cycle complete'
+    {
+      status: authError ? 'failed' : 'success',
+      processedCount: merged.length,
+      deltaCount: deltaRecords.length,
+      successCount: syncedThisCycle.length + updatedThisCycle,
+      failedCount: updatedFailed.length,
+      retryCount: updatedRetry.length,
+      cursor: nextCursor,
+    },
+    'sync cycle complete'
   );
 
   return { success: !authError, processed: merged.length, failedCount: updatedFailed.length, retryCount: updatedRetry.length };

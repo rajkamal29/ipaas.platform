@@ -34,19 +34,28 @@ async function main() {
   for (const tenant of tenants) {
     const runs = await loadSyncEntityRunsForTenant(tenant.id);
     if (runs.length === 0) {
-      logger.info({ tenantId: tenant.id }, 'tenant has no sync entities — skipping');
+      logger.debug({ tenantId: tenant.id }, 'tenant has no sync entities — skipping');
       continue;
     }
 
     for (const run of runs) {
-      const log = logger.child({ syncEntityId: run.syncEntityId, tenantId: run.tenantId, entity: run.entity });
-      log.info({ source: run.source, target: run.target, syncType: run.syncType }, 'starting');
+      const log = logger.child({
+        tenantName: tenant.name,
+        syncRequestId: run.syncRequestId,
+        syncEntityId: run.syncEntityId,
+        entity: run.entity,
+        source: run.source,
+        target: run.target,
+        syncType: run.syncType,
+      });
+      log.debug('starting');
 
       const sourceAdapter = await createAdapter(run.source, run.tenantId, log);
       const targetAdapter = await createAdapter(run.target, run.tenantId, log);
       const context = { tenantId: run.tenantId, sourceProvider: run.source, targetProvider: run.target };
       const entityRow = {
         id: run.syncEntityId,
+        syncRequestId: run.syncRequestId,
         entity: run.entity,
         syncType: run.syncType,
         status: run.status,
@@ -54,11 +63,11 @@ async function main() {
       };
 
       await runEntityOnce(entityRow, sourceAdapter, targetAdapter, context, log);
-      log.info('run complete');
+      log.debug('run complete');
     }
   }
 
-  logger.info({ tenantCount: tenants.length }, 'orchestration complete — exiting');
+  logger.debug({ tenantCount: tenants.length }, 'orchestration complete — exiting');
   // Close the pool's open sockets before exiting — process.exit() while pg
   // still holds connections open causes a libuv assertion crash on Windows.
   await pool.end();

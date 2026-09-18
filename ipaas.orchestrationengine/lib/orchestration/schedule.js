@@ -29,22 +29,20 @@
  *               webhook/queue engine this belongs to instead.
  */
 const { runCycle } = require('./cycle');
-const { updateEntityStatus } = require('./sync-entities');
 const { logger: defaultLogger } = require('../logger');
 
 async function runEntityOnce(entityRow, sourceAdapter, targetAdapter, context, logger = defaultLogger) {
-  const log = logger.child({ syncEntityId: entityRow.id, entity: entityRow.entity, syncType: entityRow.syncType });
+  const log = logger;
 
   if (entityRow.syncType === 'one_time') {
     const result = await runCycle(entityRow, sourceAdapter, targetAdapter, context, logger);
-    await updateEntityStatus(entityRow.id, result.success ? 'completed' : 'failed');
-    log.info({ status: result.success ? 'completed' : 'failed' }, 'one_time entity finished');
+    log.debug({ status: result.success ? 'completed' : 'failed' }, 'one_time entity finished');
     return result;
   }
 
   if (entityRow.syncType === 'interval') {
     const result = await runCycle(entityRow, sourceAdapter, targetAdapter, context, logger);
-    log.info(
+    log.debug(
       { success: result.success, failedCount: result.failedCount, retryCount: result.retryCount },
       'interval entity run finished — sync_entities.status is not touched here, see sync_state for this run\'s result'
     );
