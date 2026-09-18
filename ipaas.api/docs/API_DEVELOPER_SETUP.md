@@ -568,19 +568,19 @@ The current UI Nginx configuration proxies `/api/`; it does not expose `/swagger
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Resolution |
-|---|---|---|
-| Port `3000` is already in use | Another API process or container is running | Stop the old process/container, or choose one run mode. The deployed API contract expects host port `3000`. |
-| `/health` fails | API process/container is not running | With Docker Desktop running, use PowerShell from any directory to run `docker ps`, then `docker logs ipaas-api`. |
-| `/ready` returns `503` | PostgreSQL is unavailable or `DATABASE_URL` is wrong | Confirm `ipaas-postgres`, credentials, migrations, hostname, and shared network. |
-| API container uses `localhost:5432` | `localhost` resolves to the API container itself | Use `postgres:5432` for Docker-to-Docker connectivity. |
-| Docker commands fail | Docker Desktop is stopped or inaccessible to the runner account | Start Docker Desktop, then use PowerShell from any directory as the runner account to run `docker version`. |
-| Docker reports Windows containers | Wrong Docker Desktop mode | Switch Docker Desktop to Linux containers. |
-| Network lookup fails | Containers are not attached to `ipaas-network` | Start infra first, then use PowerShell from any directory with Docker Desktop running to run `docker network inspect ipaas-network`. |
-| `docker compose` is unavailable only when `DOCKER_CONFIG` is isolated | Compose is installed only in the user's Docker CLI plugin directory | Install/provide the Compose plugin in a trusted location available to the isolated Docker configuration. |
-| Existing container ownership is not recognized | A manually/local-Compose-created `ipaas-api` occupies the CD container name | Stop and preserve/rename that container, then rerun CD. Do not let CD overwrite an unrecognized container. |
-| Manual workflow waits for a runner | No matching runner is online | Start the Windows runner carrying the `ipaasrunner` label; keep only the intended teammate's matching runner online. |
-| GHCR pull fails | GitHub permissions/authentication problem | Confirm workflow package permissions and repository access; do not print tokens. |
+| Symptom                                                               | Likely cause                                                                | Resolution                                                                                                                           |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Port `3000` is already in use                                         | Another API process or container is running                                 | Stop the old process/container, or choose one run mode. The deployed API contract expects host port `3000`.                          |
+| `/health` fails                                                       | API process/container is not running                                        | With Docker Desktop running, use PowerShell from any directory to run `docker ps`, then `docker logs ipaas-api`.                     |
+| `/ready` returns `503`                                                | PostgreSQL is unavailable or `DATABASE_URL` is wrong                        | Confirm `ipaas-postgres`, credentials, migrations, hostname, and shared network.                                                     |
+| API container uses `localhost:5432`                                   | `localhost` resolves to the API container itself                            | Use `postgres:5432` for Docker-to-Docker connectivity.                                                                               |
+| Docker commands fail                                                  | Docker Desktop is stopped or inaccessible to the runner account             | Start Docker Desktop, then use PowerShell from any directory as the runner account to run `docker version`.                          |
+| Docker reports Windows containers                                     | Wrong Docker Desktop mode                                                   | Switch Docker Desktop to Linux containers.                                                                                           |
+| Network lookup fails                                                  | Containers are not attached to `ipaas-network`                              | Start infra first, then use PowerShell from any directory with Docker Desktop running to run `docker network inspect ipaas-network`. |
+| `docker compose` is unavailable only when `DOCKER_CONFIG` is isolated | Compose is installed only in the user's Docker CLI plugin directory         | Install/provide the Compose plugin in a trusted location available to the isolated Docker configuration.                             |
+| Existing container ownership is not recognized                        | A manually/local-Compose-created `ipaas-api` occupies the CD container name | Stop and preserve/rename that container, then rerun CD. Do not let CD overwrite an unrecognized container.                           |
+| Manual workflow waits for a runner                                    | No matching runner is online                                                | Start the Windows runner carrying the `ipaasrunner` label; keep only the intended teammate's matching runner online.                 |
+| GHCR pull fails                                                       | GitHub permissions/authentication problem                                   | Confirm workflow package permissions and repository access; do not print tokens.                                                     |
 
 ## Reference paths
 
