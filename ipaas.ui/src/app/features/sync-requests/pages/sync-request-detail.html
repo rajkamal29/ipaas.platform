@@ -85,15 +85,15 @@
                         : entity.intervalSeconds + ' seconds'
                     }}
                   </td>
-                  <td data-label="Status">
+                  <td data-label="Provisioning Status">
                     <span class="status-label">{{ statuses[entity.status] }}</span>
                   </td>
-                  <td data-label="Updated">
+                  <td data-label="Configuration Updated At">
                     <time [attr.datetime]="entity.updatedAt">{{
                       entity.updatedAt | date: 'medium'
                     }}</time>
                   </td>
-                  <td data-label="Last Run Status">
+                  <td data-label="Execution Status">
                     @if (entity.lastRunStatus === null) {
                       Not available
                     } @else {
@@ -109,8 +109,8 @@
                       }}</time>
                     }
                   </td>
-                  <td data-label="Failed">{{ entity.failedCount }}</td>
-                  <td data-label="Retry">{{ entity.retryCount }}</td>
+                  <td data-label="Failed Count">{{ entity.failedCount }}</td>
+                  <td data-label="Retry Count">{{ entity.retryCount }}</td>
                 </tr>
               }
             </tbody>
