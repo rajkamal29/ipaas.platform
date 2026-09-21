@@ -16,9 +16,11 @@ import type {
 import { ConflictError } from "../../src/application/errors/conflict-error";
 import type { SyncEntityRepository } from "../../src/application/ports/sync-entity.repository";
 import type { SyncRequestRepository } from "../../src/application/ports/sync-request.repository";
+import type { SyncStateRepository } from "../../src/application/ports/sync-state.repository";
 import type { TenantRepository } from "../../src/application/ports/tenant.repository";
 import { SyncEntityUseCase } from "../../src/application/use-cases/sync-entity.use-case";
 import { SyncRequestUseCase } from "../../src/application/use-cases/sync-request.use-case";
+import { SyncStateUseCase } from "../../src/application/use-cases/sync-state.use-case";
 import { TenantUseCase } from "../../src/application/use-cases/tenant.use-case";
 import type { SyncEntity } from "../../src/domain/sync-entity/sync-entity";
 import type { SyncRequest } from "../../src/domain/sync-request/sync-request";
@@ -32,6 +34,12 @@ const ids = {
   entityA: "00000000-0000-4000-8000-000000000021",
 };
 const now = "2026-09-15T00:00:00.000Z";
+const runtimeFields = [
+  "lastRunStatus",
+  "syncStateUpdatedAt",
+  "failedCount",
+  "retryCount",
+] as const;
 
 function expectSuccessEnvelope(response: Response): void {
   expect(response.body).toEqual({
@@ -170,6 +178,26 @@ class MemoryEntities implements SyncEntityRepository {
   }
 }
 
+class MemorySyncStates implements SyncStateRepository {
+  readonly rows = [
+    {
+      syncEntityId: ids.entityA,
+      lastRunStatus: "success" as const,
+      updatedAt: "2026-09-15T01:00:00.000Z",
+      failedCount: 2,
+      retryCount: 1,
+    },
+  ];
+
+  async getBySyncEntityId(syncEntityId: string) {
+    return this.rows.find((row) => row.syncEntityId === syncEntityId) ?? null;
+  }
+
+  async getBySyncEntityIds(syncEntityIds: readonly string[]) {
+    return this.rows.filter((row) => syncEntityIds.includes(row.syncEntityId));
+  }
+}
+
 function testApp(options?: {
   readonly checkReadiness?: () => Promise<void>;
   readonly tenantListError?: Error;
@@ -183,10 +211,16 @@ function testApp(options?: {
   }
   const requests = new MemoryRequests();
   const entities = new MemoryEntities();
+  const syncStates = new SyncStateUseCase(new MemorySyncStates());
   return createApp({
     tenants: new TenantUseCase(tenants),
     syncRequests: new SyncRequestUseCase(tenants, requests),
-    syncEntities: new SyncEntityUseCase(tenants, requests, entities),
+    syncEntities: new SyncEntityUseCase(
+      tenants,
+      requests,
+      entities,
+      syncStates,
+    ),
     checkReadiness: options?.checkReadiness ?? (async () => undefined),
     logger: { info: () => undefined, error: () => undefined },
   });
@@ -314,12 +348,52 @@ describe("Issue #11 HTTP contract", () => {
       intervalSeconds: null,
       status: "submitted",
     });
+    for (const field of runtimeFields)
+      expect(created.body.data).not.toHaveProperty(field);
     expect(created.body.data).not.toHaveProperty("sync_request_id");
     const listed = await request(app)
       .get(`/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities`)
       .expect(200);
     expectSuccessEnvelope(listed);
     expect(listed.body.data).toHaveLength(2);
+    expect(listed.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: ids.entityA,
+          updatedAt: now,
+          lastRunStatus: "success",
+          syncStateUpdatedAt: "2026-09-15T01:00:00.000Z",
+          failedCount: 2,
+          retryCount: 1,
+        }),
+        expect.objectContaining({
+          id: created.body.data.id,
+          updatedAt: now,
+          lastRunStatus: null,
+          syncStateUpdatedAt: null,
+          failedCount: 0,
+          retryCount: 0,
+        }),
+      ]),
+    );
+    expect(JSON.stringify(listed.body)).not.toMatch(/"failed"\s*:|"retry"\s*:/);
+    const stateBacked = await request(app)
+      .get(
+        `/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities/${ids.entityA}`,
+      )
+      .expect(200);
+    expectSuccessEnvelope(stateBacked);
+    expect(stateBacked.body.data).toMatchObject({
+      id: ids.entityA,
+      updatedAt: now,
+      lastRunStatus: "success",
+      syncStateUpdatedAt: "2026-09-15T01:00:00.000Z",
+      failedCount: 2,
+      retryCount: 1,
+    });
+    expect(JSON.stringify(stateBacked.body)).not.toMatch(
+      /"failed"\s*:|"retry"\s*:/,
+    );
     const fetched = await request(app)
       .get(
         `/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities/${created.body.data.id}`,
@@ -335,6 +409,10 @@ describe("Issue #11 HTTP contract", () => {
       createdAt: now,
       updatedAt: now,
       intervalSeconds: null,
+      lastRunStatus: null,
+      syncStateUpdatedAt: null,
+      failedCount: 0,
+      retryCount: 0,
     });
     const updated = await request(app)
       .put(
@@ -348,6 +426,8 @@ describe("Issue #11 HTTP contract", () => {
       })
       .expect(200);
     expectSuccessEnvelope(updated);
+    for (const field of runtimeFields)
+      expect(updated.body.data).not.toHaveProperty(field);
     await request(app)
       .put(
         `/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities/${created.body.data.id}`,
@@ -355,6 +435,34 @@ describe("Issue #11 HTTP contract", () => {
       .send({ status: "active" })
       .expect(422);
   });
+
+  it.each(runtimeFields)(
+    "rejects the runtime-only %s field from Sync Entity POST and PUT bodies",
+    async (field) => {
+      await request(app)
+        .post(
+          `/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities`,
+        )
+        .send({
+          entity: "project",
+          syncType: "one_time",
+          [field]: field.endsWith("Count") ? 1 : "client-controlled",
+        })
+        .expect(422);
+      await request(app)
+        .put(
+          `/api/tenants/${ids.tenantA}/sync-requests/${ids.requestA}/entities/${ids.entityA}`,
+        )
+        .send({
+          entity: "client",
+          syncType: "interval",
+          intervalSeconds: 60,
+          status: "active",
+          [field]: field.endsWith("Count") ? 1 : "client-controlled",
+        })
+        .expect(422);
+    },
+  );
 
   it("returns safe validation, malformed JSON, not-found, ownership, and unknown-route errors", async () => {
     const invalid = await request(app)

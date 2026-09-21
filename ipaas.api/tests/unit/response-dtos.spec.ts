@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createApiResponse } from "../../src/api/dto/api-response";
-import { toSyncEntityResponse } from "../../src/api/dto/sync-entity/sync-entity-response.mapper";
+import {
+  toSyncEntityReadResponse,
+  toSyncEntityResponse,
+} from "../../src/api/dto/sync-entity/sync-entity-response.mapper";
 import { toSyncRequestResponse } from "../../src/api/dto/sync-request/sync-request-response.mapper";
 import { toTenantResponse } from "../../src/api/dto/tenant/tenant-response.mapper";
-import { toSyncEntityOutput } from "../../src/application/mappers/sync-entity-output.mapper";
+import {
+  toSyncEntityOutput,
+  toSyncEntityReadOutput,
+} from "../../src/application/mappers/sync-entity-output.mapper";
 import { toSyncRequestOutput } from "../../src/application/mappers/sync-request-output.mapper";
 import { toTenantOutput } from "../../src/application/mappers/tenant-output.mapper";
 
@@ -73,6 +79,43 @@ describe("HTTP response DTO boundary", () => {
       intervalSeconds: 60,
     });
     expect(toSyncEntityResponse(output)).toEqual(output);
+    expect(toSyncEntityResponse(output)).not.toHaveProperty("lastRunStatus");
+    expect(toSyncEntityResponse(output)).not.toHaveProperty(
+      "syncStateUpdatedAt",
+    );
+    expect(toSyncEntityResponse(output)).not.toHaveProperty("failedCount");
+    expect(toSyncEntityResponse(output)).not.toHaveProperty("retryCount");
+    expect(toSyncEntityResponse(output)).not.toHaveProperty("failed");
+    expect(toSyncEntityResponse(output)).not.toHaveProperty("retry");
+  });
+
+  it("maps sync entity runtime state through explicit application and HTTP DTOs", () => {
+    const syncEntity = {
+      id: "00000000-0000-4000-8000-000000000021",
+      syncRequestId: "00000000-0000-4000-8000-000000000011",
+      entity: "client" as const,
+      syncType: "interval" as const,
+      intervalSeconds: 60,
+      status: "active" as const,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const syncStateUpdatedAt = "2026-09-15T01:00:00.000Z";
+    const output = toSyncEntityReadOutput(syncEntity, {
+      syncEntityId: syncEntity.id,
+      lastRunStatus: "success",
+      updatedAt: syncStateUpdatedAt,
+      failedCount: 2,
+      retryCount: 1,
+    });
+
+    expect(toSyncEntityReadResponse(output)).toEqual({
+      ...syncEntity,
+      lastRunStatus: "success",
+      syncStateUpdatedAt,
+      failedCount: 2,
+      retryCount: 1,
+    });
   });
 
   it("creates the minimal success envelope with an ISO-8601 timestamp", () => {

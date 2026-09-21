@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import type { SyncEntityUseCase } from "../../application/use-cases/sync-entity.use-case";
 import { createApiResponse } from "../dto/api-response";
-import { toSyncEntityResponse } from "../dto/sync-entity/sync-entity-response.mapper";
+import {
+  toSyncEntityReadResponse,
+  toSyncEntityResponse,
+} from "../dto/sync-entity/sync-entity-response.mapper";
 import { routeParameter } from "../request/route-parameter";
 
 export class SyncEntityController {
@@ -19,7 +22,7 @@ export class SyncEntityController {
       );
       response
         .status(200)
-        .json(createApiResponse(syncEntities.map(toSyncEntityResponse)));
+        .json(createApiResponse(syncEntities.map(toSyncEntityReadResponse)));
     } catch (error) {
       next(error);
     }
@@ -38,7 +41,7 @@ export class SyncEntityController {
       );
       response
         .status(200)
-        .json(createApiResponse(toSyncEntityResponse(syncEntity)));
+        .json(createApiResponse(toSyncEntityReadResponse(syncEntity)));
     } catch (error) {
       next(error);
     }

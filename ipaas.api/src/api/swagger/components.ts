@@ -204,6 +204,44 @@
  *           minimum: 60
  *           maximum: 2147483647
  *           nullable: true
+ *     SyncEntityRead:
+ *       type: object
+ *       additionalProperties: false
+ *       required: [id, syncRequestId, entity, syncType, status, createdAt, updatedAt, intervalSeconds, lastRunStatus, syncStateUpdatedAt, failedCount, retryCount]
+ *       properties:
+ *         id:
+ *           $ref: '#/components/schemas/Uuid'
+ *         syncRequestId:
+ *           $ref: '#/components/schemas/Uuid'
+ *         entity:
+ *           $ref: '#/components/schemas/EntityType'
+ *         syncType:
+ *           $ref: '#/components/schemas/SyncType'
+ *         status:
+ *           $ref: '#/components/schemas/SyncEntityStatus'
+ *         createdAt:
+ *           $ref: '#/components/schemas/Timestamp'
+ *         updatedAt:
+ *           $ref: '#/components/schemas/Timestamp'
+ *         intervalSeconds:
+ *           type: integer
+ *           minimum: 60
+ *           maximum: 2147483647
+ *           nullable: true
+ *         lastRunStatus:
+ *           type: string
+ *           enum: [success, failed]
+ *           nullable: true
+ *         syncStateUpdatedAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         failedCount:
+ *           type: integer
+ *           minimum: 0
+ *         retryCount:
+ *           type: integer
+ *           minimum: 0
  *     SyncEntityCreate:
  *       oneOf:
  *         - $ref: '#/components/schemas/IntervalSyncEntityCreate'
@@ -325,7 +363,16 @@
  *           $ref: '#/components/schemas/SyncEntity'
  *         timestamp:
  *           $ref: '#/components/schemas/Timestamp'
- *     SyncEntityListEnvelope:
+ *     SyncEntityReadEnvelope:
+ *       type: object
+ *       additionalProperties: false
+ *       required: [data, timestamp]
+ *       properties:
+ *         data:
+ *           $ref: '#/components/schemas/SyncEntityRead'
+ *         timestamp:
+ *           $ref: '#/components/schemas/Timestamp'
+ *     SyncEntityReadListEnvelope:
  *       type: object
  *       additionalProperties: false
  *       required: [data, timestamp]
@@ -333,7 +380,7 @@
  *         data:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/SyncEntity'
+ *             $ref: '#/components/schemas/SyncEntityRead'
  *         timestamp:
  *           $ref: '#/components/schemas/Timestamp'
  */

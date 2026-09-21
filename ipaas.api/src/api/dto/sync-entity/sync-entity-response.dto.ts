@@ -9,3 +9,10 @@ export interface SyncEntityResponseDto {
   readonly updatedAt: string;
   readonly intervalSeconds: number | null;
 }
+
+export interface SyncEntityReadResponseDto extends SyncEntityResponseDto {
+  readonly lastRunStatus: "success" | "failed" | null;
+  readonly syncStateUpdatedAt: string | null;
+  readonly failedCount: number;
+  readonly retryCount: number;
+}

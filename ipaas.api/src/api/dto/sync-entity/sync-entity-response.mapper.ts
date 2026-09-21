@@ -1,5 +1,11 @@
-import type { SyncEntityOutput } from "../../../application/contracts/sync-entity.contracts";
-import type { SyncEntityResponseDto } from "./sync-entity-response.dto";
+import type {
+  SyncEntityOutput,
+  SyncEntityReadOutput,
+} from "../../../application/contracts/sync-entity.contracts";
+import type {
+  SyncEntityReadResponseDto,
+  SyncEntityResponseDto,
+} from "./sync-entity-response.dto";
 
 export function toSyncEntityResponse(
   syncEntity: SyncEntityOutput,
@@ -13,5 +19,17 @@ export function toSyncEntityResponse(
     createdAt: syncEntity.createdAt,
     updatedAt: syncEntity.updatedAt,
     intervalSeconds: syncEntity.intervalSeconds,
+  };
+}
+
+export function toSyncEntityReadResponse(
+  syncEntity: SyncEntityReadOutput,
+): SyncEntityReadResponseDto {
+  return {
+    ...toSyncEntityResponse(syncEntity),
+    lastRunStatus: syncEntity.lastRunStatus,
+    syncStateUpdatedAt: syncEntity.syncStateUpdatedAt,
+    failedCount: syncEntity.failedCount,
+    retryCount: syncEntity.retryCount,
   };
 }

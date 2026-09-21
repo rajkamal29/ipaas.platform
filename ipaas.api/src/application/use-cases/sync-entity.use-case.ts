@@ -1,13 +1,18 @@
 import type {
   CreateSyncEntityRequest,
+  SyncEntityReadOutput,
   SyncEntityOutput,
   UpdateSyncEntityRequest,
 } from "../contracts/sync-entity.contracts";
 import { NotFoundError } from "../errors/not-found-error";
-import { toSyncEntityOutput } from "../mappers/sync-entity-output.mapper";
+import {
+  toSyncEntityOutput,
+  toSyncEntityReadOutput,
+} from "../mappers/sync-entity-output.mapper";
 import type { SyncEntityRepository } from "../ports/sync-entity.repository";
 import type { SyncRequestRepository } from "../ports/sync-request.repository";
 import type { TenantRepository } from "../ports/tenant.repository";
+import type { SyncStateUseCase } from "./sync-state.use-case";
 import {
   validateCreateSyncEntityInput,
   validateUpdateSyncEntityInput,
@@ -20,6 +25,7 @@ export class SyncEntityUseCase {
     private readonly tenants: TenantRepository,
     private readonly requests: SyncRequestRepository,
     private readonly entities: SyncEntityRepository,
+    private readonly syncStates: SyncStateUseCase,
   ) {}
 
   private async requireRequest(
@@ -49,19 +55,28 @@ export class SyncEntityUseCase {
   async list(
     tenantId: string,
     requestId: string,
-  ): Promise<readonly SyncEntityOutput[]> {
+  ): Promise<readonly SyncEntityReadOutput[]> {
     const syncRequest = await this.requireRequest(tenantId, requestId);
-    return (await this.entities.list(syncRequest.id)).map(toSyncEntityOutput);
+    const entities = await this.entities.list(syncRequest.id);
+    const states = await this.syncStates.getBySyncEntityIds(
+      entities.map((entity) => entity.id),
+    );
+    const statesByEntityId = new Map(
+      states.map((state) => [state.syncEntityId, state]),
+    );
+    return entities.map((entity) =>
+      toSyncEntityReadOutput(entity, statesByEntityId.get(entity.id) ?? null),
+    );
   }
 
   async get(
     tenantId: string,
     requestId: string,
     entityId: string,
-  ): Promise<SyncEntityOutput> {
-    return toSyncEntityOutput(
-      await this.requireOwned(tenantId, requestId, entityId),
-    );
+  ): Promise<SyncEntityReadOutput> {
+    const entity = await this.requireOwned(tenantId, requestId, entityId);
+    const state = await this.syncStates.getBySyncEntityId(entity.id);
+    return toSyncEntityReadOutput(entity, state);
   }
 
   async create(

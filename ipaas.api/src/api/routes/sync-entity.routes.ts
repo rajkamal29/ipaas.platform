@@ -20,7 +20,7 @@ import type { SyncEntityController } from "../controllers/sync-entity.controller
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SyncEntityListEnvelope'
+ *               $ref: '#/components/schemas/SyncEntityReadListEnvelope'
  *       '404':
  *         $ref: '#/components/responses/NotFound'
  *       '422':
@@ -80,7 +80,7 @@ import type { SyncEntityController } from "../controllers/sync-entity.controller
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SyncEntityEnvelope'
+ *               $ref: '#/components/schemas/SyncEntityReadEnvelope'
  *       '404':
  *         $ref: '#/components/responses/NotFound'
  *       '422':
