@@ -51,8 +51,7 @@ docker run --detach --name ipaas-mock-server --network ipaas-network --publish 4
 Verify the container and ConnectWise mock endpoint:
 
 ```powershell
-docker logs ipaas-mock-server 
-Invoke-RestMethod 'http://localhost:4000/cw/company/companies'
+docker logs ipaas-mock-server
 ```
 
 The host uses `http://localhost:4000`. Other containers on `ipaas-network` must use:
