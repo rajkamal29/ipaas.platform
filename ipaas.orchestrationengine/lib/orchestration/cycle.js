@@ -208,16 +208,15 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
     {
       status: authError ? 'failed' : 'success',
       processedCount: merged.length,
-      deltaCount: deltaRecords.length,
       successCount: syncedThisCycle.length + updatedThisCycle,
       failedCount: updatedFailed.length,
       retryCount: updatedRetry.length,
       cursor: nextCursor,
     },
-    'sync cycle complete'
+    'entity sync cycle completed'
   );
 
-  return { success: !authError, processed: merged.length, failedCount: updatedFailed.length, retryCount: updatedRetry.length };
+    return { success: !authError, processed: merged.length, failedCount: updatedFailed.length, retryCount: updatedRetry.length };
 }
 
 module.exports = {

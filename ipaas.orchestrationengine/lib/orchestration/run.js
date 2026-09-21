@@ -29,12 +29,23 @@ const { runEntityOnce } = require('./schedule');
 const { logger } = require('../logger');
 const { pool } = require('../db');
 
+const TENANT_START_DELAY_MS = 60 * 1000;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
+  logger.info('orchestration engine started');
+
   const tenants = await loadAllTenants();
   for (const tenant of tenants) {
+    logger.info({ tenantName: tenant.name }, 'tenant processing started');
+    await wait(TENANT_START_DELAY_MS);
+
     const runs = await loadSyncEntityRunsForTenant(tenant.id);
     if (runs.length === 0) {
-      logger.debug({ tenantId: tenant.id }, 'tenant has no sync entities — skipping');
+      logger.info({ tenantName: tenant.name }, 'tenant has no sync entities - skipping');
       continue;
     }
 
@@ -48,7 +59,7 @@ async function main() {
         target: run.target,
         syncType: run.syncType,
       });
-      log.debug('starting');
+      logger.info({ tenantName: tenant.name, entityName: run.entity }, 'entity sync started');
 
       const sourceAdapter = await createAdapter(run.source, run.tenantId, log);
       const targetAdapter = await createAdapter(run.target, run.tenantId, log);
@@ -67,7 +78,7 @@ async function main() {
     }
   }
 
-  logger.debug({ tenantCount: tenants.length }, 'orchestration complete — exiting');
+  logger.info({ tenantCount: tenants.length }, 'orchestration complete — exiting');
   // Close the pool's open sockets before exiting — process.exit() while pg
   // still holds connections open causes a libuv assertion crash on Windows.
   await pool.end();
