@@ -32,7 +32,7 @@ function Initialize-LocalDemoEnvironment {
     }
     $env:RUNTIME_IMAGE_MAPPINGS_JSON = '[{"source":"connectwise","target":"keka","registry":"GHCR","repository":"rajkamal29/ipaas-orchestration-engine","tag":"dev-latest"}]'
     $env:LOG_LEVEL = 'info'
-    $env:PROVISIONING_POLL_INTERVAL_MS = '120000'
+    $env:PROVISIONING_POLL_INTERVAL_MS = '60000'
     $env:PROVISIONING_POLL_BATCH_SIZE = '10'
     $env:PROVISIONING_MAX_CONCURRENCY = '5'
 }

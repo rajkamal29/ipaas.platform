@@ -34,7 +34,7 @@ Issue #19 implements bounded polling and atomic submitted -> provisioning claims
 short PostgreSQL transactions with FOR UPDATE SKIP LOCKED. COMMIT releases locks before
 provisioning starts; competing instances skip locked rows and cannot re-claim committed
 provisioning rows. Batch size, concurrency and interval are centrally validated.
-The default polling interval is 120000 ms (2 minutes); its allowed range remains
+The default polling interval is 60000 ms (1 minute); its allowed range remains
 1000–300000 ms.
 Explicit SYNC_ENTITY_ID mode bypasses polling. Cycles do not overlap; failures are isolated
 per entity and claim failures wait until the next cycle. Shutdown interrupts idle waits,

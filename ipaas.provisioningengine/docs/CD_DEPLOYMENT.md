@@ -111,7 +111,7 @@ The helper centralizes these non-sensitive demo values:
 
 RUNTIME_IMAGE_MAPPINGS_JSON resolves to
 **ghcr.io/rajkamal29/ipaas-orchestration-engine:dev-latest**.
-LOG_LEVEL=info, PROVISIONING_POLL_INTERVAL_MS=120000, PROVISIONING_POLL_BATCH_SIZE=10,
+LOG_LEVEL=info, PROVISIONING_POLL_INTERVAL_MS=60000, PROVISIONING_POLL_BATCH_SIZE=10,
 and PROVISIONING_MAX_CONCURRENCY=5 are fixed for the demo.
 This mutable tag is the individual runtime image only; the Provisioning Engine CD image
 remains pinned to the CI-published digest. GitHub owner/repository derive from the event;
@@ -157,7 +157,7 @@ To restore production configuration:
 3. Restore deployment-step secret mappings for DATABASE_URL/RUNTIME_DATABASE_URL,
    ENCRYPTION_MASTER_KEY and PROVISIONING_GITHUB_DISPATCH_TOKEN.
 4. Restore vars.RUNTIME_IMAGE_MAPPINGS_JSON and optional logging/polling vars expressions.
-   Configure repository Actions Variables; defaults remain info/120000/10/5.
+   Configure repository Actions Variables; defaults remain info/60000/10/5.
 5. Restore runtime workflow secret mappings for the distinct host/container DB URLs and key,
    plus vars.RUNTIME_IMAGE_MAPPINGS_JSON. Remove both helper invocations, helper and its tests.
    Keep deployment safety tests.
