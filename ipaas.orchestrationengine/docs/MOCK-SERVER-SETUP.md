@@ -108,7 +108,23 @@ foreach ($tenantId in $tenantIds) {
 
 The seed uses an upsert, so it is safe to run again after rebuilding the mock server or changing its URL. Seeding is not required when the tenant's database credentials already point to `http://ipaas-mock-server:4000` and contain the expected mock values.
 
-## 6. Run the Orchestration Engine
+## 6. Seed the global client mappings
+
+Run the global mapping seed once for the database. It creates or updates the canonical client schema, ConnectWise inbound client mapping, and Keka outbound client mapping. It is platform-level data, so it does not run inside the tenant loop and does not accept a tenant ID.
+
+```powershell
+docker run --rm `
+  --network ipaas-network `
+  --env-file .env `
+  --entrypoint node `
+  --mount "type=bind,source=$PWD\scripts\seed-global-mapping.js,target=/app/scripts/seed-global-mapping.js,readonly" `
+  $orchImage `
+  scripts/seed-global-mapping.js
+```
+
+This seed also uses upserts and is safe to run again.
+
+## 7. Run the Orchestration Engine
 
 ```powershell
 docker run --rm `
@@ -119,7 +135,7 @@ docker run --rm `
 
 The Orchestration Engine loads the configured tenants and sync entities from the database, performs one orchestration sweep, writes its logs to the terminal, and exits.
 
-## 7. Check the mock-server logs
+## 8. Check the mock-server logs
 
 ```powershell
 docker logs ipaas-mock-server
