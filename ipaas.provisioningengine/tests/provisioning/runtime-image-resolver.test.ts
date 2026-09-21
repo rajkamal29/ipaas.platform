@@ -186,7 +186,7 @@ it("startup exposes polling settings and drops all secret configuration", () => 
   logProvisioningStartup(logger, config);
   assert.deepEqual(JSON.parse(lines[0]!).context, {
     runtimeProvider: "docker",
-    pollIntervalMs: 120000,
+    pollIntervalMs: 60000,
     batchSize: 10,
     maxConcurrency: 5,
   });
@@ -210,4 +210,31 @@ it("startup exposes polling settings and drops all secret configuration", () => 
   assert.equal(JSON.parse(lines[1]!).context.exitCode, 1);
   assert.equal(JSON.parse(lines[1]!).context.nextStatus, "failed");
   assert.ok(!lines.join("").includes("secret-sentinel"));
+});
+
+it("retains approved business correlation fields and filters unknown fields", () => {
+  const lines: string[] = [];
+  const logger = new Logger("info", (line) => {
+    lines.push(line);
+  });
+  const safe = {
+    tenantId: "tenant-id",
+    syncRequestId: "request-id",
+    entity: "client",
+    syncType: "one_time",
+    source: "connectwise",
+    target: "keka",
+    imageReference: "ghcr.io/test/runtime:v1",
+  };
+  logger.info("Runtime image resolved", {
+    ...safe,
+    databaseUrl: "test-only-sentinel",
+    password: "test-only-sentinel",
+    token: "test-only-sentinel",
+    encryptionKey: "test-only-sentinel",
+    credentials: "test-only-sentinel",
+    unknown: "test-only-sentinel",
+  });
+  assert.deepEqual(JSON.parse(lines[0]!).context, safe);
+  assert.ok(!lines[0]!.includes("test-only-sentinel"));
 });

@@ -4,6 +4,7 @@ import type {
   SyncSchedule,
   SyncType,
 } from "../../domain/sync-entity/sync-entity";
+import type { SyncRunStatus } from "../../domain/sync-state/sync-state";
 
 export type CreateSyncEntityInput = SyncSchedule & {
   readonly entity: EntityType;
@@ -32,4 +33,11 @@ export interface SyncEntityOutput {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly intervalSeconds: number | null;
+}
+
+export interface SyncEntityReadOutput extends SyncEntityOutput {
+  readonly lastRunStatus: SyncRunStatus | null;
+  readonly syncStateUpdatedAt: string | null;
+  readonly failedCount: number;
+  readonly retryCount: number;
 }

@@ -27,7 +27,7 @@ export function loadPollingOptions(
     return value;
   }
   return {
-    intervalMs: integer("PROVISIONING_POLL_INTERVAL_MS", 120000, 1000, 300000),
+    intervalMs: integer("PROVISIONING_POLL_INTERVAL_MS", 60000, 1000, 300000),
     batchSize: integer(
       "PROVISIONING_POLL_BATCH_SIZE",
       10,

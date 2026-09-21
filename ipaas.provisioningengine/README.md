@@ -251,7 +251,7 @@ execution guarantee.
 
 | Setting | Default | Allowed range |
 | --- | --- | --- |
-| PROVISIONING_POLL_INTERVAL_MS | 120000 (2 minutes) | 1000–300000 |
+| PROVISIONING_POLL_INTERVAL_MS | 60000 (1 minute) | 1000–300000 |
 | PROVISIONING_POLL_BATCH_SIZE | 10 | 1–100 |
 | PROVISIONING_MAX_CONCURRENCY | 5 | 1–100 |
 
