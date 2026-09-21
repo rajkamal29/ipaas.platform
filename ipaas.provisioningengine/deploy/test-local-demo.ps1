@@ -71,7 +71,7 @@ try {
         Assert-Demo ($catalogue[0].$field -ceq $expectedMapping[$field]) "Incorrect demo mapping field: $field"
     }
     Write-Host 'Passed deployment catalogue JSON parsing and exact mapping'
-    Assert-Demo ($env:LOG_LEVEL -eq 'info' -and $env:PROVISIONING_POLL_INTERVAL_MS -eq '120000' -and $env:PROVISIONING_POLL_BATCH_SIZE -eq '10' -and $env:PROVISIONING_MAX_CONCURRENCY -eq '5') 'Unexpected demo defaults'
+    Assert-Demo ($env:LOG_LEVEL -eq 'info' -and $env:PROVISIONING_POLL_INTERVAL_MS -eq '60000' -and $env:PROVISIONING_POLL_BATCH_SIZE -eq '10' -and $env:PROVISIONING_MAX_CONCURRENCY -eq '5') 'Unexpected demo defaults'
     # Exercise the application's actual parser and resolver, not a duplicate URL algorithm.
     Push-Location (Join-Path $PSScriptRoot '..')
     try {

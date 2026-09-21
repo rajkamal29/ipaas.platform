@@ -169,7 +169,7 @@ Run the [three demo inserts](#21-create-new-demo-data-manually), using returned 
 docker logs -f ipaas-provisioning-engine
 ```
 
-With only your new row pending, expect `Provisioning poll started`, `Provisioning batch claimed` with `claimedCount=1`, `Provisioning requested`, `GitHub dispatch accepted`, `Provisioning request handled`, and `Provisioning batch drained`. More pending rows can produce a larger count. Use the [claim query](#22-verify-the-claim) to observe submitted -> provisioning; a fast runtime may already be terminal by the time you query.
+With only your new row pending, expect `Provisioning poll started`, `Provisioning batch claimed` with `claimedCount=1`, `Sync entity processing started`, `Runtime provisioning workflow dispatched`, `Sync entity processing completed`, and `Provisioning batch drained`. More pending rows can produce a larger count. Use the [claim query](#22-verify-the-claim) to observe submitted -> provisioning; a fast runtime may already be terminal by the time you query.
 
 ### Stage 2.5 Watch runner receive Stage 2 job
 
@@ -391,7 +391,7 @@ Expect `running|<digest-pinned-image>|0` and `Shared IPAAS Platform database sch
 docker logs -f ipaas-provisioning-engine
 ```
 
-Idle cycles emit `Provisioning poll started` and `Provisioning poll completed` with `claimedCount=0`. Work cycles additionally emit `Provisioning batch claimed`, `Provisioning requested` with `syncEntityId`, `GitHub dispatch accepted`, `Provisioning request handled`, and `Provisioning batch drained`. Startup includes provider, poll interval, batch size and concurrency; defaults remain 120000 ms, 10 and 5.
+Idle cycles emit `Provisioning poll started` and `Provisioning poll completed` with `claimedCount=0`. Work cycles additionally emit `Provisioning batch claimed`, `Sync entity processing started` with `syncEntityId`, `Runtime provisioning workflow dispatched`, `Sync entity processing completed`, and `Provisioning batch drained`. Startup includes provider, poll interval, batch size and concurrency; defaults remain 60000 ms, 10 and 5.
 
 The interval follows batch drain, so a busy batch can extend time between polls. If unexplained silence exceeds the expected interval, check running state, restart count, database connectivity, a stuck request, process failure, and deployed revision. Graceful shutdown emits `Provisioning worker stopping` then `Provisioning worker stopped` after in-flight work drains. Runtime lifecycle logs appear in the explicit workflow, not necessarily the long-running container.
 

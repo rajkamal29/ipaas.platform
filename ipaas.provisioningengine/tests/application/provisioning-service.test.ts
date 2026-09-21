@@ -303,6 +303,13 @@ it("preserves dependency diagnostics and entity correlation in application failu
   await assert.rejects(fake.useCase.execute(id), ProvisioningFailedError);
   assert.deepEqual(fake.errors[0], {
     syncEntityId: id,
+    syncRequestId: requestId,
+    tenantId: parent.tenantId,
+    entity: seed.entity,
+    syncType: seed.syncType,
+    source: parent.source,
+    target: parent.target,
+    imageReference: "ghcr.io/test/runtime:v1",
     failureCode: "dependency-failed",
     dependency: "github",
     operation: "workflow-dispatch",
@@ -405,7 +412,11 @@ it("GitHub acceptance is not one-time completion", async () => {
   fake.setResult({ kind: "accepted", reference: "dispatch" });
   assert.equal((await fake.useCase.execute(id)).status, "provisioning");
   assert.deepEqual(fake.transitions, []);
-  assert.ok(fake.logs.some((x) => x.message === "GitHub dispatch accepted"));
+  assert.ok(
+    fake.logs.some(
+      (x) => x.message === "Runtime provisioning workflow dispatched",
+    ),
+  );
 });
 
 it("explicit worker rejects a failed runtime even when a concurrent completed status is preserved", async () => {
@@ -441,4 +452,45 @@ it("explicit worker rejects a failed runtime even when a concurrent completed st
   } finally {
     await worker.stop();
   }
+});
+
+it("correlates processing and dispatch logs using already-loaded metadata", async () => {
+  const fake = setup();
+  fake.setResult({ kind: "accepted", reference: "dispatch" });
+  await fake.useCase.execute(id);
+  const expected = {
+    tenantId: parent.tenantId,
+    syncRequestId: requestId,
+    syncEntityId: id,
+    entity: seed.entity,
+    syncType: seed.syncType,
+    source: parent.source,
+    target: parent.target,
+  };
+  for (const message of [
+    "Sync entity processing started",
+    "Runtime image resolved",
+    "Runtime provisioning workflow dispatched",
+    "Sync entity processing completed",
+  ]) {
+    const context = fake.logs.find(
+      (entry) => entry.message === message,
+    )?.context;
+    assert.ok(context);
+    for (const [key, value] of Object.entries(expected))
+      assert.equal(context[key], value);
+  }
+  assert.equal(
+    fake.logs.find((entry) => entry.message === "Runtime image resolved")
+      ?.context.imageReference,
+    "ghcr.io/test/runtime:v1",
+  );
+  assert.equal(
+    fake.logs.find(
+      (entry) => entry.message === "Sync entity processing completed",
+    )?.context.status,
+    "provisioning",
+  );
+  assert.deepEqual(fake.parentLookups, [requestId]);
+  assert.deepEqual(fake.imageLookups, [[parent.source, parent.target]]);
 });

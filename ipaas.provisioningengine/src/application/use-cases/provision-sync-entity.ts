@@ -2,7 +2,7 @@ import type { SyncEntityRepository } from "../ports/repositories/sync-entity-rep
 import type { SyncRequestRepository } from "../ports/repositories/sync-request-repository.js";
 import type { RuntimeImageResolver } from "../ports/runtime/runtime-image-resolver.js";
 import type { RuntimeProvisioner } from "../ports/runtime/runtime-provisioner.js";
-import type { Logger } from "../ports/logger.js";
+import type { Logger, LogContext } from "../ports/logger.js";
 import type {
   ProvisioningResult,
   RuntimeRequest,
@@ -54,13 +54,31 @@ export class ProvisionSyncEntityUseCase {
         "entity-not-provisioning",
         "An explicitly claimed provisioning row is required.",
       );
+    let provisioningContext: LogContext = {
+      syncEntityId: entity.id,
+      syncRequestId: entity.syncRequestId,
+      entity: entity.entity,
+      syncType: entity.syncType,
+    };
     let runtimeReturned = false;
     try {
       const parent = await this.requests.getById(entity.syncRequestId);
       if (!parent) throw new SyncRequestNotFoundError();
+      provisioningContext = {
+        ...provisioningContext,
+        tenantId: parent.tenantId,
+        source: parent.source,
+        target: parent.target,
+      };
+      this.logger.info("Sync entity processing started", {
+        ...provisioningContext,
+        status: entity.status,
+      });
       if (entity.syncType === TYPE.realTime)
         throw new UnsupportedSyncTypeError(entity.syncType);
       const imageReference = this.images.resolve(parent.source, parent.target);
+      provisioningContext = { ...provisioningContext, imageReference };
+      this.logger.info("Runtime image resolved", provisioningContext);
       let request: RuntimeRequest;
       if (entity.syncType === TYPE.interval) {
         if (
@@ -108,7 +126,7 @@ export class ProvisionSyncEntityUseCase {
           nextStatus,
         );
         this.logger.info("Provisioning status transition", {
-          syncEntityId: id,
+          ...provisioningContext,
           previousStatus: STATUS.provisioning,
           nextStatus,
           statusRecorded,
@@ -116,7 +134,7 @@ export class ProvisionSyncEntityUseCase {
       }
       if (result.kind === "exited") {
         this.logger.info("Runtime reconciliation completed", {
-          syncEntityId: id,
+          ...provisioningContext,
           runtimeName: result.runtimeName,
           runtimeState: result.runtimeState,
           exitCode: result.exitCode,
@@ -129,10 +147,10 @@ export class ProvisionSyncEntityUseCase {
       } else {
         this.logger.info(
           result.kind === "accepted"
-            ? "GitHub dispatch accepted"
+            ? "Runtime provisioning workflow dispatched"
             : "Runtime provisioning observed",
           {
-            syncEntityId: id,
+            ...provisioningContext,
             runtimeOutcome: result.kind,
             ...(result.kind === "started"
               ? { runtimeName: `ipaas-sync-${id}`, runtimeState: "running" }
@@ -143,8 +161,8 @@ export class ProvisionSyncEntityUseCase {
       // Re-read after the conditional update; never overwrite a concurrent terminal transition.
       const current = await this.entities.getById(id);
       if (!current) throw new SyncEntityNotFoundError();
-      this.logger.info("Provisioning request handled", {
-        syncEntityId: id,
+      this.logger.info("Sync entity processing completed", {
+        ...provisioningContext,
         outcome,
         status: current.status,
       });
@@ -170,7 +188,7 @@ export class ProvisionSyncEntityUseCase {
           );
         } catch (persistenceError: unknown) {
           this.logger.error("Failure status persistence failed", {
-            syncEntityId: id,
+            ...provisioningContext,
             ...failureDiagnostics(persistenceError),
           });
         }
@@ -179,13 +197,13 @@ export class ProvisionSyncEntityUseCase {
         error instanceof ApplicationError ? error.code : "unexpected-failure";
       if (uncertain)
         this.logger.info("Runtime reconciliation required", {
-          syncEntityId: id,
+          ...provisioningContext,
           outcome: "reconciliation-required",
           uncertain: true,
           failureCode,
         });
       this.logger.error("Provisioning failed", {
-        syncEntityId: id,
+        ...provisioningContext,
         failureCode,
         ...failureDiagnostics(error),
         statusRecorded,

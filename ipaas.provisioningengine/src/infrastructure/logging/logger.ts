@@ -7,6 +7,13 @@ const priority = { debug: 10, info: 20, warn: 30, error: 40 } as const;
 /** Allowlisted structured context prevents accidental serialization of secrets/errors. */
 const allowedContext = new Set([
   "syncEntityId",
+  "tenantId",
+  "syncRequestId",
+  "entity",
+  "syncType",
+  "source",
+  "target",
+  "imageReference",
   "outcome",
   "status",
   "failureCode",

@@ -26,7 +26,12 @@ function deferred<T>() {
 
 it("validates bounded polling configuration", () => {
   assert.deepEqual(loadPollingOptions({}), {
-    intervalMs: 120000,
+    intervalMs: 60000,
+    batchSize: 10,
+    maxConcurrency: 5,
+  });
+  assert.deepEqual(loadPollingOptions({ PROVISIONING_POLL_INTERVAL_MS: "90000" }), {
+    intervalMs: 90000,
     batchSize: 10,
     maxConcurrency: 5,
   });
