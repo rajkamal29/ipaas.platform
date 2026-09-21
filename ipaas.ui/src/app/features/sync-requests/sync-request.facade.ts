@@ -4,14 +4,14 @@ import {
   SYNC_ENTITY_REPOSITORY,
   SYNC_REQUEST_REPOSITORY,
 } from '../../data-access/tokens/repository.tokens';
-import type { SyncEntity } from '../../domain/models/sync-entity';
+import type { SyncEntityRead } from '../../domain/models/sync-entity';
 import type { SyncRequest } from '../../domain/models/sync-request';
 import type { Tenant } from '../../domain/models/tenant';
 import { AsyncResource, SubmissionState } from '../../shared/state/async-state';
 import { RequestContext, TenantContextService } from '../tenants/tenant-context.service';
 
 interface RequestDetailData extends RequestContext {
-  readonly entities: readonly SyncEntity[];
+  readonly entities: readonly SyncEntityRead[];
 }
 
 @Injectable()

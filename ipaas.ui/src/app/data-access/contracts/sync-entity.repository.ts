@@ -1,4 +1,4 @@
-import type { SyncEntity, SyncSchedule } from '../../domain/models/sync-entity';
+import type { SyncEntity, SyncEntityRead, SyncSchedule } from '../../domain/models/sync-entity';
 import type {
   EntityType,
   SyncEntityStatus,
@@ -33,7 +33,8 @@ export interface SyncEntityRepository extends CrudRepository<
   UpdateSyncEntity,
   SyncEntityFilter
 > {
-  get(id: string, context?: SyncEntityRouteContext): Promise<SyncEntity | null>;
+  list(filter?: SyncEntityFilter): Promise<readonly SyncEntityRead[]>;
+  get(id: string, context?: SyncEntityRouteContext): Promise<SyncEntityRead | null>;
   update(
     id: string,
     input: UpdateSyncEntity,

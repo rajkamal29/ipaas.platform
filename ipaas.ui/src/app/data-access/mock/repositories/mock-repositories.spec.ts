@@ -104,7 +104,15 @@ describe('Shared mock repositories', () => {
       intervalSeconds: 60,
     });
     expect(entity.status).toBe(SYNC_ENTITY_STATUSES.submitted);
-    expect(await entities.list({ tenantId: tenant.id })).toEqual([entity]);
+    expect(await entities.list({ tenantId: tenant.id })).toEqual([
+      {
+        ...entity,
+        lastRunStatus: null,
+        syncStateUpdatedAt: null,
+        failedCount: 0,
+        retryCount: 0,
+      },
+    ]);
     expect(
       await entities.list({ tenantId: FIXTURE_IDS.tenantB, syncRequestId: request.id }),
     ).toEqual([]);
@@ -128,7 +136,12 @@ describe('Shared mock repositories', () => {
       status: SYNC_ENTITY_STATUSES.completed,
     });
     expect(updated.syncRequestId).toBe(FIXTURE_IDS.requestA);
-    expect(await entities.get(updated.id)).toEqual(updated);
+    expect(await entities.get(updated.id)).toMatchObject({
+      ...updated,
+      lastRunStatus: 'failed',
+      failedCount: 1,
+      retryCount: 1,
+    });
     expect(
       await entities.list({
         syncRequestId: FIXTURE_IDS.requestA,

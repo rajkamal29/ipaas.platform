@@ -1,5 +1,10 @@
 import { SYNC_TYPES } from '../value-sets/database-values';
-import type { EntityType, SyncEntityStatus, SyncType } from '../value-sets/database-values';
+import type {
+  EntityType,
+  SyncEntityStatus,
+  SyncRunStatus,
+  SyncType,
+} from '../value-sets/database-values';
 
 export type SyncSchedule =
   | { readonly syncType: typeof SYNC_TYPES.interval; readonly intervalSeconds: number }
@@ -15,4 +20,11 @@ export type SyncEntity = SyncSchedule & {
   readonly status: SyncEntityStatus;
   readonly createdAt: string;
   readonly updatedAt: string;
+};
+
+export type SyncEntityRead = SyncEntity & {
+  readonly lastRunStatus: SyncRunStatus | null;
+  readonly syncStateUpdatedAt: string | null;
+  readonly failedCount: number;
+  readonly retryCount: number;
 };

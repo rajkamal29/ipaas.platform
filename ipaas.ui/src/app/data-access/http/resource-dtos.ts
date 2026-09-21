@@ -1,10 +1,11 @@
-import type { SyncEntity } from '../../domain/models/sync-entity';
+import type { SyncEntity, SyncEntityRead } from '../../domain/models/sync-entity';
 import type { SyncRequest } from '../../domain/models/sync-request';
 import type { Tenant } from '../../domain/models/tenant';
 
 export type TenantDto = Tenant;
 export type SyncRequestDto = SyncRequest;
 export type SyncEntityDto = SyncEntity;
+export type SyncEntityReadDto = SyncEntityRead;
 
 export function toTenant(dto: TenantDto): Tenant {
   return { id: dto.id, name: dto.name, createdAt: dto.createdAt };
@@ -32,4 +33,14 @@ export function toSyncEntity(dto: SyncEntityDto): SyncEntity {
   return dto.syncType === 'interval'
     ? { ...metadata, syncType: dto.syncType, intervalSeconds: dto.intervalSeconds }
     : { ...metadata, syncType: dto.syncType, intervalSeconds: null };
+}
+
+export function toSyncEntityRead(dto: SyncEntityReadDto): SyncEntityRead {
+  return {
+    ...toSyncEntity(dto),
+    lastRunStatus: dto.lastRunStatus,
+    syncStateUpdatedAt: dto.syncStateUpdatedAt,
+    failedCount: dto.failedCount,
+    retryCount: dto.retryCount,
+  };
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import type { SyncEntity, SyncSchedule } from '../../../domain/models/sync-entity';
+import type { SyncEntity, SyncEntityRead, SyncSchedule } from '../../../domain/models/sync-entity';
 import { SYNC_ENTITY_STATUSES, SYNC_TYPES } from '../../../domain/value-sets/database-values';
 import type {
   CreateSyncEntity,
@@ -23,6 +23,15 @@ export class MockSyncEntityRepository
 {
   constructor() {
     super('syncEntities');
+  }
+
+  override async list(filter?: SyncEntityFilter): Promise<readonly SyncEntityRead[]> {
+    return (await super.list(filter)).map((row) => this.toReadModel(row));
+  }
+
+  override async get(id: string): Promise<SyncEntityRead | null> {
+    const row = await super.get(id);
+    return row === null ? null : this.toReadModel(row);
   }
 
   protected override build(input: CreateSyncEntity, id: string, now: string): SyncEntity {
@@ -60,5 +69,18 @@ export class MockSyncEntityRepository
       (filter.status === undefined || row.status === filter.status) &&
       (filter.syncType === undefined || row.syncType === filter.syncType)
     );
+  }
+
+  private toReadModel(row: SyncEntity): SyncEntityRead {
+    const state = this.data
+      .snapshot()
+      .syncStates.find((candidate) => candidate.syncEntityId === row.id);
+    return {
+      ...row,
+      lastRunStatus: state?.lastRunStatus ?? null,
+      syncStateUpdatedAt: state?.updatedAt ?? null,
+      failedCount: Array.isArray(state?.failed) ? state.failed.length : 0,
+      retryCount: Array.isArray(state?.retry) ? state.retry.length : 0,
+    };
   }
 }

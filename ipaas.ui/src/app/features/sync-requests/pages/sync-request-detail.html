@@ -60,8 +60,12 @@
                 <th scope="col">Entity</th>
                 <th scope="col">Sync type</th>
                 <th scope="col">Interval</th>
-                <th scope="col">Status</th>
-                <th scope="col">Updated</th>
+                <th scope="col">Provisioning Status</th>
+                <th scope="col">Configuration Updated At</th>
+                <th scope="col">Execution Status</th>
+                <th scope="col">Sync State Updated At</th>
+                <th scope="col">Failed Count</th>
+                <th scope="col">Retry Count</th>
               </tr>
             </thead>
             <tbody>
@@ -81,14 +85,32 @@
                         : entity.intervalSeconds + ' seconds'
                     }}
                   </td>
-                  <td data-label="Status">
+                  <td data-label="Provisioning Status">
                     <span class="status-label">{{ statuses[entity.status] }}</span>
                   </td>
-                  <td data-label="Updated">
+                  <td data-label="Configuration Updated At">
                     <time [attr.datetime]="entity.updatedAt">{{
                       entity.updatedAt | date: 'medium'
                     }}</time>
                   </td>
+                  <td data-label="Execution Status">
+                    @if (entity.lastRunStatus === null) {
+                      Not available
+                    } @else {
+                      <span class="status-label">{{ runStatuses[entity.lastRunStatus] }}</span>
+                    }
+                  </td>
+                  <td data-label="Sync State Updated At">
+                    @if (entity.syncStateUpdatedAt === null) {
+                      Not available
+                    } @else {
+                      <time [attr.datetime]="entity.syncStateUpdatedAt">{{
+                        entity.syncStateUpdatedAt | date: 'medium'
+                      }}</time>
+                    }
+                  </td>
+                  <td data-label="Failed Count">{{ entity.failedCount }}</td>
+                  <td data-label="Retry Count">{{ entity.retryCount }}</td>
                 </tr>
               }
             </tbody>

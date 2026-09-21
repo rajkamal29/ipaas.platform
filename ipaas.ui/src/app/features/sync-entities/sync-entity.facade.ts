@@ -2,13 +2,13 @@ import { inject, Injectable } from '@angular/core';
 import type { SyncSchedule } from '../../domain/models/sync-entity';
 import type { EntityType } from '../../domain/value-sets/database-values';
 import { SYNC_ENTITY_REPOSITORY } from '../../data-access/tokens/repository.tokens';
-import type { SyncEntity } from '../../domain/models/sync-entity';
+import type { SyncEntity, SyncEntityRead } from '../../domain/models/sync-entity';
 import { AsyncResource, SubmissionState } from '../../shared/state/async-state';
 import { RequestContext, TenantContextService } from '../tenants/tenant-context.service';
 
 export type SyncEntityConfiguration = SyncSchedule & { readonly entity: EntityType };
 interface EntityCreateData extends RequestContext {
-  readonly entities: readonly SyncEntity[];
+  readonly entities: readonly SyncEntityRead[];
 }
 
 @Injectable()

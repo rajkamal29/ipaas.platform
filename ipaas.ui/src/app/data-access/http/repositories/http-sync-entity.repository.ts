@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import type { SyncEntity } from '../../../domain/models/sync-entity';
+import type { SyncEntity, SyncEntityRead } from '../../../domain/models/sync-entity';
 import { RepositoryError } from '../../contracts/repository-error';
 import type {
   CreateSyncEntity,
@@ -9,26 +9,31 @@ import type {
   UpdateSyncEntity,
 } from '../../contracts/sync-entity.repository';
 import { ApiClient } from '../api-client';
-import { toSyncEntity, type SyncEntityDto } from '../resource-dtos';
+import {
+  toSyncEntity,
+  toSyncEntityRead,
+  type SyncEntityDto,
+  type SyncEntityReadDto,
+} from '../resource-dtos';
 
 @Injectable()
 export class HttpSyncEntityRepository implements SyncEntityRepository {
   private readonly api = inject(ApiClient);
 
-  async list(filter: SyncEntityFilter = {}): Promise<readonly SyncEntity[]> {
+  async list(filter: SyncEntityFilter = {}): Promise<readonly SyncEntityRead[]> {
     const context = this.context(filter.tenantId, filter.syncRequestId);
     if (filter.entity !== undefined || filter.status !== undefined || filter.syncType !== undefined)
       throw new RepositoryError('validation', 'Server-side sync entity filters are not supported.');
-    return (await this.api.get<readonly SyncEntityDto[]>(this.collectionPath(context))).map(
-      toSyncEntity,
+    return (await this.api.get<readonly SyncEntityReadDto[]>(this.collectionPath(context))).map(
+      toSyncEntityRead,
     );
   }
 
-  async get(id: string, context?: SyncEntityRouteContext): Promise<SyncEntity | null> {
+  async get(id: string, context?: SyncEntityRouteContext): Promise<SyncEntityRead | null> {
     const parent = this.requireContext(context);
     try {
-      return toSyncEntity(
-        await this.api.get<SyncEntityDto>(
+      return toSyncEntityRead(
+        await this.api.get<SyncEntityReadDto>(
           `${this.collectionPath(parent)}/${encodeURIComponent(id)}`,
         ),
       );
@@ -55,10 +60,16 @@ export class HttpSyncEntityRepository implements SyncEntityRepository {
     context?: SyncEntityRouteContext,
   ): Promise<SyncEntity> {
     const parent = this.requireContext(context);
+    const body = {
+      entity: input.entity,
+      syncType: input.syncType,
+      intervalSeconds: input.intervalSeconds,
+      status: input.status,
+    };
     return toSyncEntity(
       await this.api.put<SyncEntityDto>(
         `${this.collectionPath(parent)}/${encodeURIComponent(id)}`,
-        input,
+        body,
       ),
     );
   }
