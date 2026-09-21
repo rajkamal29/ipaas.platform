@@ -7,13 +7,16 @@ export interface DockerInspection {
     readonly Env?: string[];
     readonly Labels?: Record<string, string> | null;
   };
-  readonly State: { readonly Status: string; readonly ExitCode: number };
+  readonly State: {
+    readonly Status: string;
+    readonly ExitCode: number;
+    readonly StartedAt?: string;
+  };
   readonly HostConfig: { readonly NetworkMode: string };
 }
 export interface DockerContainer {
   inspect(): Promise<DockerInspection>;
   start(): Promise<unknown>;
-  wait(): Promise<void>;
 }
 export interface DockerClient {
   getContainer(name: string): DockerContainer;
@@ -67,9 +70,6 @@ export function createDockerClient(
 function wrapContainer(container: Docker.Container): DockerContainer {
   return {
     start: () => container.start(),
-    wait: async () => {
-      await container.wait({ condition: "not-running" });
-    },
     inspect: async () => {
       const value = await container.inspect();
       return {

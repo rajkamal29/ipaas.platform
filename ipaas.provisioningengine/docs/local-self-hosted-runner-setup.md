@@ -20,7 +20,7 @@ Use this checklist as your route through the guide; the numbered procedures belo
 12. Create a **fresh** demo sync entity.
 13. Watch `submitted -> provisioning`.
 14. Watch the `provision-runtime` workflow arrive on the runner.
-15. Verify `ipaas-sync-<syncEntityId>` and its exit state.
+15. Verify `ipaas-sync-<syncEntityId>` and its startup state.
 16. Verify final DB status: completed / failed / provisioning when uncertain.
 
 ## Terminology
@@ -54,7 +54,7 @@ provision-runtime.yml
   -> explicit PE process on the runner HOST
   -> RUNTIME_PROVIDER=docker + SYNC_ENTITY_ID + EXPECTED_RUNTIME_IMAGE
   -> Docker Desktop: create/reconcile ipaas-sync-<id>
-  -> wait/inspect runtime
+  -> confirm runtime startup (do not wait for execution)
   -> conditionally update sync_entities status
 ```
 
@@ -190,11 +190,14 @@ docker logs ipaas-sync-<id> --tail 100
 ```sql
 SELECT id, status, updated_at FROM sync_entities
 WHERE id = '<sync-entity-id>';
+
+SELECT last_run_status, last_error, last_run_at FROM sync_state
+WHERE sync_entity_id = '<sync-entity-id>';
 ```
 
-For one_time, definitive exit 0 -> completed; non-zero -> failed; uncertain runtime outcome -> provisioning pending reconciliation. Updates are conditional: an existing concurrent terminal state is preserved. Even if another actor recorded completed, a definitive failed runtime now makes the explicit PE fail Stage 2. Investigate that discrepancy; it is not a successful runtime.
+For one_time, confirmed Docker startup -> completed; definitive provisioning failure -> failed; ambiguous startup -> provisioning pending reconciliation. OE exit codes do not change provisioning status. Conditional updates preserve concurrent terminal states.
 
-**If the workflow ran, the runtime container exists, and DB status matches the definitive runtime result, Stage 2 is working.** The known missing-adapter image may exit 1: recording failed proves lifecycle handling, not successful business synchronization. See [reconciliation and existing OE ownership limits](#25-verify-terminal-lifecycle-and-reconciliation).
+**If the workflow ran, runtime startup is confirmed, and sync_entities.status is completed, Stage 2 provisioning is working.** Check sync_state.last_run_status/last_error separately for synchronization results; a container may start successfully and later exit 1. See [lifecycle and reconciliation](#25-verify-terminal-lifecycle-and-reconciliation).
 
 ## Detailed setup reference
 
@@ -490,15 +493,18 @@ Replace the placeholder before executing. The name is deterministic. Logs from p
 ```sql
 SELECT id, status, updated_at FROM sync_entities
 WHERE id = '<sync-entity-id>';
+
+SELECT last_run_status, last_error, last_run_at FROM sync_state
+WHERE sync_entity_id = '<sync-entity-id>';
 ```
 
-For one_time, definitive exited/0 becomes completed; definitive exited/nonzero becomes failed. Newly created containers are observed using Docker wait followed by inspect, bounded by the existing Docker request timeout (default 120000 ms). Timeout does not stop the runtime: status remains provisioning and reconciliation is required. GitHub acceptance or successful start alone never means completed.
+For one_time, confirmed Docker startup becomes completed. PE returns without waiting for business execution. Image preparation/create failures and a definitively rejected start become failed; ambiguous Docker/network failures remain provisioning. GitHub acceptance alone never means completed. The existing Docker request timeout still applies to individual API calls, not OE execution.
 
-Existing running containers stay provisioning without being started again. Existing exited containers reconcile their exit code. Created, paused, restarting, removing, dead, unknown or mismatched containers require investigation; they are not deleted/recreated/restarted. Only the invocation that successfully creates the deterministic container may start it.
+Existing matching running containers resolve to completed. Matching exited containers also resolve to completed when StartedAt proves previous startup, regardless of exit code. An exited container without that evidence, or a created, paused, restarting, removing, dead, unknown or mismatched container requires reconciliation. Nothing is deleted/recreated/restarted. Only the invocation that successfully creates the deterministic container may start it.
 
-After an uncertain timeout, inspect the existing container. If it is now definitively exited and the row is still provisioning, an operator may manually dispatch the same workflow with the SAME entity ID and approved image to reconcile that existing execution. Do not reset failed rows or remove containers. There is no background reconciliation scheduler. Conditional updates never overwrite another terminal status.
+After an uncertain startup/inspect error, inspect the existing container. If it is running or exited with evidence of prior startup and the row is still provisioning, an operator may manually dispatch the same workflow with the SAME entity ID and approved image to reconcile it. Do not reset failed rows or remove containers. There is no background reconciliation scheduler. Conditional updates never overwrite another terminal status.
 
-**Existing ownership limitation:** the current OE still writes one-time statuses in `lib/orchestration/schedule.js` through `sync-entities.js`. This branch deliberately does not modify OE. PE preserves those concurrent terminal writes, so exclusive PE ownership requires a separate OE change. Exit-code-based PE completion is not a guarantee of business-level success while OE can return a successful process exit for an unsuccessful cycle. Interval and real_time behavior remain unchanged: supplied adapters reject interval; real_time is unsupported.
+**Separate lifecycles:** sync_entities.status describes runtime setup; sync_state.last_run_status (success / failed) and last_error describe OE execution. `sync_entities.status = completed` with `sync_state.last_run_status = failed` means "The runtime was provisioned successfully, but the latest synchronization execution failed." Current OE no longer calls its entity-status writer. Old images may still do so and must be upgraded separately. A crash before OE saves sync_state can leave the execution record absent/stale; inspect logs. OE also tracks per-record failures separately, so its run-level status is not a guarantee every record succeeded. Interval and real_time behavior is unchanged.
 
 ## Testing a new Orchestration Engine image
 
@@ -602,19 +608,22 @@ Config.Image must show the expected new **tagged** reference. To compare actual 
 ```sql
 SELECT id, status, updated_at FROM sync_entities
 WHERE id = '<sync-entity-id>';
+
+SELECT last_run_status, last_error, last_run_at FROM sync_state
+WHERE sync_entity_id = '<sync-entity-id>';
 ```
 
-For one_time: exit 0 -> completed; non-zero -> failed; uncertain -> provisioning. Conditional writes preserve an already terminal state; check `statusRecorded` and investigate any discrepancy. A failed runtime outcome causes Stage 2 to fail even if DB status was concurrently changed to completed.
+For one_time: confirmed startup -> completed; definitive setup failure -> failed; ambiguous startup -> provisioning. OE exit 0 or 1 after startup does not alter provisioning. Check sync_state for execution results. Conditional writes preserve terminal states; investigate any unexpected statusRecorded=false result.
 
 **Deterministic-container restriction:** if `ipaas-sync-<id>` already exists with the old image, PE treats an image mismatch as reconciliation-required. It will not delete/recreate it to test the new image. Use a NEW demo entity, not a different image against the old ID. No container deletion is part of this procedure.
 
-The observed `Cannot find module '@rajkamal29/adapter-connectwise'` failure is an OE/provider packaging issue, not a PE setup issue. Use this procedure to verify a newer image fixes it without modifying PE logic. Definitive exit 1 should be recorded as failed if the row remains provisioning.
+The observed `Cannot find module '@rajkamal29/adapter-connectwise'` failure is an OE/provider packaging issue. Use this procedure to verify a newer image fixes it without modifying PE logic. If Docker started it successfully, provisioning is completed even when the process subsequently exits 1. This early crash may occur before sync_state is written.
 
 ## 26. Known runtime packaging issue
 
-The dev-latest image was observed exiting 1 with `Cannot find module '@rajkamal29/adapter-connectwise'`. This is a separate OE/provider image issue and is not fixed here. A definitive exit 1 should now result in PE recording failed if the row is still provisioning.
+The dev-latest image was previously observed exiting 1 with `Cannot find module '@rajkamal29/adapter-connectwise'`. This is a separate OE/provider image issue. A successfully started container means completed provisioning regardless of that exit code; the package failure remains an execution problem.
 
-The expected current manual proof may therefore be submitted -> provisioning -> failed. Verify claim logs, dispatch, runner execution, deterministic container exit, lifecycle log including exitCode/nextStatus/statusRecorded, and final SQL status. That validates provisioning ownership without claiming successful synchronization.
+Manual proof is submitted -> provisioning -> completed after successful Docker startup. Verify claim logs, dispatch, runner execution, deterministic container identity, Runtime provisioning completed with nextStatus/statusRecorded, and final SQL status. Separately inspect sync_state.last_run_status/last_error and runtime logs. PE completion does not claim successful synchronization.
 
 ## 27. Compose compatibility
 
@@ -641,8 +650,8 @@ Windows PowerShell 5.1 with ErrorActionPreference=Stop can treat native stderr a
 | Host cannot resolve ipaas-postgres | Container DNS name used on host | Which DB variable is mapped for the process | Host PE uses localhost URL; containers use Docker DNS URL. |
 | compose run unknown flag --pull | Compose v2.27.1 incompatibility | Preflight arguments and deployed revision | Use current run without --pull; retain explicit digest pull and up --pull never. |
 | Docker failure reported although container starts | PowerShell native stderr interpreted as failure | Native exit code and deployment revision | Use current exit-code-aware Invoke-Docker implementation. |
-| Runtime exits with missing adapter-connectwise | OE/provider packaging defect | Runtime logs and exit code | Fix/publish image separately; test new approved tag with a new entity. PE records failed for definitive exit 1. |
-| Wait timeout / status remains provisioning | Outcome uncertain, old PE revision or persistence failure | Runtime state, workflow diagnostics and statusRecorded | Keep provisioning while uncertain; reconcile an existing exited runtime as in section 25. No automatic retry/recreation. |
+| Runtime exits with missing adapter-connectwise | OE/provider packaging defect | Runtime logs and exit code | Fix/publish image separately; test new approved tag with a new entity. Successful startup remains completed; diagnose OE execution separately. |
+| Startup uncertainty / status remains provisioning | Outcome uncertain, old PE revision or persistence failure | Runtime state, workflow diagnostics and statusRecorded | Keep provisioning while uncertain; reconcile an existing exited runtime as in section 25. No automatic retry/recreation. |
 
 ## 30. Security and production transition
 

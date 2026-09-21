@@ -32,12 +32,14 @@ function setup(
     | "ensure-image"
     | "create-container"
     | "pre-start-inspect"
-    | "post-start-inspect"
-    | "wait"
-    | "post-wait-inspect",
+    | "post-start-inspect",
 ) {
   let status = initial;
-  let waited = false;
+  let startedAt =
+    initial === "running" || initial === "exited"
+      ? "2026-09-21T10:00:00Z"
+      : "0001-01-01T00:00:00Z";
+  let fastExit = false;
   let starts = 0;
   let creates = 0;
   let pulls = 0;
@@ -45,12 +47,11 @@ function setup(
   let conflict = false;
   let mismatch = false;
   let exitCode = 0;
-  let startFailure = false;
+  let startFailure: number | undefined;
   const container = {
     inspect: async (): Promise<DockerInspection> => {
       if (
         failure === "initial-inspect" ||
-        (failure === "post-wait-inspect" && waited) ||
         (failure === "pre-start-inspect" && status === "created") ||
         (failure === "post-start-inspect" && starts > 0)
       )
@@ -68,19 +69,15 @@ function setup(
           Labels: { "ipaas.sync-entity-id": mismatch ? "someone-else" : id },
         },
         HostConfig: { NetworkMode: "ipaas-network" },
-        State: { Status: status, ExitCode: exitCode },
+        State: { Status: status, ExitCode: exitCode, StartedAt: startedAt },
       };
-    },
-    wait: async () => {
-      waited = true;
-      if (failure === "wait") throw new Error("secret timeout");
-      status = "exited";
     },
     start: async () => {
       starts++;
       if (startFailure)
-        throw { statusCode: 500, message: "secret daemon payload" };
-      status = "running";
+        throw { statusCode: startFailure, message: "secret daemon payload" };
+      startedAt = "2026-09-21T10:00:00Z";
+      status = fastExit ? "exited" : "running";
     },
   };
   const client: DockerClient = {
@@ -112,8 +109,14 @@ function setup(
     mismatch: () => {
       mismatch = true;
     },
-    failStart: () => {
-      startFailure = true;
+    failStart: (httpStatus = 500) => {
+      startFailure = httpStatus;
+    },
+    fastExit: () => {
+      fastExit = true;
+    },
+    unprovenStart: () => {
+      startedAt = "0001-01-01T00:00:00Z";
     },
     failExit: () => {
       exitCode = 1;
@@ -122,7 +125,7 @@ function setup(
 }
 it("creates a deterministic runtime with platform configuration and no tenant credentials", async () => {
   const fake = setup();
-  assert.equal((await fake.adapter.provision(request)).kind, "exited");
+  assert.equal((await fake.adapter.provision(request)).kind, "started");
   assert.equal(fake.options()?.name, `ipaas-sync-${id}`);
   assert.deepEqual(fake.options()?.Env, [
     `SYNC_ENTITY_ID=${id}`,
@@ -161,9 +164,10 @@ it("rejects an identity collision instead of deleting another workload", async (
 it("reports unsuccessful exits without restarting", async () => {
   const fake = setup("exited");
   fake.failExit();
+  fake.fastExit();
   const result = await fake.adapter.provision(request);
-  assert.equal(result.kind, "exited");
-  if (result.kind === "exited") assert.equal(result.exitCode, 1);
+  assert.equal(result.kind, "started");
+  if (result.kind === "started") assert.equal(result.runtimeState, "exited");
 });
 it("does not pretend that one-shot Docker creates an interval schedule", async () => {
   const fake = setup();
@@ -252,12 +256,15 @@ for (const staleCreatedSnapshot of [false, true]) {
                 Status:
                   lostCreation && staleCreatedSnapshot ? "created" : status,
                 ExitCode: 0,
+                StartedAt:
+                  status === "exited"
+                    ? "2026-09-21T10:00:00Z"
+                    : "0001-01-01T00:00:00Z",
               },
             };
             if (lostCreation) await exited.promise;
             return snapshot;
           },
-          async wait() {},
           async start() {
             starts++;
             status = "exited";
@@ -304,7 +311,7 @@ for (const staleCreatedSnapshot of [false, true]) {
       );
       for (const result of results) {
         if (result.status === "fulfilled")
-          assert.equal(result.value.kind, "exited");
+          assert.equal(result.value.kind, "started");
         else
           assert.ok(
             result.reason instanceof RuntimeReconciliationRequiredError,
@@ -358,40 +365,31 @@ it("preserves uncertainty when inspection fails after start", async () => {
   assert.deepEqual(fake.counts(), { starts: 1, creates: 1, pulls: 1 });
 });
 
-for (const failure of ["wait", "post-wait-inspect"] as const) {
-  it("keeps execution uncertain after " + failure, async () => {
-    const fake = setup("missing", failure);
-    await assert.rejects(
-      fake.adapter.provision(request),
-      (error) =>
-        error instanceof DependencyError &&
-        error.uncertain &&
-        !error.message.includes("secret"),
-    );
-    assert.equal(fake.counts().starts, 1);
-  });
-}
 it("reports an existing running container without starting or waiting on it", async () => {
-  const fake = setup("running", "wait");
+  const fake = setup("running");
   assert.equal((await fake.adapter.provision(request)).kind, "started");
   assert.deepEqual(fake.counts(), { starts: 0, creates: 0, pulls: 0 });
 });
-it("observes a newly started nonzero exit", async () => {
+it("accepts a fast nonzero execution exit as successful startup", async () => {
   const fake = setup();
   fake.failExit();
+  fake.fastExit();
   const result = await fake.adapter.provision(request);
-  assert.equal(result.kind, "exited");
-  if (result.kind === "exited") assert.equal(result.exitCode, 1);
+  assert.equal(result.kind, "started");
+  if (result.kind === "started") assert.equal(result.runtimeState, "exited");
 });
 
 for (const [state, exitCode, expected] of [
+  ["missing", 0, "completed"],
+  ["missing", 1, "completed"],
   ["exited", 0, "completed"],
-  ["exited", 1, "failed"],
-  ["running", 0, "provisioning"],
+  ["exited", 1, "completed"],
+  ["running", 0, "completed"],
 ] as const) {
   it(`reconciles existing ${state}/${exitCode} through application lifecycle to ${expected}`, async () => {
     const fake = setup(state);
     if (exitCode) fake.failExit();
+    if (state === "missing" && exitCode) fake.fastExit();
     let entity: SyncEntity = {
       id,
       syncRequestId: id,
@@ -427,6 +425,85 @@ for (const [state, exitCode, expected] of [
     );
     assert.equal((await useCase.execute(id)).status, expected);
     assert.equal(entity.status, expected);
-    assert.deepEqual(fake.counts(), { starts: 0, creates: 0, pulls: 0 });
+    assert.deepEqual(
+      fake.counts(),
+      state === "missing"
+        ? { starts: 1, creates: 1, pulls: 1 }
+        : { starts: 0, creates: 0, pulls: 0 },
+    );
   });
 }
+
+it("does not treat an exited container with no proven start as provisioned", async () => {
+  const fake = setup("exited");
+  fake.unprovenStart();
+  await assert.rejects(
+    fake.adapter.provision(request),
+    RuntimeReconciliationRequiredError,
+  );
+  assert.deepEqual(fake.counts(), { starts: 0, creates: 0, pulls: 0 });
+});
+for (const scenario of [
+  "ensure-image",
+  "create-container",
+  "rejected-start",
+  "ambiguous-start",
+] as const) {
+  it(`records ${scenario} with the correct certainty through the application`, async () => {
+    const fake = setup(
+      "missing",
+      scenario === "ensure-image" || scenario === "create-container"
+        ? scenario
+        : undefined,
+    );
+    if (scenario === "rejected-start") fake.failStart(400);
+    if (scenario === "ambiguous-start") fake.failStart(500);
+    let entity: SyncEntity = {
+      id,
+      syncRequestId: id,
+      entity: "client",
+      syncType: "one_time",
+      status: "provisioning",
+      intervalSeconds: null,
+      createdAt: "2026-09-21",
+      updatedAt: "2026-09-21",
+    };
+    const useCase = new ProvisionSyncEntityUseCase(
+      {
+        getById: async () => entity,
+        updateStatus: async (_id, before, after) => {
+          if (entity.status !== before) return false;
+          entity = { ...entity, status: after };
+          return true;
+        },
+      },
+      {
+        getById: async () => ({
+          id,
+          tenantId: id,
+          source: "connectwise",
+          target: "keka",
+          createdAt: "2026-09-21",
+        }),
+      },
+      { resolve: () => request.imageReference },
+      fake.adapter,
+      { info: () => undefined, error: () => undefined },
+    );
+    await assert.rejects(useCase.execute(id));
+    assert.equal(
+      entity.status,
+      scenario === "ambiguous-start" ? "provisioning" : "failed",
+    );
+    assert.equal(fake.counts().starts, scenario.endsWith("start") ? 1 : 0);
+  });
+}
+
+it("retains uncertainty when a rejected start cannot be inspected", async () => {
+  const fake = setup("missing", "post-start-inspect");
+  fake.failStart(400);
+  await assert.rejects(
+    fake.adapter.provision(request),
+    (error) => error instanceof DependencyError && error.uncertain,
+  );
+});

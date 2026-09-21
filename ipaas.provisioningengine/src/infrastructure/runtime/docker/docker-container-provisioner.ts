@@ -82,31 +82,39 @@ export class DockerContainerProvisioner implements RuntimeProvisioner {
           operation = "start-container";
           await container.start();
         } catch (error: unknown) {
-          if (dockerStatus(error) !== 304) throw error;
+          if (dockerStatus(error) !== 304) {
+            // A rejected request plus a never-started snapshot is a definitive failure.
+            // Server/network errors remain ambiguous even if a snapshot still says created.
+            if (dockerStatus(error) === 400) {
+              operation = "inspect-container";
+              const rejected = await container.inspect();
+              operation = "start-container";
+              if (
+                rejected.Id === inspection.Id &&
+                rejected.State.Status === "created" &&
+                rejected.State.StartedAt === "0001-01-01T00:00:00Z"
+              )
+                mayHaveStarted = false;
+            }
+            throw error;
+          }
         }
         operation = "inspect-container";
         inspection = await container.inspect();
       }
-      if (inspection.State.Status === "running" && createdByThisInvocation) {
-        operation = "wait-container";
-        // Docker client's existing request timeout bounds this observation, not runtime execution.
-        await container.wait();
-        operation = "inspect-container";
-        inspection = await container.inspect();
-      }
-      if (inspection.State.Status === "running")
-        return { kind: "started", reference: inspection.Id };
+      const previouslyStarted =
+        typeof inspection.State.StartedAt === "string" &&
+        Number.isFinite(Date.parse(inspection.State.StartedAt)) &&
+        Date.parse(inspection.State.StartedAt) > 0;
       if (
-        inspection.State.Status === "exited" &&
-        Number.isInteger(inspection.State.ExitCode) &&
-        inspection.State.ExitCode >= 0
+        inspection.State.Status === "running" ||
+        (inspection.State.Status === "exited" && previouslyStarted)
       ) {
         return {
-          kind: "exited",
+          kind: "started",
           reference: inspection.Id,
           runtimeName: name,
-          runtimeState: "exited",
-          exitCode: inspection.State.ExitCode,
+          runtimeState: inspection.State.Status,
         };
       }
       throw new RuntimeReconciliationRequiredError();
