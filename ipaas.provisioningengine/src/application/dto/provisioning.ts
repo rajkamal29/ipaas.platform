@@ -10,11 +10,18 @@ export type RuntimeRequest = {
 export type RuntimeResult =
   | { readonly kind: "accepted"; readonly reference: string }
   | { readonly kind: "started"; readonly reference: string }
-  | { readonly kind: "already-executed"; readonly reference: string }
+  | {
+      readonly kind: "exited";
+      readonly reference: string;
+      readonly runtimeName: string;
+      readonly runtimeState: "exited";
+      readonly exitCode: number;
+    }
   | { readonly kind: "recurring-ready"; readonly reference: string };
 export interface ProvisioningResult {
   readonly syncEntityId: Uuid;
   readonly status: SyncEntityStatus;
-  readonly outcome: "already-provisioned" | RuntimeResult["kind"];
+  readonly outcome:
+    "already-provisioned" | "completed" | "failed" | RuntimeResult["kind"];
   readonly runtimeReference?: string;
 }

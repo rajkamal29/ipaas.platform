@@ -5,7 +5,8 @@ node_modules
 .env.example
 docs
 migrations
-scripts
+scripts/*
+!scripts/mock-server.js
 outputs
 *.md
-npm-debug.log*
+npm-debug.log*/

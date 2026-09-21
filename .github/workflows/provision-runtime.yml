@@ -31,11 +31,8 @@ jobs:
       RUNTIME_PROVIDER: docker
       SYNC_ENTITY_ID: ${{ inputs.sync_entity_id }}
       EXPECTED_RUNTIME_IMAGE: ${{ inputs.image_reference }}
-      DATABASE_URL: ${{ secrets.PLATFORM_DATABASE_URL }}
-      RUNTIME_DATABASE_URL: ${{ secrets.PLATFORM_RUNTIME_DATABASE_URL }}
-      ENCRYPTION_MASTER_KEY: ${{ secrets.PLATFORM_ENCRYPTION_MASTER_KEY }}
-      RUNTIME_IMAGE_MAPPINGS_JSON: ${{ vars.RUNTIME_IMAGE_MAPPINGS_JSON }}
       DOCKER_NETWORK: ipaas-network
+      DOCKER_SOCKET_PATH: //./pipe/docker_engine
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,5 +54,10 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          # Temporary demo: secrets stay in this PowerShell process and its child.
+          . ./deploy/local-demo.ps1
+          Initialize-LocalDemoEnvironment -Mode runtime
+          if ([string]::IsNullOrWhiteSpace($env:SYNC_ENTITY_ID)) { throw "SYNC_ENTITY_ID is required for explicit runtime execution." }
+          if ([string]::IsNullOrWhiteSpace($env:EXPECTED_RUNTIME_IMAGE)) { throw "EXPECTED_RUNTIME_IMAGE is required for explicit runtime execution." }
           npm start
           if ($LASTEXITCODE -ne 0) { throw "Entity provisioning failed; inspect correlated lifecycle logs." }

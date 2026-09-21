@@ -6,6 +6,9 @@ import type { UiFeedback } from '../../../core/errors/ui-feedback';
   template: `
     <div class="notice notice--error" role="alert">
       <p>{{ feedback().message }}</p>
+      @if (feedback().requestId; as requestId) {
+        <p class="field-hint">Request ID: {{ requestId }}</p>
+      }
       @if (feedback().issues.length) {
         <ul>
           @for (issue of feedback().issues; track $index) {

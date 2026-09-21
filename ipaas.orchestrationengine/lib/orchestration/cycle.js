@@ -21,6 +21,23 @@ function extractExternalId(raw) {
   return String(raw.id);
 }
 
+function extractTargetId(result) {
+  const candidate = result?.id ?? result?.data?.id ??
+    (typeof result?.data === 'string' || typeof result?.data === 'number' ? result.data : null);
+  return candidate === undefined || candidate === null ? null : String(candidate);
+}
+
+function mergeSuccessfulSyncState(existing, successful) {
+  const byExternalId = new Map((existing || []).map((entry) => {
+    const externalId = String(entry.external_id ?? entry.source_id);
+    return [externalId, { external_id: externalId, target_id: String(entry.target_id) }];
+  }));
+  for (const entry of successful) {
+    byExternalId.set(entry.external_id, entry);
+  }
+  return Array.from(byExternalId.values());
+}
+
 async function fetchAllPages(adapter, entity, modifiedSince) {
   const records = [];
   let pageNumber = 1;
@@ -53,7 +70,7 @@ function mergeRecords(deltaRecords, reconcileRecords) {
  * @param logger
  */
 async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger = defaultLogger) {
-  const log = logger.child({ syncEntityId: entityRow.id, entity: entityRow.entity });
+  const log = logger;
   const state = await loadOrCreateSyncState(entityRow.id);
   const cycleStartedAt = new Date();
   const modifiedSince = state.cursor?.modifiedSince ?? null;
@@ -64,7 +81,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
   const outboundProfile = await loadActiveMappingProfile(context.tenantId, context.targetProvider, entityRow.entity, 'outbound');
   const canonicalSchemaRow = await loadCanonicalSchema(entityRow.entity);
 
-  log.info(
+  log.debug(
     { modifiedSince, inboundMappingSource: inboundProfile.source, outboundMappingSource: outboundProfile.source },
     'cycle started'
   );
@@ -78,7 +95,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
     : [];
 
   const merged = mergeRecords(deltaRecords, reconcileRecords);
-  log.info(
+  log.debug(
     { deltaCount: deltaRecords.length, reconcileCount: reconcileRecords.length, mergedCount: merged.length },
     'fetched'
   );
@@ -86,6 +103,8 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
   // 3. Process each record: map inbound -> validate -> map outbound -> write -> classify outcome.
   const newFailedThisCycle = [];
   const newRetryThisCycle = [];
+  const syncedThisCycle = [];
+  let updatedThisCycle = 0;
   let authError = null;
 
   for (const raw of merged) {
@@ -103,7 +122,22 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
         throw err;
       }
       const mapped = applyMapping(outboundProfile, canonical);
-      await targetAdapter.write(entityRow.entity, mapped);
+      const existingSync = state.syncState.find(
+        (entry) => String(entry.external_id ?? entry.source_id) === externalId
+      );
+
+      if (existingSync) {
+        await targetAdapter.update(entityRow.entity, existingSync.target_id, mapped);
+        updatedThisCycle += 1;
+      } else {
+        const writeResult = await targetAdapter.write(entityRow.entity, mapped);
+        const targetId = extractTargetId(writeResult);
+        if (targetId !== null) {
+          syncedThisCycle.push({ external_id: externalId, target_id: targetId });
+        } else {
+          log.warn({ externalId }, 'write succeeded without a target id — successful identity mapping not stored');
+        }
+      }
     } catch (err) {
       if (err.type === 'auth') {
         // Broken credentials — a whole-run problem, not a per-record one.
@@ -149,6 +183,9 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
 
   // `retry` is fully replaced, not merged — see docs/migrations/README.md.
   const updatedRetry = newRetryThisCycle;
+  const updatedSyncState = authError
+    ? state.syncState
+    : mergeSuccessfulSyncState(state.syncState, syncedThisCycle);
 
   // 5. Cursor only advances on a clean run. On an auth error we can't be
   // sure everything after the break point was even attempted, so the
@@ -164,14 +201,28 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
     lastError: authError ? authError.message : null,
     failed: updatedFailed,
     retry: updatedRetry,
+    syncState: updatedSyncState,
   });
 
   log.info(
-    { processed: merged.length, failed: updatedFailed.length, retry: updatedRetry.length, success: !authError },
-    'cycle complete'
+    {
+      status: authError ? 'failed' : 'success',
+      processedCount: merged.length,
+      deltaCount: deltaRecords.length,
+      successCount: syncedThisCycle.length + updatedThisCycle,
+      failedCount: updatedFailed.length,
+      retryCount: updatedRetry.length,
+      cursor: nextCursor,
+    },
+    'sync cycle complete'
   );
 
   return { success: !authError, processed: merged.length, failedCount: updatedFailed.length, retryCount: updatedRetry.length };
 }
 
-module.exports = { runCycle };
+module.exports = {
+  runCycle,
+  extractExternalId,
+  extractTargetId,
+  mergeSuccessfulSyncState,
+};

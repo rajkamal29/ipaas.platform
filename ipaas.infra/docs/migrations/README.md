@@ -1,6 +1,6 @@
 # Core Schema — Tenant Intake, Credentials, Run State & Mapping
 
-Covers `20260901120000_create-core-schema.js`, `20260901140000_create-sync-state.js`, `20260901150000_add-interval-seconds.js`, `20260901160000_create-mapping-layer.js`, and `20260903120000_create-global-mapping-profiles.js`. Eight tables: `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles`.
+Covers `20260901120000_create-core-schema.js`, `20260901140000_create-sync-state.js`, `20260901150000_add-interval-seconds.js`, `20260901160000_create-mapping-layer.js`, `20260903120000_create-global-mapping-profiles.js`, and `20260916120000_add-successful-sync-state.js`. Eight tables: `tenants`, `sync_requests`, `sync_entities`, `credentials`, `sync_state`, `canonical_entities`, `mapping_profiles`, `global_mapping_profiles`.
 
 This schema covers **intake** (a tenant selecting providers, entities, and a sync type), **credentials** (encrypted per-provider secrets), **run state** (per-entity cursor and failure tracking), and **mapping** (canonical schema + per-tenant field mappings). It does not persist canonical records — see the `mapping_profiles`/`canonical_entities` section below for why.
 
@@ -78,8 +78,11 @@ One row per `sync_entities` row (1:1) — where that entity's sync currently sta
 | `last_error` | text | nullable — short message if the last run failed |
 | `failed` | jsonb | default `[]` — see below |
 | `retry` | jsonb | default `[]` — see below |
+| `sync_state` | jsonb | default `[]` — successful external/target ID mappings for this sync entity |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
+
+**`sync_state` successful mappings:** each entry contains only `external_id` and `target_id`. A new entry is added only after a provider create/write succeeds. On later runs, an existing external ID uses its stored target ID for the provider update call and does not add another entry. Failed writes leave successful mappings unchanged. Tenant and sync-entity isolation comes from the owning `sync_state.sync_entity_id` row.
 
 **`failed` vs. `retry` — two different failure classes, two different lifecycles:**
 

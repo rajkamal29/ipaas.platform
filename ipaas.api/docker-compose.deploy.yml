@@ -1,0 +1,22 @@
+# Deployment only: consumes CI's digest; never builds or owns shared infrastructure.
+services:
+  api:
+    image: ${API_IMAGE:?CI image digest is required}
+    container_name: ipaas-api
+    init: true
+    restart: unless-stopped
+    labels:
+      io.ipaas.api.source-sha: ${API_SOURCE_SHA:?CI source SHA is required}
+      io.ipaas.api.image-tag: ${API_IMAGE_TAG:?CI image tag is required}
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Container-reachable database URL is required}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    networks:
+      - ipaas-network
+networks:
+  ipaas-network:
+    external: true
+    name: ipaas-network

@@ -14,9 +14,12 @@ export interface SyncRequestFilter {
   readonly source?: Provider;
   readonly target?: Provider;
 }
-export type SyncRequestRepository = CrudRepository<
+export interface SyncRequestRepository extends CrudRepository<
   SyncRequest,
   CreateSyncRequest,
   SyncRequestInput,
   SyncRequestFilter
->;
+> {
+  get(id: string, tenantId?: string): Promise<SyncRequest | null>;
+  update(id: string, input: SyncRequestInput, tenantId?: string): Promise<SyncRequest>;
+}

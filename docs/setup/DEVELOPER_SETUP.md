@@ -6,6 +6,12 @@ This doc lives at `ipaas.platform/docs/setup/` — outside all three repos, sinc
 
 Read this top to bottom once, in order — it's the only document you need to get from a fresh clone to a running, debuggable local setup. It's organized into three parts, one per repo, in the order you'd actually set them up: `ipaas.infra` (Part 1) is a hard dependency — Postgres has to exist before anything else can connect to it. `ipaas.orchestrationengine` (Part 2) is the engine itself; its `npm install` resolves the real, published `@rajkamal29/adapter-connectwise`/`adapter-keka` packages on its own, so you can get it fully running without touching `ipaas.providers` at all. `ipaas.providers` (Part 3) is optional and comes last — it's needed only if you want to debug into the adapters' actual source instead of stepping into the published package; Part 2, Step 4 covers the toggle and points forward to it. It references the other docs throughout (schema, engine internals, adapter verification status) purely as optional deeper reading, never as something you have to stop and go read to keep moving. Once you're done, "Where to go from here" at the bottom sequences what to read next — the demo walkthrough, real tenant onboarding, or day-to-day Postgres operations, depending on what you're doing.
 
+## iPaaS API
+
+For complete API local setup and intentionally manual CD deployment instructions, see [iPaaS API Developer Setup](../../ipaas.api/docs/API_DEVELOPER_SETUP.html).
+
+Repository path: `ipaas.api/docs/API_DEVELOPER_SETUP.html`
+
 ## Prerequisites
 
 - **Docker Desktop** — runs Postgres locally via `ipaas.infra/docker-compose.yml`. Nothing else in this stack is containerized yet in your day-to-day workflow (the Orchestration Engine has a `Dockerfile`, but you run it as a plain Node process locally — see Step 9).

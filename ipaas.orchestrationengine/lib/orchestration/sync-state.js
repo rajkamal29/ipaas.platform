@@ -17,6 +17,7 @@ function normalizeRow(row) {
     lastError: row.last_error,
     failed: row.failed || [], // jsonb array -> already a JS array
     retry: row.retry || [],
+    syncState: row.sync_state || [],
   };
 }
 
@@ -32,11 +33,11 @@ async function loadOrCreateSyncState(syncEntityId) {
   return normalizeRow(created[0]);
 }
 
-async function saveSyncState(syncEntityId, { cursor, lastRunAt, lastRunStatus, lastError, failed, retry }) {
+async function saveSyncState(syncEntityId, { cursor, lastRunAt, lastRunStatus, lastError, failed, retry, syncState }) {
   await pool.query(
     `UPDATE sync_state
      SET cursor = $2, last_run_at = $3, last_run_status = $4, last_error = $5,
-         failed = $6, retry = $7, updated_at = now()
+         failed = $6, retry = $7, sync_state = $8, updated_at = now()
      WHERE sync_entity_id = $1`,
     [
       syncEntityId,
@@ -46,6 +47,7 @@ async function saveSyncState(syncEntityId, { cursor, lastRunAt, lastRunStatus, l
       lastError,
       JSON.stringify(failed || []),
       JSON.stringify(retry || []),
+      JSON.stringify(syncState || []),
     ]
   );
 }
