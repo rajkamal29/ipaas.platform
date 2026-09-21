@@ -72,17 +72,25 @@ Execution results and cursors in sync_state are separate from provisioning lifec
 4. Loads its parent request, rejects real_time, and resolves an approved image from
    source/target.
 5. Invokes the runtime port with syncEntityId and the schema schedule.
-6. Conditionally records completed/failed for definitive one-time exit, or active for recurring-ready.
+6. Conditionally records completed for confirmed one-time runtime startup, or active for recurring-ready.
 7. Re-reads status to preserve concurrent terminal outcomes.
 
 The polling worker claims rows atomically before calling this use case. A dedicated
 SyncEntityClaimRepository port returns committed UUIDs; SQL and transaction ownership
 remain in PostgreSQL infrastructure.
 
-One-time launch/dispatch does not set completed. PE conditionally records completed for
-a definitive exit 0 and failed for non-zero exit. Uncertain outcomes remain provisioning.
-Existing OE status writes are preserved by conditional updates; removing those writes
-for exclusive PE ownership is a separate OE change.
+For one_time, sync_entities.status is the provisioning lifecycle: submitted ->
+provisioning -> completed after Docker startup is confirmed. GitHub accepted means
+only workflow dispatch acknowledgement and leaves the row provisioning. PE does not
+wait for OE execution or use its exit code to determine provisioning status.
+
+OE owns execution results in sync_state.last_run_status (success / failed) and
+sync_state.last_error. For example, sync_entities.status = completed together with
+sync_state.last_run_status = failed means: "The runtime was provisioned successfully,
+but the latest synchronization execution failed." Execution failure never downgrades
+completed provisioning. Use a current OE image: legacy images that still write
+sync_entities.status must be replaced separately. A crash before OE saves sync_state
+can leave execution results missing/stale; inspect runtime logs rather than infer success.
 
 Definitive provisioning failures conditionally set provisioning -> failed. Ambiguous
 dispatch outcomes, unexpected errors, and persistence failures after launch leave the
@@ -255,8 +263,8 @@ execution guarantee.
 | PROVISIONING_POLL_BATCH_SIZE | 10 | 1–100 |
 | PROVISIONING_MAX_CONCURRENCY | 5 | 1–100 |
 
-All submitted sync types are claimed. Explicit PE records definitive one_time runtime
-completion/failure conditionally; existing concurrent terminal writes are preserved. The use case rejects real_time; current Docker/GitHub
+All submitted sync types are claimed. Explicit PE records one_time runtime setup
+success/failure conditionally; existing concurrent terminal writes are preserved. The use case rejects real_time; current Docker/GitHub
 adapters reject interval because they install no recurrence. Unsupported claims
 conditionally become failed with typed errors, rather than being rediscovered forever.
 One entity failure does not stop the batch. There is no automatic requeue, stale

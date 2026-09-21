@@ -9,13 +9,11 @@ export type RuntimeRequest = {
 );
 export type RuntimeResult =
   | { readonly kind: "accepted"; readonly reference: string }
-  | { readonly kind: "started"; readonly reference: string }
   | {
-      readonly kind: "exited";
+      readonly kind: "started";
       readonly reference: string;
-      readonly runtimeName: string;
-      readonly runtimeState: "exited";
-      readonly exitCode: number;
+      readonly runtimeName?: string;
+      readonly runtimeState?: "running" | "exited";
     }
   | { readonly kind: "recurring-ready"; readonly reference: string };
 export interface ProvisioningResult {

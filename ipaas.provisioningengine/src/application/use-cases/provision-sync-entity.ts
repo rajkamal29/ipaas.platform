@@ -106,16 +106,16 @@ export class ProvisionSyncEntityUseCase {
       }
       const result = await this.runtime.provision(request);
       runtimeReturned = true;
-      let nextStatus: "active" | "completed" | "failed" | undefined;
+      let nextStatus: "active" | "completed" | undefined;
       let outcome: ProvisioningResult["outcome"] = result.kind;
       if (result.kind === "recurring-ready") {
         if (entity.syncType !== TYPE.interval)
           throw new DependencyError("runtime", true);
         nextStatus = STATUS.active;
-      } else if (result.kind === "exited") {
+      } else if (result.kind === "started") {
         if (entity.syncType !== TYPE.oneTime)
           throw new DependencyError("runtime", true);
-        nextStatus = result.exitCode === 0 ? STATUS.completed : STATUS.failed;
+        nextStatus = STATUS.completed;
         outcome = nextStatus;
       }
       let statusRecorded = false;
@@ -132,12 +132,11 @@ export class ProvisionSyncEntityUseCase {
           statusRecorded,
         });
       }
-      if (result.kind === "exited") {
-        this.logger.info("Runtime reconciliation completed", {
+      if (result.kind === "started") {
+        this.logger.info("Runtime provisioning completed", {
           ...provisioningContext,
-          runtimeName: result.runtimeName,
-          runtimeState: result.runtimeState,
-          exitCode: result.exitCode,
+          runtimeName: result.runtimeName ?? `ipaas-sync-${id}`,
+          ...(result.runtimeState ? { runtimeState: result.runtimeState } : {}),
           runtimeOutcome: outcome,
           previousStatus: STATUS.provisioning,
           nextStatus: nextStatus!,
@@ -152,9 +151,6 @@ export class ProvisionSyncEntityUseCase {
           {
             ...provisioningContext,
             runtimeOutcome: result.kind,
-            ...(result.kind === "started"
-              ? { runtimeName: `ipaas-sync-${id}`, runtimeState: "running" }
-              : {}),
           },
         );
       }

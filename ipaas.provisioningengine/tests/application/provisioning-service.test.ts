@@ -151,9 +151,9 @@ describe("ProvisionSyncEntityUseCase", () => {
         intervalSeconds: null,
       },
     ]);
-    assert.equal(result.status, "provisioning");
-    assert.equal(result.outcome, "started");
-    assert.deepEqual(fake.transitions, []);
+    assert.equal(result.status, "completed");
+    assert.equal(result.outcome, "completed");
+    assert.deepEqual(fake.transitions, [["provisioning", "completed"]]);
   });
   it("sets interval active only after recurring infrastructure is confirmed", async () => {
     const fake = setup({ ...seed, syncType: "interval", intervalSeconds: 60 });
@@ -166,14 +166,13 @@ describe("ProvisionSyncEntityUseCase", () => {
     fake.setResult({ kind: "accepted", reference: "dispatch" });
     assert.equal((await fake.useCase.execute(id)).status, "provisioning");
   });
-  it("completes one-time execution after a definitive zero exit", async () => {
+  it("completes one-time provisioning after confirmed startup", async () => {
     const fake = setup();
     fake.setResult({
-      kind: "exited",
+      kind: "started",
       reference: "runtime",
       runtimeName: `ipaas-sync-${id}`,
       runtimeState: "exited",
-      exitCode: 0,
     });
     assert.equal((await fake.useCase.execute(id)).status, "completed");
   });
@@ -218,7 +217,7 @@ describe("ProvisionSyncEntityUseCase", () => {
       readFailure.useCase.execute(id),
       ProvisioningFailedError,
     );
-    assert.deepEqual(readFailure.transitions, []);
+    assert.deepEqual(readFailure.transitions, [["provisioning", "completed"]]);
   });
   it("reports status persistence failure without leaking driver error text", async () => {
     const fake = setup();
@@ -344,29 +343,28 @@ it("claimed unsupported types fail once without activating or requeueing", async
   }
 });
 
-for (const exitCode of [0, 1]) {
+for (const runtimeState of ["running", "exited"] as const) {
   it(
-    "records definitive exit " +
-      exitCode +
+    "records proven startup state " +
+      runtimeState +
       " conditionally with safe runtime context",
     async () => {
       const fake = setup();
       fake.setResult({
-        kind: "exited",
+        kind: "started",
         reference: "runtime",
         runtimeName: `ipaas-sync-${id}`,
-        runtimeState: "exited",
-        exitCode,
+        runtimeState,
       });
       const result = await fake.useCase.execute(id);
-      const next = exitCode === 0 ? "completed" : "failed";
+      const next = "completed";
       assert.equal(result.status, next);
       assert.equal(result.outcome, next);
       assert.deepEqual(fake.transitions, [["provisioning", next]]);
       const log = fake.logs.find(
-        (x) => x.message === "Runtime reconciliation completed",
+        (x) => x.message === "Runtime provisioning completed",
       )!;
-      assert.equal(log.context.exitCode, exitCode);
+      assert.equal(log.context.runtimeState, runtimeState);
       assert.equal(log.context.nextStatus, next);
       assert.equal(log.context.syncEntityId, id);
       assert.equal(log.context.uncertain, false);
@@ -377,11 +375,10 @@ it("does not overwrite a concurrent terminal status after definitive runtime exi
   const fake = setup();
   fake.completeDuringLaunch();
   fake.setResult({
-    kind: "exited",
+    kind: "started",
     reference: "runtime",
     runtimeName: `ipaas-sync-${id}`,
     runtimeState: "exited",
-    exitCode: 1,
   });
   assert.equal((await fake.useCase.execute(id)).status, "completed");
   assert.equal(
@@ -395,7 +392,7 @@ it("logs reconciliation-required for uncertain Docker outcomes without a termina
   fake.failRuntime(
     new DependencyError("runtime", true, {
       dependency: "docker",
-      operation: "wait-container",
+      operation: "start-container",
     }),
   );
   await assert.rejects(fake.useCase.execute(id), ProvisioningFailedError);
@@ -419,39 +416,20 @@ it("GitHub acceptance is not one-time completion", async () => {
   );
 });
 
-it("explicit worker rejects a failed runtime even when a concurrent completed status is preserved", async () => {
+it("explicit worker succeeds after proven startup while preserving a concurrent completed status", async () => {
   const fake = setup();
-  assert.equal(fake.current()?.status, "provisioning");
   fake.completeDuringLaunch();
-  fake.setResult({
-    kind: "exited",
-    reference: "runtime",
-    runtimeName: `ipaas-sync-${id}`,
-    runtimeState: "exited",
-    exitCode: 1,
-  });
-  const worker = new ProvisioningWorker({
-    execute: async (syncEntityId) => {
-      const result = await fake.useCase.execute(syncEntityId);
-      assert.equal(result.status, "completed");
-      assert.equal(result.outcome, "failed");
-      return result;
-    },
-  });
-  try {
-    await assert.rejects(worker.run(id), ProvisioningFailedError);
-    assert.equal(fake.current()?.status, "completed");
-    assert.deepEqual(fake.transitions, [["provisioning", "failed"]]);
-    assert.equal(fake.calls.length, 1);
-    assert.equal(
-      fake.logs.find(
-        (entry) => entry.message === "Provisioning status transition",
-      )?.context.statusRecorded,
-      false,
-    );
-  } finally {
-    await worker.stop();
-  }
+  const worker = new ProvisioningWorker(fake.useCase);
+  await worker.run(id);
+  await worker.stop();
+  assert.equal(fake.current()?.status, "completed");
+  assert.deepEqual(fake.transitions, [["provisioning", "completed"]]);
+  assert.equal(
+    fake.logs.find(
+      (entry) => entry.message === "Provisioning status transition",
+    )?.context.statusRecorded,
+    false,
+  );
 });
 
 it("correlates processing and dispatch logs using already-loaded metadata", async () => {

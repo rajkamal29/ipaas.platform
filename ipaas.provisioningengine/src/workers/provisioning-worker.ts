@@ -52,7 +52,11 @@ export class ProvisioningWorker {
     if (syncEntityId) {
       const result = await this.submit(syncEntityId);
       if (result.outcome === "failed" || result.status === "failed")
-        throw new ProvisioningFailedError("runtime-exited", true, false);
+        throw new ProvisioningFailedError(
+          "runtime-provisioning-failed",
+          true,
+          false,
+        );
       return;
     }
     if (!this.polling)
