@@ -3,12 +3,13 @@ import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { App } from './app';
 import { appConfig } from './app.config';
+import { provideMockRepositories } from './data-access/mock/provide-mock-repositories';
 
 describe('Application shell and routing', () => {
   async function setup(url = '/') {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: appConfig.providers,
+      providers: [...appConfig.providers, provideMockRepositories()],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(App);

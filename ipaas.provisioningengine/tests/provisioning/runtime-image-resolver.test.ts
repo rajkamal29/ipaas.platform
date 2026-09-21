@@ -1,3 +1,4 @@
+import { logProvisioningStartup } from "../../src/bootstrap.js";
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { ConfigurationRuntimeImageResolver } from "../../src/infrastructure/runtime-images/configuration-runtime-image-resolver.js";
@@ -174,4 +175,39 @@ it("logs only safe dependency diagnostics and valid error status codes", () => {
     dependency: "runtime-image-resolver",
     operation: "resolve-image",
   });
+});
+
+it("startup exposes polling settings and drops all secret configuration", () => {
+  const lines: string[] = [];
+  const logger = new Logger("info", (line) => {
+    lines.push(line);
+  });
+  const config = loadConfig({ ...environment, RUNTIME_PROVIDER: "docker" });
+  logProvisioningStartup(logger, config);
+  assert.deepEqual(JSON.parse(lines[0]!).context, {
+    runtimeProvider: "docker",
+    pollIntervalMs: 120000,
+    batchSize: 10,
+    maxConcurrency: 5,
+  });
+  assert.equal(JSON.parse(lines[0]!).message, "Provisioning Engine started");
+  for (const secret of [
+    config.databaseUrl,
+    config.runtimeEnvironment.encryptionMasterKey,
+  ])
+    assert.ok(!lines.join("").includes(secret));
+  logger.info("Runtime reconciliation completed", {
+    runtimeName: "ipaas-sync-test",
+    runtimeState: "exited",
+    exitCode: 1,
+    runtimeOutcome: "failed",
+    previousStatus: "provisioning",
+    nextStatus: "failed",
+    token: "secret-sentinel",
+    databaseUrl: "secret-sentinel",
+    encryptionMasterKey: "secret-sentinel",
+  });
+  assert.equal(JSON.parse(lines[1]!).context.exitCode, 1);
+  assert.equal(JSON.parse(lines[1]!).context.nextStatus, "failed");
+  assert.ok(!lines.join("").includes("secret-sentinel"));
 });

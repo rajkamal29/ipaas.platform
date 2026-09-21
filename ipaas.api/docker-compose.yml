@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ipaas-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:3000"
+    networks:
+      - ipaas-network
+
+networks:
+  ipaas-network:
+    external: true
+    name: ipaas-network

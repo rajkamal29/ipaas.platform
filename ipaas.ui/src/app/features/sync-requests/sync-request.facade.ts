@@ -36,7 +36,10 @@ export class SyncRequestFacade {
       const context = await this.context.requireRequest(tenantId, requestId);
       return {
         ...context,
-        entities: await this.entities.list({ syncRequestId: context.request.id }),
+        entities: await this.entities.list({
+          tenantId: context.tenant.id,
+          syncRequestId: context.request.id,
+        }),
       };
     }, 'Could not load this sync request. Please try again.');
   }

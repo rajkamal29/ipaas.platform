@@ -106,10 +106,6 @@ class ConnectWiseAdapter {
     else if (res.status === 404) err.type = 'not_found';
     else if (res.status === 400) err.type = 'validation'; // rejected payload — data issue, not transient
     else err.type = 'unknown';
-    this._logger[err.type === 'auth' ? 'error' : 'warn'](
-      { status: res.status, errType: err.type },
-      'ConnectWise request failed'
-    );
     throw err;
   }
 
@@ -180,7 +176,9 @@ class ConnectWiseAdapter {
     url.searchParams.set('conditions', `id in (${ids.join(',')})`);
     url.searchParams.set('pageSize', String(ids.length));
 
-    this._logger.warn({ entity, ids }, 'fetchByIds: unverified endpoint/filter — see method comment');
+    // Reconciliation calls this routinely, so record it at debug level;
+    // the method comment above still documents the unverified API assumption.
+    this._logger.debug({ entity, ids }, 'fetchByIds request');
 
     const res = await fetch(url.toString(), {
       headers: {
@@ -217,7 +215,10 @@ class ConnectWiseAdapter {
       await this._throwForResponse(res);
     }
 
-    this._logger.info({ entity, recordId: id }, id === undefined ? 'record written to ConnectWise' : 'record updated in ConnectWise');
+    this._logger.debug(
+      { recordName: record.name, entity, recordId: id },
+      id === undefined ? 'record created in ConnectWise' : 'record updated in ConnectWise'
+    );
     if (res.status === 204) return null;
     return res.json();
   }

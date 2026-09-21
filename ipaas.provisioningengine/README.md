@@ -72,16 +72,17 @@ Execution results and cursors in sync_state are separate from provisioning lifec
 4. Loads its parent request, rejects real_time, and resolves an approved image from
    source/target.
 5. Invokes the runtime port with syncEntityId and the schema schedule.
-6. Changes provisioning to active only for a confirmed recurring-ready result.
-7. Re-reads status to preserve concurrent orchestration outcomes.
+6. Conditionally records completed/failed for definitive one-time exit, or active for recurring-ready.
+7. Re-reads status to preserve concurrent terminal outcomes.
 
 The polling worker claims rows atomically before calling this use case. A dedicated
 SyncEntityClaimRepository port returns committed UUIDs; SQL and transaction ownership
 remain in PostgreSQL infrastructure.
 
-One-time launch/dispatch does not set completed. The existing Orchestration Engine owns
-completed/failed after execution. A zero container exit code is not a business-success
-signal: an unsuccessful cycle can still exit normally.
+One-time launch/dispatch does not set completed. PE conditionally records completed for
+a definitive exit 0 and failed for non-zero exit. Uncertain outcomes remain provisioning.
+Existing OE status writes are preserved by conditional updates; removing those writes
+for exclusive PE ownership is a separate OE change.
 
 Definitive provisioning failures conditionally set provisioning -> failed. Ambiguous
 dispatch outcomes, unexpected errors, and persistence failures after launch leave the
@@ -254,8 +255,8 @@ execution guarantee.
 | PROVISIONING_POLL_BATCH_SIZE | 10 | 1–100 |
 | PROVISIONING_MAX_CONCURRENCY | 5 | 1–100 |
 
-All submitted sync types are claimed. one_time hands off to orchestration, which owns
-completed/failed execution status. The use case rejects real_time; current Docker/GitHub
+All submitted sync types are claimed. Explicit PE records definitive one_time runtime
+completion/failure conditionally; existing concurrent terminal writes are preserved. The use case rejects real_time; current Docker/GitHub
 adapters reject interval because they install no recurrence. Unsupported claims
 conditionally become failed with typed errors, rather than being rediscovered forever.
 One entity failure does not stop the batch. There is no automatic requeue, stale
@@ -281,3 +282,20 @@ ordering, limits, statuses/types and rollback. It launches no runtime containers
 Existing submitted rows are temporarily locked out of test claims; any non-fixture
 claim is rejected before commit. Run on the local development DB with other workers
 stopped. Fixtures are removed by tenant ID afterward. No schema/database is created.
+
+## Long-running service deployment (issue #55)
+
+CI publishes the service image; the separate CD workflow deploys its exact digest on
+the Windows Docker Desktop host. The deployed poller uses the GitHub provider, while
+provision-runtime.yml remains the separate per-entity Docker executor.
+Temporary local demo mode requires no GitHub Environment, repository Secrets or
+repository Variables. Sensitive values come from runner-local Windows environment
+variables. This is temporary; restore GitHub-managed configuration after the demo.
+See [CD deployment and rollback](docs/CD_DEPLOYMENT.md) for runner setup, triggers,
+graceful replacement, manual rollback and restoration instructions.
+Local docker-compose.yml remains build-oriented; CD uses docker-compose.deploy.yml.
+
+Automatic CD uses a same-commit reusable workflow after image publication, avoiding
+the workflow_run/default-branch limitation. Manual CI deployment is opt-in.
+
+See the [local Windows self-hosted runner runbook](docs/local-self-hosted-runner-setup.md) for setup, lifecycle reconciliation, and manual end-to-end validation.

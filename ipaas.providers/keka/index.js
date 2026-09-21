@@ -79,7 +79,7 @@ class KekaAdapter {
   async authenticate() {
     if (this._isTokenValid(this._creds)) return this._creds;
 
-    this._logger.info('token expired or missing — requesting a new one');
+    this._logger.debug('token expired or missing — requesting a new one');
 
     const tokenUrl = `${this._creds.identityUrl}${this._creds.tokenEndpoint}`;
     const res = await fetch(tokenUrl, {
@@ -114,7 +114,7 @@ class KekaAdapter {
     if (this._onCredentialsRefreshed) {
       await this._onCredentialsRefreshed(this._creds);
     }
-    this._logger.info({ tokenExpiresAt: this._creds.tokenExpiresAt }, 'token refreshed');
+    this._logger.debug({ tokenExpiresAt: this._creds.tokenExpiresAt }, 'token refreshed');
     return this._creds;
   }
 
@@ -127,10 +127,6 @@ class KekaAdapter {
     else if (res.status === 404) err.type = 'not_found';
     else if (res.status === 400) err.type = 'validation'; // rejected payload — data issue, not transient
     else err.type = 'unknown';
-    this._logger[err.type === 'auth' ? 'error' : 'warn'](
-      { status: res.status, errType: err.type },
-      'Keka request failed'
-    );
     throw err;
   }
 
@@ -236,7 +232,10 @@ class KekaAdapter {
       await this._throwForResponse(res);
     }
 
-    this._logger.info({ entity, recordId: id }, id === undefined ? 'record written to Keka' : 'record updated in Keka');
+    this._logger.debug(
+      { recordName: record.name, entity, recordId: id },
+      id === undefined ? 'record created in Keka' : 'record updated in Keka'
+    );
     if (res.status === 204) return null;
     return res.json();
   }

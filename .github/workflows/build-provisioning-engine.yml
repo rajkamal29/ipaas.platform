@@ -13,6 +13,9 @@ on:
       - "ipaas.provisioningengine/Dockerfile"
       - "ipaas.provisioningengine/.dockerignore"
       - ".github/workflows/build-provisioning-engine.yml"
+      - ".github/workflows/deploy-provisioning-engine.yml"
+      - "ipaas.provisioningengine/deploy/**"
+      - "ipaas.provisioningengine/docker-compose.deploy.yml"
   push:
     branches: [dev]
     paths:
@@ -25,11 +28,19 @@ on:
       - "ipaas.provisioningengine/Dockerfile"
       - "ipaas.provisioningengine/.dockerignore"
       - ".github/workflows/build-provisioning-engine.yml"
-  workflow_dispatch: {}
+      - ".github/workflows/deploy-provisioning-engine.yml"
+      - "ipaas.provisioningengine/deploy/**"
+      - "ipaas.provisioningengine/docker-compose.deploy.yml"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the published image (dev only)
+        type: boolean
+        default: false
 
 concurrency:
   group: provisioning-engine-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   verify:
@@ -63,9 +74,21 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test deployment safety with a fake Docker boundary
+        shell: pwsh
+        run: ./deploy/test-deploy.ps1
+
+      - name: Test local demo configuration
+        shell: pwsh
+        run: ./deploy/test-local-demo.ps1
+
   image:
     name: Build and publish image
     needs: verify
+    outputs:
+      source_sha: ${{ steps.vars.outputs.source_sha }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+      image_digest: ${{ steps.image.outputs.digest }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -88,9 +111,12 @@ jobs:
       - name: Short SHA
         id: vars
         shell: bash
-        run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "source_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "image_tag=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ipaas-provisioning-engine:dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Build and optionally publish
+        id: image
         uses: docker/build-push-action@v6
         with:
           context: ./ipaas.provisioningengine
@@ -98,6 +124,23 @@ jobs:
           push: ${{ github.ref == 'refs/heads/dev' && github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/ipaas-provisioning-engine:dev-latest
-            ghcr.io/${{ github.repository_owner }}/ipaas-provisioning-engine:dev-${{ steps.vars.outputs.sha_short }}
+            ${{ steps.vars.outputs.image_tag }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=ipaas-provisioning-engine
           cache-to: type=gha,mode=max,scope=ipaas-provisioning-engine
+
+  deploy:
+    name: Deploy published service
+    needs: image
+    if: >-
+      github.ref == 'refs/heads/dev' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy-provisioning-engine.yml
+    with:
+      source_sha: ${{ needs.image.outputs.source_sha }}
+      image_tag: ${{ needs.image.outputs.image_tag }}
+      image_digest: ${{ needs.image.outputs.image_digest }}

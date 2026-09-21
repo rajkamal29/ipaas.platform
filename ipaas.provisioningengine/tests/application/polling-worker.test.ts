@@ -301,3 +301,63 @@ it(
     await running;
   },
 );
+
+for (const claimed of [[], [ids[0]!]]) {
+  it(`logs poll completion with claimedCount=${claimed.length} and graceful shutdown`, async () => {
+    const logs: { message: string; context: LogContext }[] = [];
+    const idle = deferred<void>();
+    const worker = new ProvisioningWorker(
+      { execute: async (id) => result(id) },
+      {
+        claims: { claimSubmitted: async () => claimed },
+        options,
+        logger: {
+          info: (message, context) => {
+            logs.push({ message, context: context ?? {} });
+          },
+          error: () => assert.fail("Unexpected failure"),
+        },
+      },
+      async (_ms, signal) => {
+        idle.resolve();
+        await new Promise<void>((done) => {
+          if (signal.aborted) done();
+          else signal.addEventListener("abort", () => done(), { once: true });
+        });
+      },
+    );
+    const running = worker.run();
+    await idle.promise;
+    await worker.stop();
+    await running;
+    assert.deepEqual(
+      logs
+        .filter((log) => log.message === "Provisioning poll completed")
+        .map((log) => log.context),
+      [{ claimedCount: claimed.length }],
+    );
+    assert.equal(
+      logs.filter((log) => log.message === "Provisioning poll started").length,
+      1,
+    );
+    assert.equal(
+      logs.filter((log) => log.message === "Provisioning batch drained").length,
+      claimed.length,
+    );
+    assert.deepEqual(
+      logs.slice(-2).map((log) => log.message),
+      ["Provisioning worker stopping", "Provisioning worker stopped"],
+    );
+  });
+}
+it("explicit execution reports a persisted failed runtime as failure", async () => {
+  const worker = new ProvisioningWorker({
+    execute: async (id) => ({
+      syncEntityId: uuid(id),
+      status: "failed",
+      outcome: "failed",
+    }),
+  });
+  await assert.rejects(worker.run(ids[0]), /Provisioning failed/);
+  await worker.stop();
+});

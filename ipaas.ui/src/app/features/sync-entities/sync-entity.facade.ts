@@ -24,7 +24,10 @@ export class SyncEntityFacade {
       const context = await this.contextLoader.requireRequest(tenantId, requestId);
       return {
         ...context,
-        entities: await this.entities.list({ syncRequestId: context.request.id }),
+        entities: await this.entities.list({
+          tenantId: context.tenant.id,
+          syncRequestId: context.request.id,
+        }),
       };
     }, 'Could not load this sync request. Please try again.');
   }
@@ -37,7 +40,7 @@ export class SyncEntityFacade {
     return this.submission.run(
       async () => {
         const { request } = await this.contextLoader.requireRequest(tenantId, requestId);
-        return this.entities.create({ ...input, syncRequestId: request.id });
+        return this.entities.create({ ...input, tenantId, syncRequestId: request.id });
       },
       'Could not save the sync entity. Please try again.',
       'This entity type is already configured for this sync request. Choose another entity.',

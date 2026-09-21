@@ -9,8 +9,11 @@ This document records the decisions that replaced the POC design in issue #18.
   payloads, and logging output remain in infrastructure.
 - ProvisionSyncEntityUseCase receives only syncEntityId. Claimed-row admission belongs to
   the caller; #19 polling claims submitted rows through an application-facing repository port.
-- Conditional lifecycle writes avoid overwriting completion/failure from orchestration.
-- One-time process exit is not interpreted as business completion.
+- Conditional lifecycle writes avoid overwriting concurrent terminal states. Existing OE
+  writes remain unchanged; exclusive PE ownership requires a separate OE change.
+- PE maps definitive one-time exit 0 to completed and non-zero to failed. Newly started
+  containers are observed with a bounded Docker wait; timeout requires reconciliation.
+  This process outcome is not a guarantee of successful business synchronization.
 - GitHub acceptance is not execution success; unknown outcomes require reconciliation.
 - Interval active means a recurring trigger exists. The current one-shot adapters reject
   intervals; the application port supports a future recurring-ready implementation.
@@ -40,3 +43,14 @@ All submitted types are claimed once; existing use-case/adapter behavior rejects
 real_time and interval attempts. No recurrence or real-time execution is added.
 Stale provisioning recovery, automatic requeue and retry coordination remain separate.
 A recurring runtime adapter must be added before production interval schedules are enabled.
+
+Issue #55 adds a separate service CD boundary: successful dev CI passes SHA/tag/digest outputs
+to reusable CD; CD pulls that image on the Windows Docker Desktop host and gracefully replaces
+only the long-running poller. Deployment Compose uses the GitHub provider without
+SYNC_ENTITY_ID or a Docker socket mount. The existing runtime workflow remains the
+Docker executor. Shared infrastructure and application boundaries are unchanged.
+See [CD deployment](CD_DEPLOYMENT.md) for credential lifetime, GitHub Environment setup,
+release selection, drain sizing and rollback requirements.
+
+Automatic CD uses a same-commit reusable workflow after image publication, avoiding
+the workflow_run/default-branch limitation. Manual CI deployment is opt-in.
