@@ -213,7 +213,7 @@ async function runCycle(entityRow, sourceAdapter, targetAdapter, context, logger
       retryCount: updatedRetry.length,
       cursor: nextCursor,
     },
-    'entity sync completed'
+    'entity sync cycle completed'
   );
 
     return { success: !authError, processed: merged.length, failedCount: updatedFailed.length, retryCount: updatedRetry.length };
