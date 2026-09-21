@@ -2,10 +2,12 @@ import {
   ENTITY_TYPES,
   PROVIDERS,
   SYNC_ENTITY_STATUSES,
+  SYNC_RUN_STATUSES,
   SYNC_TYPES,
   EntityType,
   Provider,
   SyncEntityStatus,
+  SyncRunStatus,
   SyncType,
 } from '../../domain/value-sets/database-values';
 import type { Tenant } from '../../domain/models/tenant';
@@ -30,6 +32,10 @@ export const STATUS_LABELS: Readonly<Record<SyncEntityStatus, string>> = {
   [SYNC_ENTITY_STATUSES.active]: 'Active',
   [SYNC_ENTITY_STATUSES.completed]: 'Completed',
   [SYNC_ENTITY_STATUSES.failed]: 'Failed',
+};
+export const SYNC_RUN_STATUS_LABELS: Readonly<Record<SyncRunStatus, string>> = {
+  [SYNC_RUN_STATUSES.success]: 'Success',
+  [SYNC_RUN_STATUSES.failed]: 'Failed',
 };
 export const REAL_TIME_NOTICE =
   'Real-time sync is not yet supported by the engine. You can save this configuration, but it will not execute.';

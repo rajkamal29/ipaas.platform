@@ -35,6 +35,13 @@ const syncEntity = {
   createdAt: timestamp,
   updatedAt: timestamp,
 };
+const syncEntityRead = {
+  ...syncEntity,
+  lastRunStatus: 'failed' as const,
+  syncStateUpdatedAt: '2026-09-17T01:00:00.000Z',
+  failedCount: 2,
+  retryCount: 1,
+};
 
 describe('Issue #13 HTTP repositories', () => {
   let http: HttpTestingController;
@@ -111,13 +118,23 @@ describe('Issue #13 HTTP repositories', () => {
     await expect(update).resolves.toMatchObject({ source: 'keka', target: 'connectwise' });
   });
 
-  it('uses nested entity URLs for list/create/update', async () => {
+  it('maps enriched entity list/get responses without an additional state request', async () => {
     const context = { tenantId, syncRequestId: requestId };
     const list = entities.list(context);
     http
       .expectOne(`/api/tenants/${tenantId}/sync-requests/${requestId}/entities`)
-      .flush({ data: [syncEntity], timestamp });
-    await expect(list).resolves.toEqual([syncEntity]);
+      .flush({ data: [syncEntityRead], timestamp });
+    await expect(list).resolves.toEqual([syncEntityRead]);
+
+    const get = entities.get(entityId, context);
+    http
+      .expectOne(`/api/tenants/${tenantId}/sync-requests/${requestId}/entities/${entityId}`)
+      .flush({ data: syncEntityRead, timestamp });
+    await expect(get).resolves.toEqual(syncEntityRead);
+  });
+
+  it('keeps entity create/update requests and responses free of runtime state', async () => {
+    const context = { tenantId, syncRequestId: requestId };
 
     const create = entities.create({
       ...context,
@@ -138,13 +155,28 @@ describe('Issue #13 HTTP repositories', () => {
 
     const update = entities.update(
       entityId,
-      { entity: 'client', syncType: 'one_time', intervalSeconds: null, status: 'completed' },
+      {
+        entity: 'client',
+        syncType: 'one_time',
+        intervalSeconds: null,
+        status: 'completed',
+        lastRunStatus: 'failed',
+        syncStateUpdatedAt: timestamp,
+        failedCount: 4,
+        retryCount: 3,
+      } as Parameters<HttpSyncEntityRepository['update']>[1],
       context,
     );
     const updateRequest = http.expectOne(
       `/api/tenants/${tenantId}/sync-requests/${requestId}/entities/${entityId}`,
     );
     expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual({
+      entity: 'client',
+      syncType: 'one_time',
+      intervalSeconds: null,
+      status: 'completed',
+    });
     updateRequest.flush({
       data: {
         ...syncEntity,

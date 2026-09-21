@@ -9,6 +9,7 @@ import {
   PROVIDER_LABELS,
   REAL_TIME_NOTICE,
   STATUS_LABELS,
+  SYNC_RUN_STATUS_LABELS,
   SYNC_TYPE_LABELS,
   tenantLabel,
 } from '../../../shared/ui/configuration-labels';
@@ -29,6 +30,7 @@ export class SyncRequestDetail {
   protected readonly providers = PROVIDER_LABELS;
   protected readonly entities = ENTITY_LABELS;
   protected readonly statuses = STATUS_LABELS;
+  protected readonly runStatuses = SYNC_RUN_STATUS_LABELS;
   protected readonly syncTypeLabels = SYNC_TYPE_LABELS;
   protected readonly syncTypes = SYNC_TYPES;
   protected readonly realTimeNotice = REAL_TIME_NOTICE;

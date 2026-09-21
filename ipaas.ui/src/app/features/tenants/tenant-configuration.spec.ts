@@ -261,6 +261,30 @@ describe('Tenant and sync configuration pages', () => {
     expect(page.main().querySelector('tbody')?.textContent).toContain('Client');
     expect(page.main().querySelector('tbody')?.textContent).toContain('Timesheet');
     expect(page.main().querySelector('tbody')?.textContent).not.toContain('Project');
+    expect(
+      Array.from(page.main().querySelectorAll('thead th')).map((heading) => heading.textContent),
+    ).toEqual([
+      'Entity',
+      'Sync type',
+      'Interval',
+      'Status',
+      'Updated',
+      'Last Run Status',
+      'Sync State Updated At',
+      'Failed',
+      'Retry',
+    ]);
+    const activeRow = page.main().querySelectorAll('tbody tr')[0]!;
+    expect(activeRow.querySelector('[data-label="Last Run Status"]')?.textContent).toContain(
+      'Failed',
+    );
+    expect(
+      activeRow
+        .querySelector('[data-label="Sync State Updated At"] time')
+        ?.getAttribute('datetime'),
+    ).toBe('2026-09-01T10:00:00.000Z');
+    expect(activeRow.querySelector('[data-label="Failed"]')?.textContent?.trim()).toBe('1');
+    expect(activeRow.querySelector('[data-label="Retry"]')?.textContent?.trim()).toBe('1');
     await page.router.navigateByUrl(paths.createEntity(ids.tenantA, ids.requestA));
     await page.settle();
     const options = Array.from(
@@ -269,6 +293,19 @@ describe('Tenant and sync configuration pages', () => {
     expect(options.find((option) => option.textContent?.includes('Client'))?.disabled).toBe(true);
     expect(options.find((option) => option.textContent?.includes('Project'))?.disabled).toBe(false);
     expect(page.main().querySelector('[formControlName="status"]')).toBeNull();
+  });
+
+  it('renders safe runtime defaults when a sync entity has no Sync State', async () => {
+    const page = await setup(paths.request(ids.tenantB, ids.requestB));
+    const submittedRow = page.main().querySelectorAll('tbody tr')[0]!;
+    expect(submittedRow.querySelector('[data-label="Last Run Status"]')?.textContent).toContain(
+      'Not available',
+    );
+    expect(
+      submittedRow.querySelector('[data-label="Sync State Updated At"]')?.textContent,
+    ).toContain('Not available');
+    expect(submittedRow.querySelector('[data-label="Failed"]')?.textContent?.trim()).toBe('0');
+    expect(submittedRow.querySelector('[data-label="Retry"]')?.textContent?.trim()).toBe('0');
   });
 
   it('enforces integer interval seconds and uses the repository default status', async () => {
