@@ -278,6 +278,7 @@ describe('Tenant and sync configuration pages', () => {
     expect(activeRow.querySelector('[data-label="Execution Status"]')?.textContent).toContain(
       'Failed',
     );
+    expect(activeRow.querySelector('[data-label="Execution Status"] .status-label')).not.toBeNull();
     expect(
       activeRow
         .querySelector('[data-label="Sync State Updated At"] time')
@@ -295,11 +296,64 @@ describe('Tenant and sync configuration pages', () => {
     expect(page.main().querySelector('[formControlName="status"]')).toBeNull();
   });
 
+  it('displays Not started when provisioning has no backend execution status', async () => {
+    const page = await setup(paths.request(ids.tenantB, ids.requestB));
+    const provisioningRow = Array.from(page.main().querySelectorAll('tbody tr')).find((row) =>
+      row
+        .querySelector('[data-label="Provisioning Status"]')
+        ?.textContent?.includes('Provisioning'),
+    );
+    expect(
+      provisioningRow?.querySelector('[data-label="Execution Status"]')?.textContent?.trim(),
+    ).toBe('Not started');
+  });
+
+  it('displays Running when completed has no backend execution status', async () => {
+    const page = await setup(paths.request(ids.tenantA, ids.requestA), () => {
+      vi.spyOn(TestBed.inject(SYNC_ENTITY_REPOSITORY), 'list').mockResolvedValueOnce([
+        {
+          id: ids.completedEntity,
+          syncRequestId: ids.requestA,
+          entity: ENTITY_TYPES.timesheet,
+          syncType: SYNC_TYPES.oneTime,
+          intervalSeconds: null,
+          status: SYNC_ENTITY_STATUSES.completed,
+          createdAt: '2026-09-01T10:00:00.000Z',
+          updatedAt: '2026-09-01T10:00:00.000Z',
+          lastRunStatus: null,
+          syncStateUpdatedAt: null,
+          failedCount: 0,
+          retryCount: 0,
+        },
+      ]);
+    });
+    const row = page.main().querySelector('tbody tr')!;
+    expect(row.querySelector('[data-label="Execution Status"]')?.textContent?.trim()).toBe(
+      'Running',
+    );
+    expect(row.querySelector('[data-label="Sync State Updated At"]')?.textContent).toContain(
+      'Not available',
+    );
+    expect(row.querySelector('[data-label="Failed Count"]')?.textContent?.trim()).toBe('0');
+    expect(row.querySelector('[data-label="Retry Count"]')?.textContent?.trim()).toBe('0');
+  });
+
+  it('keeps a backend execution status when provisioning is completed', async () => {
+    const page = await setup(paths.request(ids.tenantA, ids.requestA));
+    const completedRow = Array.from(page.main().querySelectorAll('tbody tr')).find((row) =>
+      row.querySelector('[data-label="Provisioning Status"]')?.textContent?.includes('Completed'),
+    );
+    const executionStatus = completedRow?.querySelector('[data-label="Execution Status"]');
+    expect(executionStatus?.textContent?.trim()).toBe('Success');
+    expect(executionStatus?.textContent).not.toContain('Running');
+    expect(executionStatus?.querySelector('.status-label')).not.toBeNull();
+  });
+
   it('renders safe runtime defaults when a sync entity has no Sync State', async () => {
     const page = await setup(paths.request(ids.tenantB, ids.requestB));
     const submittedRow = page.main().querySelectorAll('tbody tr')[0]!;
-    expect(submittedRow.querySelector('[data-label="Execution Status"]')?.textContent).toContain(
-      ' Not Started ',
+    expect(submittedRow.querySelector('[data-label="Execution Status"]')?.textContent?.trim()).toBe(
+      'Not started',
     );
     expect(
       submittedRow.querySelector('[data-label="Sync State Updated At"]')?.textContent,
