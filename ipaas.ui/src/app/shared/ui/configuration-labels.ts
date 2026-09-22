@@ -11,6 +11,7 @@ import {
   SyncType,
 } from '../../domain/value-sets/database-values';
 import type { Tenant } from '../../domain/models/tenant';
+import type { SyncEntityRead } from '../../domain/models/sync-entity';
 
 export const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
   [PROVIDERS.connectwise]: 'ConnectWise',
@@ -37,6 +38,17 @@ export const SYNC_RUN_STATUS_LABELS: Readonly<Record<SyncRunStatus, string>> = {
   [SYNC_RUN_STATUSES.success]: 'Success',
   [SYNC_RUN_STATUSES.failed]: 'Failed',
 };
+
+export function executionStatusLabel(
+  entity: Pick<SyncEntityRead, 'status' | 'lastRunStatus'>,
+): string {
+  if (entity.lastRunStatus !== null) return SYNC_RUN_STATUS_LABELS[entity.lastRunStatus];
+  const provisioningStatus = entity.status;
+  if (provisioningStatus === SYNC_ENTITY_STATUSES.provisioning) return 'Not started';
+  if (provisioningStatus === SYNC_ENTITY_STATUSES.completed) return 'Running';
+  return 'Not started';
+}
+
 export const REAL_TIME_NOTICE =
   'Real-time sync is not yet supported by the engine. You can save this configuration, but it will not execute.';
 

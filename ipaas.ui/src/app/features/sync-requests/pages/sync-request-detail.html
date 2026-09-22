@@ -94,11 +94,7 @@
                     }}</time>
                   </td>
                   <td data-label="Execution Status">
-                    @if (entity.lastRunStatus === null) {
-                      Not Started
-                    } @else {
-                      <span class="status-label">{{ runStatuses[entity.lastRunStatus] }}</span>
-                    }
+                    <span class="status-label">{{ executionStatusLabel(entity) }}</span>
                   </td>
                   <td data-label="Sync State Updated At">
                     @if (entity.syncStateUpdatedAt === null) {
