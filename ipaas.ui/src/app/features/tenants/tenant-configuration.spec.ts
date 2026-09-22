@@ -299,7 +299,7 @@ describe('Tenant and sync configuration pages', () => {
     const page = await setup(paths.request(ids.tenantB, ids.requestB));
     const submittedRow = page.main().querySelectorAll('tbody tr')[0]!;
     expect(submittedRow.querySelector('[data-label="Execution Status"]')?.textContent).toContain(
-      'Not available',
+      ' Not Started ',
     );
     expect(
       submittedRow.querySelector('[data-label="Sync State Updated At"]')?.textContent,
